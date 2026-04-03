@@ -1341,6 +1341,10 @@ const filterSheet = document.getElementById('filter-sheet');
 
                 let mixedRec = [...filteredRecDB].sort(() => Math.random() - 0.5);
                 let currentPartnerIndex = 0;
+                let isFirstRecommendRender = true;
+
+                // 트랜지션 준비
+                recommendList.style.transition = 'opacity 0.4s ease-in-out';
 
                 function renderRecommendedPartners() {
                     let recHtml = '';
@@ -1350,40 +1354,52 @@ const filterSheet = document.getElementById('filter-sheet');
                         let stats = getPartnerStats(partner);
                         let badgeHtml = '';
                         if (partner.tier === 'VIP') {
-                            badgeHtml = `<div class="absolute top-1 left-1 z-10 bg-gradient-to-r from-[#D4AF37] to-[#B38D1B] text-[#06110D] text-[9px] font-extrabold px-1.5 py-0.5 rounded opacity-95 tracking-wide shadow-md">VIP</div>`;
+                            badgeHtml = `<div class="absolute top-1.5 left-1.5 z-10 bg-gradient-to-r from-[#D4AF37] to-[#B38D1B] text-[#06110D] text-[10px] font-extrabold px-2 py-0.5 rounded opacity-95 tracking-wide shadow-md">VIP</div>`;
                         } else if (partner.tier === 'Premium') {
-                            badgeHtml = `<div class="absolute top-1 left-1 z-10 bg-[var(--surface-color)] text-[var(--point-color)] border border-[var(--point-color)] text-[9px] font-extrabold px-1.5 py-0.5 rounded opacity-95 tracking-wide shadow-md">Premium</div>`;
+                            badgeHtml = `<div class="absolute top-1.5 left-1.5 z-10 bg-[var(--surface-color)] text-[var(--point-color)] border border-[var(--point-color)] text-[10px] font-extrabold px-2 py-0.5 rounded opacity-95 tracking-wide shadow-md">Premium</div>`;
                         }
 
+                        // 깜빡이는 애니메이션 제거 및 이미지 영역 최대한 (140x145) 확대
                         recHtml += `
-                <div class="card p-4 flex gap-4 mb-4 items-center transition-all duration-500 ease-in-out opacity-0 translate-y-2" style="animation: fadeInUp 0.5s ease forwards;" onclick="openProfile('${partner.name}', '${partner.region} · ${partner.place}', '${partner.id}', ${partner.reviews}, ${partner.rating}, '${partner.massage}', '${partner.place}', '${partner.age}', '${partner.image}')">
-                    <div class="w-[108px] h-[108px] rounded-2xl bg-cover bg-center flex-shrink-0 relative border border-[var(--point-color)]" style="background-image: url('${partner.image}'); filter: grayscale(10%) sepia(10%);">
+                <div class="card p-3.5 flex gap-4 mb-4 items-center" onclick="openProfile('${partner.name}', '${partner.region} · ${partner.place}', '${partner.id}', ${partner.reviews}, ${partner.rating}, '${partner.massage}', '${partner.place}', '${partner.age}', '${partner.image}')">
+                    <div class="w-[140px] h-[145px] rounded-2xl bg-cover bg-center flex-shrink-0 relative border border-[var(--point-color)]" style="background-image: url('${partner.image}'); filter: grayscale(10%) sepia(10%);">
                         ${badgeHtml}
                     </div>
                     <div class="flex-1 py-1">
                         <div class="flex justify-between items-start">
-                            <h3 class="font-bold text-[16px] mb-0.5 tracking-tight" style="color: var(--text-main);">${partner.name}</h3>
+                            <h3 class="font-bold text-[17px] mb-0.5 tracking-tight" style="color: var(--text-main);">${partner.name}</h3>
                         </div>
-                        <p class="text-[13px] mt-0.5" style="color: var(--text-sub);">${partner.region}</p>
-                        <div class="flex flex-wrap gap-1 mt-2">
+                        <p class="text-[13.5px] mt-0.5" style="color: var(--text-sub);">${partner.region}</p>
+                        <div class="flex flex-wrap gap-1 mt-2.5">
                             <span class="text-[11px] px-2 py-0.5 border border-[var(--point-color)] bg-transparent rounded-full text-[var(--point-color)]">#${partner.massage}</span>
                             <span class="text-[11px] px-2 py-0.5 border border-[var(--point-color)] bg-transparent rounded-full text-[var(--point-color)]">#${partner.place}</span>
                             <span class="text-[11px] px-2 py-0.5 border border-[var(--point-color)] bg-transparent rounded-full text-[var(--point-color)]">#${partner.age}</span>
                         </div>
-                        <div class="flex items-center gap-2 mt-2.5 text-[13px]">
+                        <div class="flex items-center gap-2 mt-3 text-[13.5px]">
                             <span class="text-[var(--point-color)] font-bold flex items-center gap-1"><svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path></svg> <span class="partner-rating-badge" data-partner-id="${partner.id}">${stats.rating}</span></span>
                             <span style="color: var(--text-sub);">(리뷰 <span class="partner-reviews-badge" data-partner-id="${partner.id}">${stats.count}</span>)</span>
                         </div>
                     </div>
                 </div>`;
                     }
-                    recommendList.innerHTML = recHtml;
+
+                    if (isFirstRecommendRender) {
+                        recommendList.innerHTML = recHtml;
+                        isFirstRecommendRender = false;
+                    } else {
+                        // 크로스페이드 트랜지션 처리
+                        recommendList.style.opacity = '0';
+                        setTimeout(() => {
+                            recommendList.innerHTML = recHtml;
+                            recommendList.style.opacity = '1';
+                        }, 400); 
+                    }
                 }
 
                 renderRecommendedPartners();
 
                 if (totalPartners > 0) {
-                    // 3초마다 5개씩 순차적으로 다음 업체로 로테이션 (부드러운 통일감을 위해 3000ms로 조정)
+                    // 4초마다 5개씩 순차적으로 다음 업체로 로테이션 (더 길게, 고급스럽게 페이드아웃 적용)
                     recommendInterval = setInterval(() => {
                         currentPartnerIndex = (currentPartnerIndex + 5) % totalPartners;
 
@@ -1393,7 +1409,7 @@ const filterSheet = document.getElementById('filter-sheet');
                         }
 
                         renderRecommendedPartners();
-                    }, 3000);
+                    }, 4000);
                 }
             }
 
