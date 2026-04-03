@@ -1383,7 +1383,7 @@ const filterSheet = document.getElementById('filter-sheet');
                 renderRecommendedPartners();
 
                 if (totalPartners > 0) {
-                    // 2초마다 5개씩 순차적으로 다음 업체로 로테이션
+                    // 3초마다 5개씩 순차적으로 다음 업체로 로테이션 (부드러운 통일감을 위해 3000ms로 조정)
                     recommendInterval = setInterval(() => {
                         currentPartnerIndex = (currentPartnerIndex + 5) % totalPartners;
 
@@ -1393,7 +1393,7 @@ const filterSheet = document.getElementById('filter-sheet');
                         }
 
                         renderRecommendedPartners();
-                    }, 2000);
+                    }, 3000);
                 }
             }
 
@@ -2816,13 +2816,19 @@ const filterSheet = document.getElementById('filter-sheet');
                 let isHovering = false;
                 let currentScroll = 0;
                 let isDraggingCard = false;
+                let lastTime = performance.now();
+                const scrollSpeed = 30; // 초당 이동 픽셀 (주사율 무관하게 부드럽고 균일한 속도 보장)
 
-                function smoothScroll() {
+                function smoothScroll(timestamp) {
+                    if (!timestamp) timestamp = performance.now();
+                    const deltaTime = Math.min(timestamp - lastTime, 50); // 최대 50ms (탭 이동 등의 지연 보정)
+                    lastTime = timestamp;
+
                     if (!isHovering && !isDown && sliderTrack.scrollWidth > sliderWrapper.clientWidth) {
-                        currentScroll += 0.5; // 슬라이드 속도
-                        // 절반(1세트)를 넘어섰으면 다시 0으로 리셋하여 무한 효과
+                        currentScroll += (scrollSpeed * deltaTime) / 1000;
+                        // 절반(1세트)를 넘어섰으면 다시 0으로 리셋하여 무한 효과 (부드러운 연결)
                         if (currentScroll >= sliderTrack.scrollWidth / 2) {
-                            currentScroll = 0;
+                            currentScroll -= sliderTrack.scrollWidth / 2;
                         }
                         sliderWrapper.scrollLeft = currentScroll;
                     } else {
