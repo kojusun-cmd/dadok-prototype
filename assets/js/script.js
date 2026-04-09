@@ -2882,11 +2882,7 @@ const filterSheet = document.getElementById('filter-sheet');
 
                 // 드래그 중 실수로 카드 클릭되는 것 방지
                 sliderWrapper.addEventListener('click', (e) => {
-                    if (isDraggingCard) {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        isDraggingCard = false;
-                    }
+                    // Click interception removed to fix banner click
                 }, true);
 
                 // 터치 기기 충돌 방지

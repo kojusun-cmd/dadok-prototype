@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>다독(Dadok) 관리자 대시보드</title>
+    <!-- Reset & Global Styles -->
+    <link href="./assets/css/index.css" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-firestore-compat.js"></script>
+</head>
+<body class="bg-[#050D0A] text-[#A7B2AE] font-sans antialiased min-h-screen flex">
+    <!-- Sidebar -->
+    <aside class="w-64 bg-[#0A1B13] border-r border-[#2A3731] flex flex-col h-screen sticky top-0">
+        <div class="p-6 border-b border-[#2A3731]">
+            <h1 class="text-2xl font-bold text-[var(--point-color)] tracking-wider">DADOK<br><span class="text-sm font-medium text-white/50">Admin Center</span></h1>
+        </div>
+        <nav class="flex-1 overflow-y-auto py-4">
+            <ul class="space-y-1 px-3">
+                <li><a href="#" onclick="switchTab('dashboard')" class="tab-link active flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-[#11291D] hover:text-white transition-colors">대시보드 홈</a></li>
+                <li><a href="#" onclick="switchTab('users')" class="tab-link flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-[#11291D] hover:text-white transition-colors">회원 관리</a></li>
+                <li><a href="#" onclick="switchTab('shops')" class="tab-link flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-[#11291D] hover:text-white transition-colors">마사지 샵 관리</a></li>
+                <li><a href="#" onclick="switchTab('approvals')" class="tab-link flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-[#11291D] hover:text-white transition-colors">
+                    제휴 파트너 승인 
+                    <span id="pending-badge" class="ml-auto bg-red-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full hidden">0</span>
+                </a></li>
+                <li><a href="#" onclick="switchTab('categories')" class="tab-link flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-[#11291D] hover:text-white transition-colors">앱 카테고리 관리</a></li>
+            </ul>
+        </nav>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 p-8 overflow-y-auto w-full">
+        <!-- Dashboard Tab -->
+        <div id="tab-dashboard" class="tab-content">
+            <h2 class="text-3xl font-bold text-white mb-6">대시보드 개요</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <div class="bg-[#0A1B13] border border-[#2A3731] rounded-2xl p-6 shadow-lg">
+                    <h3 class="text-sm font-medium text-[#A7B2AE] mb-1">총 가입 유저</h3>
+                    <p class="text-4xl font-bold text-white font-mono" id="stat-users">0</p>
+                </div>
+                <div class="bg-[#0A1B13] border border-[#2A3731] rounded-2xl p-6 shadow-lg">
+                    <h3 class="text-sm font-medium text-[#A7B2AE] mb-1">등록된 샵</h3>
+                    <p class="text-4xl font-bold text-[var(--point-color)] font-mono" id="stat-shops">0</p>
+                </div>
+                <div class="bg-[#0A1B13] border border-[#2A3731] rounded-2xl p-6 shadow-lg">
+                    <h3 class="text-sm font-medium text-[#A7B2AE] mb-1">개발 알림 (Discord)</h3>
+                    <button onclick="testDiscordWebhook()" class="mt-2 w-full px-4 py-2 bg-red-900/40 hover:bg-red-800 text-red-200 rounded-lg text-sm transition-colors border border-red-900">에러 시뮬레이션 버튼</button>
+                    <button onclick="generateDummyPartners()" class="mt-2 w-full px-4 py-2 bg-blue-900/40 hover:bg-blue-800 text-blue-200 rounded-lg text-sm transition-colors border border-blue-900">더미 업체/리뷰 생성</button>
+                    <div id="discord-log" class="mt-2 text-xs font-mono text-gray-500 overflow-y-auto h-8 flex items-end">대기 중...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Users Tab -->
+        <div id="tab-users" class="tab-content hidden">
+            <h2 class="text-3xl font-bold text-white mb-6">플랫폼 유저 관리</h2>
+            <div class="bg-[#0A1B13] border border-[#2A3731] rounded-2xl overflow-hidden shadow-lg">
+                <table class="w-full text-left">
+                    <thead class="bg-[#06110D]">
+                        <tr class="border-b border-[#2A3731] text-xs uppercase tracking-wider text-[#A7B2AE]">
+                            <th class="p-4 font-medium">아이디 / 계정</th>
+                            <th class="p-4 font-medium">이름</th>
+                            <th class="p-4 font-medium">전화번호</th>
+                            <th class="p-4 font-medium">가입일시</th>
+                            <th class="p-4 font-medium">상태</th>
+                        </tr>
+                    </thead>
+                    <tbody id="user-table-body" class="divide-y divide-[#2A3731] text-sm text-white/80">
+                        <tr><td colspan="5" class="p-4 text-center">로딩중...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Shops Tab -->
+        <div id="tab-shops" class="tab-content hidden">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-3xl font-bold text-white">마사지 샵(파트너) 관리</h2>
+                <button onclick="openShopModal()" class="px-5 py-2.5 bg-gradient-to-r from-[var(--point-color)] to-[#B59530] text-[#06110D] font-bold rounded-xl hover:brightness-110 active:scale-95 transition-all shadow-[0_4px_12px_rgba(212,175,55,0.2)]">
+                    + 신규 샵 등록
+                </button>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6" id="shop-list-container">
+                <div class="col-span-full py-10 text-center text-[#A7B2AE]">등록된 샵이 없습니다.</div>
+            </div>
+        </div>
+
+        <!-- Approvals Tab -->
+        <div id="tab-approvals" class="tab-content hidden">
+            <h2 class="text-3xl font-bold text-white mb-6">입점 대기 파트너 목록</h2>
+            <div class="bg-[#0A1B13] border border-[#2A3731] rounded-2xl overflow-hidden shadow-lg">
+                <table class="w-full text-left">
+                    <thead class="bg-[#06110D]">
+                        <tr class="border-b border-[#2A3731] text-xs uppercase tracking-wider text-[#A7B2AE]">
+                            <th class="p-4 font-medium">샵 이름(대표자)</th>
+                            <th class="p-4 font-medium">위치/연락처</th>
+                            <th class="p-4 font-medium">단가/옵션</th>
+                            <th class="p-4 font-medium">가입 신청일</th>
+                            <th class="p-4 font-medium">관리</th>
+                        </tr>
+                    </thead>
+                    <tbody id="approvals-table-body" class="divide-y divide-[#2A3731] text-sm text-white/80">
+                        <tr><td colspan="5" class="p-4 text-center">로딩중...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Categories Tab -->
+        <div id="tab-categories" class="tab-content hidden">
+            <div class="flex justify-between items-center mb-6">
+                <div>
+                    <h2 class="text-3xl font-bold text-white">앱 필터 카테고리 관리</h2>
+                    <p class="text-sm text-[#A7B2AE] mt-1">소비자 앱의 조건 검색 필터에 실시간 반영됩니다</p>
+                </div>
+                <button onclick="seedDefaultFilters()" class="px-4 py-2 bg-[#06110D] border border-[#2A3731] text-[#A7B2AE] rounded-xl hover:bg-[#11291D] hover:text-white text-sm transition-all" title="앱에 하드코딩된 기본값을 Firestore에 초기 세팅합니다">
+                    🔄 기본값 동기화
+                </button>
+            </div>
+
+            <!-- Massage Types -->
+            <div class="bg-[#0A1B13] border border-[#2A3731] rounded-2xl p-6 shadow-lg mb-6">
+                <div class="flex justify-between items-center mb-4">
+                    <div class="flex items-center gap-3">
+                        <span class="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500/20 to-purple-600/10 border border-purple-500/30 flex items-center justify-center text-lg">💆</span>
+                        <div>
+                            <h3 class="text-lg font-bold text-white">마사지 종류</h3>
+                            <p class="text-xs text-[#A7B2AE]">FilterConfig.massage — 소비자 앱 "마사지 종류" 필터</p>
+                        </div>
+                    </div>
+                    <button onclick="openFilterOptionModal('massage')" class="px-4 py-2 bg-purple-900/30 border border-purple-500/30 text-purple-300 rounded-xl hover:bg-purple-800/40 text-sm transition-all">+ 옵션 추가</button>
+                </div>
+                <div class="flex flex-wrap gap-3" id="filter-massage-container">
+                    <span class="text-sm text-[#A7B2AE]">로딩중...</span>
+                </div>
+            </div>
+
+            <!-- Place Types -->
+            <div class="bg-[#0A1B13] border border-[#2A3731] rounded-2xl p-6 shadow-lg mb-6">
+                <div class="flex justify-between items-center mb-4">
+                    <div class="flex items-center gap-3">
+                        <span class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500/20 to-blue-600/10 border border-blue-500/30 flex items-center justify-center text-lg">🏠</span>
+                        <div>
+                            <h3 class="text-lg font-bold text-white">공간 형태</h3>
+                            <p class="text-xs text-[#A7B2AE]">FilterConfig.place — 소비자 앱 "공간 형태" 필터</p>
+                        </div>
+                    </div>
+                    <button onclick="openFilterOptionModal('place')" class="px-4 py-2 bg-blue-900/30 border border-blue-500/30 text-blue-300 rounded-xl hover:bg-blue-800/40 text-sm transition-all">+ 옵션 추가</button>
+                </div>
+                <div class="flex flex-wrap gap-3" id="filter-place-container">
+                    <span class="text-sm text-[#A7B2AE]">로딩중...</span>
+                </div>
+            </div>
+
+            <!-- Age Types -->
+            <div class="bg-[#0A1B13] border border-[#2A3731] rounded-2xl p-6 shadow-lg mb-6">
+                <div class="flex justify-between items-center mb-4">
+                    <div class="flex items-center gap-3">
+                        <span class="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500/20 to-amber-600/10 border border-amber-500/30 flex items-center justify-center text-lg">👤</span>
+                        <div>
+                            <h3 class="text-lg font-bold text-white">관리사 연령대</h3>
+                            <p class="text-xs text-[#A7B2AE]">FilterConfig.age — 소비자 앱 "관리사 연령" 필터</p>
+                        </div>
+                    </div>
+                    <button onclick="openFilterOptionModal('age')" class="px-4 py-2 bg-amber-900/30 border border-amber-500/30 text-amber-300 rounded-xl hover:bg-amber-800/40 text-sm transition-all">+ 옵션 추가</button>
+                </div>
+                <div class="flex flex-wrap gap-3" id="filter-age-container">
+                    <span class="text-sm text-[#A7B2AE]">로딩중...</span>
+                </div>
+            </div>
+
+            <!-- Legacy categories (backward compat) -->
+            <div class="bg-[#0A1B13] border border-[#2A3731] rounded-2xl p-6 shadow-lg">
+                <div class="flex justify-between items-center mb-4">
+                    <div class="flex items-center gap-3">
+                        <span class="w-10 h-10 rounded-xl bg-gradient-to-br from-[var(--point-color)]/20 to-[var(--point-color)]/5 border border-[var(--point-color)]/30 flex items-center justify-center text-lg">🏷️</span>
+                        <div>
+                            <h3 class="text-lg font-bold text-white">샵 태그 카테고리</h3>
+                            <p class="text-xs text-[#A7B2AE]">샵 등록 시 매칭하는 태그 (기존 categories 컬렉션)</p>
+                        </div>
+                    </div>
+                    <button onclick="openCategoryModal()" class="px-4 py-2 bg-[#11291D] border border-[var(--point-color)]/30 text-[var(--point-color)] rounded-xl hover:bg-[#183928] text-sm transition-all">+ 태그 추가</button>
+                </div>
+                <div class="flex flex-wrap gap-3" id="category-list-container">
+                    <span class="text-sm text-[#A7B2AE]">로딩중...</span>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modals -->
+    <div id="admin-modal-overlay" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        
+        <!-- Shop Modal -->
+        <div id="modal-shop" class="bg-[#0A1B13] border border-[#2A3731] rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto hidden shadow-2xl">
+            <div class="p-6 border-b border-[#2A3731] flex justify-between items-center sticky top-0 bg-[#0A1B13] z-10">
+                <h3 class="text-xl font-bold text-white tracking-widest" id="shop-modal-title">마사지 샵 데이터 등록/수정</h3>
+                <button type="button" onclick="closeModal('modal-shop')" class="text-gray-400 hover:text-white p-2">✕</button>
+            </div>
+            <form id="shop-form" onsubmit="handleShopSubmit(event)" class="p-6 space-y-5">
+                <input type="hidden" id="shop-id">
+                <div class="grid grid-cols-2 gap-5">
+                    <div>
+                        <label class="block text-sm font-medium text-[#A7B2AE] mb-1">상호명 *</label>
+                        <input type="text" id="shop-name" required class="w-full bg-[#06110D] border border-[#2A3731] rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[var(--point-color)]">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-[#A7B2AE] mb-1">지점명 / 위치 설명</label>
+                        <input type="text" id="shop-location" placeholder="강남역 도보 3분" class="w-full bg-[#06110D] border border-[#2A3731] rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[var(--point-color)]">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-[#A7B2AE] mb-1">대표 이미지 첨부 (자동 업로드)</label>
+                    <input type="file" id="shop-image-file" accept="image/*" onchange="uploadShopImage(event)" class="w-full bg-[#06110D] border border-[#2A3731] rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[var(--point-color)] mb-2">
+                    <label class="block text-sm font-medium text-[#A7B2AE] mb-1">또는 이미지 URL</label>
+                    <input type="url" id="shop-image" placeholder="https://" class="w-full bg-[#06110D] border border-[#2A3731] rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[var(--point-color)]">
+                    <p id="shop-image-progress" class="text-xs text-[var(--point-color)] mt-1 hidden">업로드 대기 중...</p>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-[#A7B2AE] mb-1">앱 카테고리 태그 매칭</label>
+                    <div id="shop-category-checkboxes" class="flex flex-wrap gap-2 mt-2"></div>
+                </div>
+                <div class="grid grid-cols-3 gap-5">
+                    <div>
+                        <label class="block text-sm font-medium text-[#A7B2AE] mb-1">대표 최저가</label>
+                        <input type="number" id="shop-price" required class="w-full bg-[#06110D] border border-[#2A3731] rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[var(--point-color)]">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-[#A7B2AE] mb-1">평점 별점</label>
+                        <input type="number" step="0.1" id="shop-rating" value="0.0" class="w-full bg-[#06110D] border border-[#2A3731] rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[var(--point-color)]">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-[#A7B2AE] mb-1">리뷰 수</label>
+                        <input type="number" id="shop-reviews" value="0" class="w-full bg-[#06110D] border border-[#2A3731] rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[var(--point-color)]">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-[#A7B2AE] mb-1">부가 해시태그 (수면가, 무료주차 등)</label>
+                    <input type="text" id="shop-tags" placeholder="쉼표(,)로 구분" class="w-full bg-[#06110D] border border-[#2A3731] rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[var(--point-color)]">
+                </div>
+                <div class="pt-4 border-t border-[#2A3731] flex justify-end gap-3">
+                    <button type="button" onclick="closeModal('modal-shop')" class="px-5 py-2.5 bg-[#06110D] border border-[#2A3731] text-white rounded-xl">취소</button>
+                    <button type="submit" class="px-5 py-2.5 bg-gradient-to-r from-[var(--point-color)] to-[#B59530] text-[#06110D] font-bold rounded-xl">데이터베이스에 등록</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Category Modal -->
+        <div id="modal-category" class="bg-[#0A1B13] border border-[#2A3731] rounded-2xl w-full max-w-md hidden shadow-2xl">
+            <div class="p-6 border-b border-[#2A3731] flex justify-between items-center">
+                <h3 class="text-xl font-bold text-white">카테고리(태그) 추가</h3>
+                <button type="button" onclick="closeModal('modal-category')" class="text-gray-400 hover:text-[var(--point-color)] p-2">✕</button>
+            </div>
+            <form id="category-form" onsubmit="handleCategorySubmit(event)" class="p-6 space-y-5">
+                <div>
+                    <label class="block text-sm font-medium text-[#A7B2AE] mb-1">카테고리명 *</label>
+                    <input type="text" id="category-name" required placeholder="예: 스웨디시" class="w-full bg-[#06110D] border border-[#2A3731] rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[var(--point-color)]">
+                </div>
+                <div class="pt-4 flex justify-end gap-3">
+                    <button type="button" onclick="closeModal('modal-category')" class="px-5 py-2.5 bg-[#06110D] border border-[#2A3731] text-white rounded-xl">취소</button>
+                    <button type="submit" class="px-5 py-2.5 bg-[var(--point-color)] text-[#06110D] font-bold rounded-xl">추가</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Filter Option Modal -->
+        <div id="modal-filter-option" class="bg-[#0A1B13] border border-[#2A3731] rounded-2xl w-full max-w-md hidden shadow-2xl">
+            <div class="p-6 border-b border-[#2A3731] flex justify-between items-center">
+                <h3 class="text-xl font-bold text-white" id="filter-modal-title">필터 옵션 추가</h3>
+                <button type="button" onclick="closeModal('modal-filter-option')" class="text-gray-400 hover:text-[var(--point-color)] p-2">✕</button>
+            </div>
+            <form id="filter-option-form" onsubmit="handleFilterOptionSubmit(event)" class="p-6 space-y-5">
+                <input type="hidden" id="filter-option-key">
+                <div>
+                    <label class="block text-sm font-medium text-[#A7B2AE] mb-1">옵션명 *</label>
+                    <input type="text" id="filter-option-name" required placeholder="예: 아로마 마사지" class="w-full bg-[#06110D] border border-[#2A3731] rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[var(--point-color)]">
+                </div>
+                <p class="text-xs text-[#A7B2AE]">추가 후 소비자 앱의 필터 목록에 즉시 반영됩니다.</p>
+                <div class="pt-4 flex justify-end gap-3">
+                    <button type="button" onclick="closeModal('modal-filter-option')" class="px-5 py-2.5 bg-[#06110D] border border-[#2A3731] text-white rounded-xl">취소</button>
+                    <button type="submit" class="px-5 py-2.5 bg-[var(--point-color)] text-[#06110D] font-bold rounded-xl">추가</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="./assets/js/admin.js"></script>
+    <style>
+        .tab-link.active { background-color: #11291D; color: white; border-left: 3px solid var(--point-color); }
+    </style>
+</body>
+</html>
