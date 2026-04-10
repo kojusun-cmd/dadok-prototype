@@ -1,13 +1,10 @@
 {
-  "editor.formatOnSave": true,
-  "editor.defaultFormatter": "esbenp.prettier-vscode",
-  "[html]": {
-    "editor.defaultFormatter": "esbenp.prettier-vscode"
-  },
-  "[javascript]": {
-    "editor.defaultFormatter": "esbenp.prettier-vscode"
-  },
-  "editor.codeActionsOnSave": {
-    "source.fixAll": "explicit"
+  "editor.formatOnSave": false,
+  "workbench.editorAssociations": {
+    "*.png": "imagePreview.previewEditor",
+    "*.jpg": "imagePreview.previewEditor",
+    "*.jpeg": "imagePreview.previewEditor",
+    "*.gif": "imagePreview.previewEditor",
+    "*.webp": "imagePreview.previewEditor"
   }
 }

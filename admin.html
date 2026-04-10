@@ -11,7 +11,21 @@
     <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-firestore-compat.js"></script>
 </head>
-<body class="bg-[#050D0A] text-[#A7B2AE] font-sans antialiased min-h-screen flex">
+<body class="bg-[#050D0A] text-[#A7B2AE] font-sans antialiased min-h-screen">
+    
+    <!-- Auth Overlay -->
+    <div id="auth-overlay" class="fixed inset-0 bg-[#050D0A] z-[100] flex flex-col items-center justify-center p-4">
+        <div class="bg-[#0A1B13] border border-[#2A3731] rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl">
+            <h1 class="text-3xl font-bold text-[var(--point-color)] tracking-wider mb-2">DADOK</h1>
+            <p class="text-sm text-[#A7B2AE] mb-8">안전한 로그인이 필요한 관리자 콘솔입니다.</p>
+            <button onclick="adminLogin()" class="w-full px-5 py-3.5 bg-gradient-to-r from-[var(--point-color)] to-[#B59530] text-[#06110D] font-bold rounded-xl hover:brightness-110 active:scale-95 transition-all shadow-[0_4px_12px_rgba(212,175,55,0.2)]">
+                보안 관리자 구글 로그인
+            </button>
+        </div>
+    </div>
+
+    <!-- Main App Container (Hidden until auth) -->
+    <div id="main-app" class="flex min-h-screen w-full hidden">
     <!-- Sidebar -->
     <aside class="w-64 bg-[#0A1B13] border-r border-[#2A3731] flex flex-col h-screen sticky top-0">
         <div class="p-6 border-b border-[#2A3731]">
@@ -29,6 +43,20 @@
                 <li><a href="#" onclick="switchTab('categories')" class="tab-link flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-[#11291D] hover:text-white transition-colors">앱 카테고리 관리</a></li>
             </ul>
         </nav>
+        
+        <!-- Auth Profile / Login / Logout -->
+        <div class="p-4 border-t border-[#2A3731] flex flex-col gap-3">
+            <div id="admin-user-info" class="flex flex-col gap-1 hidden">
+                <span class="text-sm font-semibold text-white truncate" id="admin-user-email">admin@test.com</span>
+                <span class="text-[10px] text-[var(--point-color)] font-mono">관리자 권한</span>
+            </div>
+            <button id="admin-login-btn" onclick="adminLogin()" class="w-full px-4 py-2 bg-[var(--point-color)]/20 hover:bg-[var(--point-color)]/40 text-[var(--point-color)] font-medium rounded-lg text-sm transition-colors border border-[var(--point-color)]">
+                어드민 로그인
+            </button>
+            <button id="admin-logout-btn" onclick="adminLogout()" class="w-full px-4 py-2.5 bg-red-900/40 hover:bg-red-800 text-red-200 font-medium rounded-lg text-sm transition-colors border border-red-900 hidden">
+                로그아웃
+            </button>
+        </div>
     </aside>
 
     <!-- Main Content -->
@@ -49,6 +77,7 @@
                     <h3 class="text-sm font-medium text-[#A7B2AE] mb-1">개발 알림 (Discord)</h3>
                     <button onclick="testDiscordWebhook()" class="mt-2 w-full px-4 py-2 bg-red-900/40 hover:bg-red-800 text-red-200 rounded-lg text-sm transition-colors border border-red-900">에러 시뮬레이션 버튼</button>
                     <button onclick="generateDummyPartners()" class="mt-2 w-full px-4 py-2 bg-blue-900/40 hover:bg-blue-800 text-blue-200 rounded-lg text-sm transition-colors border border-blue-900">더미 업체/리뷰 생성</button>
+                    <button onclick="deleteAllPartners()" class="mt-2 w-full px-4 py-2 bg-[#06110D] hover:bg-red-900/40 text-gray-400 hover:text-red-200 rounded-lg text-sm transition-colors border border-[#2A3731] hover:border-red-900">업체 데이터 전체 초기화</button>
                     <div id="discord-log" class="mt-2 text-xs font-mono text-gray-500 overflow-y-auto h-8 flex items-end">대기 중...</div>
                 </div>
             </div>
@@ -83,8 +112,21 @@
                     + 신규 샵 등록
                 </button>
             </div>
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6" id="shop-list-container">
-                <div class="col-span-full py-10 text-center text-[#A7B2AE]">등록된 샵이 없습니다.</div>
+            <div class="bg-[#0A1B13] border border-[#2A3731] rounded-2xl overflow-hidden shadow-lg">
+                <table class="w-full text-left">
+                    <thead class="bg-[#06110D]">
+                        <tr class="border-b border-[#2A3731] text-xs uppercase tracking-wider text-[#A7B2AE]">
+                            <th class="p-4 font-medium">업체명 (분류)</th>
+                            <th class="p-4 font-medium">주소 / 위치</th>
+                            <th class="p-4 font-medium">입점권 상태</th>
+                            <th class="p-4 font-medium">등록일자</th>
+                            <th class="p-4 font-medium">상태 / 제어</th>
+                        </tr>
+                    </thead>
+                    <tbody id="shop-list-container" class="divide-y divide-[#2A3731] text-sm text-white/80">
+                        <tr><td colspan="5" class="p-4 text-center">로딩중...</td></tr>
+                    </tbody>
+                </table>
             </div>
         </div>
 
@@ -97,7 +139,7 @@
                         <tr class="border-b border-[#2A3731] text-xs uppercase tracking-wider text-[#A7B2AE]">
                             <th class="p-4 font-medium">샵 이름(대표자)</th>
                             <th class="p-4 font-medium">위치/연락처</th>
-                            <th class="p-4 font-medium">단가/옵션</th>
+                            <th class="p-4 font-medium">입점 요금제/유형</th>
                             <th class="p-4 font-medium">가입 신청일</th>
                             <th class="p-4 font-medium">관리</th>
                         </tr>
@@ -223,18 +265,18 @@
                     <label class="block text-sm font-medium text-[#A7B2AE] mb-1">앱 카테고리 태그 매칭</label>
                     <div id="shop-category-checkboxes" class="flex flex-wrap gap-2 mt-2"></div>
                 </div>
-                <div class="grid grid-cols-3 gap-5">
+                <div class="grid grid-cols-2 gap-5">
                     <div>
-                        <label class="block text-sm font-medium text-[#A7B2AE] mb-1">대표 최저가</label>
-                        <input type="number" id="shop-price" required class="w-full bg-[#06110D] border border-[#2A3731] rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[var(--point-color)]">
+                        <label class="block text-sm font-medium text-[#A7B2AE] mb-1">입점권 보유 (뱃지)</label>
+                        <select id="shop-ticket-type" class="w-full bg-[#06110D] border border-[#2A3731] rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[var(--point-color)]">
+                            <option value="">일반 파트너 (뱃지 없음)</option>
+                            <option value="프리미엄 입점">👑 프리미엄 파트너</option>
+                            <option value="스페셜 입점">✨ 스페셜 제휴점</option>
+                        </select>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-[#A7B2AE] mb-1">평점 별점</label>
-                        <input type="number" step="0.1" id="shop-rating" value="0.0" class="w-full bg-[#06110D] border border-[#2A3731] rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[var(--point-color)]">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-[#A7B2AE] mb-1">리뷰 수</label>
-                        <input type="number" id="shop-reviews" value="0" class="w-full bg-[#06110D] border border-[#2A3731] rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[var(--point-color)]">
+                        <label class="block text-sm font-medium text-[#A7B2AE] mb-1">입점권 만료일</label>
+                        <input type="date" id="shop-ticket-expiry" class="w-full bg-[#06110D] border border-[#2A3731] rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[var(--point-color)]">
                     </div>
                 </div>
                 <div>
@@ -287,6 +329,7 @@
         </div>
     </div>
 
+    </div>
     <!-- Scripts -->
     <script src="./assets/js/admin.js"></script>
     <style>

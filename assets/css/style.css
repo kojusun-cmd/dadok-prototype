@@ -68,9 +68,10 @@
 
         /* 필터 칩 스타일 */
         .chip {
-            background-color: var(--surface-color);
-            border: 1px solid var(--accent-color);
-            /* 무광 샴페인 골드 */
+            background-color: rgba(18, 43, 30, 0.6);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--point-color); /* 노란색(골드) 테두리 일괄 적용 */
             color: var(--text-main);
             padding: 10px 14px;
             border-radius: 30px;
@@ -82,7 +83,7 @@
             align-items: center;
             justify-content: center;
             gap: 6px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.03);
         }
 
         .chip:active {
@@ -103,11 +104,11 @@
             background-color: var(--surface-color);
             border-radius: 20px;
             overflow: hidden;
-            border: 1px solid var(--accent-color);
-            /* 무광 샴페인 골드 */
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            /* 은은한 밝은 테두리로 입체감 */
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.03);
             cursor: pointer;
-            transition: transform 0.2s;
+            transition: transform 0.2s, box-shadow 0.2s;
         }
 
         .card:active {
@@ -175,9 +176,14 @@
             transform: translateX(-50%) translateY(100%);
             width: 100%;
             max-width: 480px;
-            background-color: var(--surface-color);
+            background-color: rgba(16, 38, 26, 0.88); /* 배경 명도 상향 및 투명도 */
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-top: 1px solid rgba(255, 255, 255, 0.1); /* 엘리베이션 강조명암 */
+            border-left: 1px solid rgba(255, 255, 255, 0.05);
+            border-right: 1px solid rgba(255, 255, 255, 0.05);
             border-radius: 24px 24px 0 0;
-            box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.15);
+            box-shadow: 0 -15px 40px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.08); /* 딥 쉐도우 */
             z-index: 50;
             transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
             display: flex;
@@ -205,6 +211,8 @@
             display: flex;
             flex-direction: column;
             border-radius: 0;
+            border-left: 1px solid rgba(255, 255, 255, 0.08); /* 사이드 뷰 엘리베이션 띠 */
+            box-shadow: -10px 0 30px rgba(0, 0, 0, 0.5);
             opacity: 0;
             /* PC 화면에서 뷰포트 우측 공간에 스탠바이 중일 때 보이지 않도록 함 */
             pointer-events: none;
@@ -302,13 +310,13 @@
 
         /* 지역 선택 특화 스타일 (아코디언 형태) */
         .region-group-title {
-            background: var(--bg-color);
-            /* 배경색 일치 */
+            background: transparent;
+            /* 배경색 상속 (블러) */
             padding: 14px 0;
             font-size: 17.5px;
             font-weight: 700;
             color: var(--point-color);
-            border-bottom: 1px solid var(--border-color);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
             margin-top: 4px;
         }
 

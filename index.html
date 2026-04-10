@@ -23,6 +23,24 @@
             }
         }
     </script>
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-firestore-compat.js"></script>
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyAY7VmMHV333Bi7zTgnJshIRAFWnBWn6BU",
+            authDomain: "dadok-app.firebaseapp.com",
+            projectId: "dadok-app",
+            storageBucket: "dadok-app.firebasestorage.app",
+            messagingSenderId: "702510138781",
+            appId: "1:702510138781:web:fbfcfc29a8de5d3da35b74"
+        };
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
+        const db = firebase.firestore();
+    </script>
+
     <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@300;400;500;600;700&display=swap"
         rel="stylesheet">
     <link rel="stylesheet" href="assets/css/style.css">
@@ -70,7 +88,7 @@
 
                 <!-- Filters (Sticky Horizontal Bar) -->
                 <div class="px-5 pb-4">
-                    <button onclick="document.getElementById('filter-options-container').classList.toggle('hidden')"
+                    <button id="filter-toggle-btn" onclick="toggleFilterContainer(event)"
                         class="w-full flex items-center justify-center gap-2 py-4 mb-2 bg-[var(--point-color)] text-[#06110D] rounded-xl font-bold text-[16px] shadow-[0_4px_12px_rgba(212,175,55,0.3)] hover:opacity-90 active:scale-[0.98] transition-all">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -81,7 +99,7 @@
                     </button>
                     <div id="active-filters-summary" class="flex flex-wrap gap-2 mt-2 empty:hidden"></div>
 
-                    <div id="filter-options-container" class="hidden grid grid-cols-2 gap-3 mt-3">
+                    <div id="filter-options-container" class="hidden grid grid-cols-2 gap-3 mt-3 border border-[var(--point-color)] rounded-xl p-4 bg-transparent">
                         <button class="chip w-full justify-center py-3" onclick="openFilter('region')" id="chip-region">
                             <span class="text-[22px] flex-shrink-0">📍</span> <span id="val-region"
                                 class="truncate text-[17.5px] font-medium">지역 선택</span>

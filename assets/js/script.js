@@ -1,4 +1,4 @@
-document.addEventListener('DOMContentLoaded', () => {
+// removed DOMContentLoaded wrapper
                                 const regionData = {
                                     '서울': ['전체', '강남/서초', '송파/강동', '영등포/구로/금천', '강서/양천', '마포/서대문/은평', '용산/중구/종로', '성동/광진', '동대문/중랑', '노원/도봉/강북', '기타'],
                                     '경기': ['전체', '수원', '성남(분당)', '고양(일산)', '용인', '부천', '안산', '안양/과천', '화성(동탄)', '평택', '의정부', '파주', '시흥', '김포', '광명', '광주', '구리/남양주', '기타'],
@@ -169,9 +169,8 @@ document.addEventListener('DOMContentLoaded', () => {
                                 }
 
                                 setupCategory('massage', ['상관없음(전체)', '스웨디시', '스포츠 마사지', '타이 마사지', '커플 마사지 (참관)'], ['스웨디시']);
-                                setupCategory('space', ['상관없음(전체)', '프라이빗 방문 (홈케어/출장)', '프라이빗 1인샵 (매장 방문)', '스탠다드 다인샵 (일반 매장)'], ['상관없음(전체)']);
+                                setupCategory('space', ['상관없음(전체)', '방문 (홈케어/출장)', '1인샵 (매장 방문)', '다인샵 (일반 매장)'], ['상관없음(전체)']);
                                 setupCategory('age', ['연령 무관 (전체)', '20대 초반', '20대 중후반', '30대 초반', '30대 중후반', '40대 초반', '40대 중후반'], ['연령 무관 (전체)']);
-                            });
 
 const filterSheet = document.getElementById('filter-sheet');
             const profileSheet = document.getElementById('profile-sheet');
@@ -210,7 +209,7 @@ const filterSheet = document.getElementById('filter-sheet');
                 'place': {
                     title: '휴식 공간 형태',
                     type: 'list',
-                    options: ['상관없음(전체)', '프라이빗 방문 (홈케어/출장)', '프라이빗 1인샵 (매장 방문)', '스탠다드 다인샵 (일반 매장)']
+                    options: ['상관없음(전체)', '방문 (홈케어/출장)', '1인샵 (매장 방문)', '다인샵 (일반 매장)']
                 },
                 'age': {
                     title: '선호하는 관리사 연령대',
@@ -233,6 +232,56 @@ const filterSheet = document.getElementById('filter-sheet');
             let filteredChoiceDB = [];
             let filteredRecDB = [];
 
+            function toggleFilterContainer(e) {
+                if (e) e.preventDefault();
+                const container = document.getElementById('filter-options-container');
+                const btn = document.getElementById('filter-toggle-btn');
+                if (!container || !btn) return;
+                
+                const isHidden = container.classList.contains('hidden');
+                
+                const filterIconSvg = `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"></path></svg>`;
+                const closeIconSvg = `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"></path></svg>`;
+
+                if (isHidden) {
+                    container.classList.remove('hidden');
+                    btn.style.opacity = '0.9';
+                    btn.innerHTML = `${closeIconSvg} 상세검색 접기`;
+                    
+                    // 배경(외부) 클릭 시 닫기
+                    setTimeout(() => {
+                        document.addEventListener('click', closeFilterContainerOutside);
+                    }, 0);
+                } else {
+                    container.classList.add('hidden');
+                    btn.style.opacity = '1';
+                    btn.innerHTML = `${filterIconSvg} 조건 상세 검색`;
+                    
+                    document.removeEventListener('click', closeFilterContainerOutside);
+                }
+            }
+
+            function closeFilterContainerOutside(e) {
+                const container = document.getElementById('filter-options-container');
+                const btn = document.getElementById('filter-toggle-btn');
+                
+                if (container && !container.classList.contains('hidden') && btn) {
+                    if (!container.contains(e.target) && !btn.contains(e.target)) {
+                        // 모달 내 셀렉트박스나 다른 모달(지역/마사지 등)을 클릭했을 때의 예외 처리
+                        // (만약 추가적인 하위 모달 클릭 시 닫히면 안 될 경우 e.target 의 closest 검사 추가 가능)
+                        if (e.target.closest('.bottom-sheet') || e.target.closest('#filter-modal')) {
+                            return; 
+                        }
+
+                        container.classList.add('hidden');
+                        btn.style.opacity = '1';
+                        const filterIconSvg = `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"></path></svg>`;
+                        btn.innerHTML = `${filterIconSvg} 조건 상세 검색`;
+                        document.removeEventListener('click', closeFilterContainerOutside);
+                    }
+                }
+            }
+
             function openFilter(key) {
                 currentFilterKey = key;
 
@@ -244,8 +293,8 @@ const filterSheet = document.getElementById('filter-sheet');
                 filterOptionsDiv.innerHTML = '';
                 filterOptionsDiv.scrollTop = 0; // 스크롤 초기화
 
-                const searchBtnHtml = `
-            <div class="sticky bottom-0 w-full mt-2 pt-4 pb-4 bg-[var(--bg-color)] z-20" style="margin-bottom: -1.5rem; box-shadow: 0 -10px 15px -10px var(--bg-color);">
+            const searchBtnHtml = `
+            <div class="sticky bottom-0 w-full mt-2 pt-4 pb-4 z-20" style="margin-bottom: -1.5rem;">
                 <button onclick="executeFilterSearch()" class="w-full py-[18px] rounded-2xl font-bold text-[18px] text-[#06110D] shadow-[0_4px_15px_rgba(212,175,55,0.3)] hover:brightness-110 active:scale-95 transition-all" style="background: var(--point-color);">검색 결과 보기</button>
             </div>
         `;
@@ -383,9 +432,9 @@ const filterSheet = document.getElementById('filter-sheet');
             let chatOpenedFromModal = false;
             let profileOpenedFromFavorites = false;
 
-            function openProfileFromFavorites(name, desc, id, reviews, rating, massage, place, age, image) {
+            function openProfileFromFavorites(name, desc, id, reviews, rating, massage, place, age, image, ticketType, ticketExpiry) {
                 profileOpenedFromFavorites = true;
-                openProfile(name, desc, id, reviews, rating, massage, place, age, image);
+                openProfile(name, desc, id, reviews, rating, massage, place, age, image, ticketType, ticketExpiry);
 
                 setTimeout(() => {
                     document.getElementById('profile-sheet').style.zIndex = '240';
@@ -415,7 +464,7 @@ const filterSheet = document.getElementById('filter-sheet');
                 }
             };
 
-            function openProfile(name, desc, id, reviews, rating, massage, place, age, image) {
+            function openProfile(name, desc, id, reviews, rating, massage, place, age, image, ticketType, ticketExpiry) {
                 // [수정] 프로필 열릴 때 조회수 업데이트
                 window.partnerDashboardStats.totalVisitors++;
                 window.partnerDashboardStats.todayVisitors++;
@@ -429,7 +478,7 @@ const filterSheet = document.getElementById('filter-sheet');
                         currentPartner = { name, desc, id, reviews, rating, image, menus: [], tags: [] };
                     }
                 } else {
-                    currentPartner = { name, desc, id, reviews, rating, massage, place, age, image };
+                    currentPartner = { name, desc, id, reviews, rating, massage, place, age, image, ticketType, ticketExpiry };
                 }
 
                 document.getElementById('profile-name').innerText = currentPartner.name;
@@ -442,13 +491,13 @@ const filterSheet = document.getElementById('filter-sheet');
                 if (tagsContainer) {
                     if (currentPartner.tags && currentPartner.tags.length > 0) {
                         tagsContainer.innerHTML = currentPartner.tags.map(tag =>
-                            `<span class="bg-transparent border border-[var(--point-color)] text-[var(--point-color)] px-3 py-1.5 rounded-full text-sm font-medium">#${tag}</span>`
+                            `<span class="bg-transparent border border-[var(--point-color)] text-[var(--point-color)] px-3 py-1.5 rounded-full text-sm font-medium">${tag}</span>`
                         ).join('');
                     } else if (currentPartner.massage && currentPartner.place && currentPartner.age) {
                         tagsContainer.innerHTML = `
-                    <span class="bg-transparent border border-[var(--point-color)] text-[var(--point-color)] px-3 py-1.5 rounded-full text-sm font-medium">#${currentPartner.massage}</span>
-                    <span class="bg-transparent border border-[var(--point-color)] text-[var(--point-color)] px-3 py-1.5 rounded-full text-sm font-medium">#${currentPartner.place}</span>
-                    <span class="bg-transparent border border-[var(--point-color)] text-[var(--point-color)] px-3 py-1.5 rounded-full text-sm font-medium">#${currentPartner.age}</span>
+                    <span class="bg-transparent border border-[var(--point-color)] text-[var(--point-color)] px-3 py-1.5 rounded-full text-sm font-medium">${currentPartner.massage}</span>
+                    <span class="bg-transparent border border-[var(--point-color)] text-[var(--point-color)] px-3 py-1.5 rounded-full text-sm font-medium">${currentPartner.place}</span>
+                    <span class="bg-transparent border border-[var(--point-color)] text-[var(--point-color)] px-3 py-1.5 rounded-full text-sm font-medium">${currentPartner.age}</span>
                 `;
                     } else {
                         tagsContainer.innerHTML = '';
@@ -538,11 +587,27 @@ const filterSheet = document.getElementById('filter-sheet');
                 document.body.style.overflow = 'hidden';
             }
 
-            // --- 50개 파트너 데이터 생성 (랜덤 조합) ---
-            const DB_CHOICE = [];
-            const DB_RECOMMEND = [];
+            // --- 파트너 실시간 동기화 배열 ---
+            let DB_CHOICE = [];
+            let DB_RECOMMEND = [];
 
             // 업체 통계 헬퍼 함수
+            // 랜덤 상세 조건 선택 함수
+            function getRandomCondition(tagData, fallback) {
+                if (!tagData) return fallback;
+                if (Array.isArray(tagData)) {
+                    if (tagData.length === 0) return fallback;
+                    return tagData[Math.floor(Math.random() * tagData.length)].trim();
+                }
+                if (typeof tagData === 'string') {
+                    const parts = tagData.split(',').map(s => s.trim()).filter(s => s.length > 0);
+                    if (parts.length > 0) {
+                        return parts[Math.floor(Math.random() * parts.length)];
+                    }
+                }
+                return tagData;
+            }
+
             function getPartnerStats(partner) {
                 window.partnerCustomReviews = window.partnerCustomReviews || {};
                 let cArr = window.partnerCustomReviews[partner.id] || [];
@@ -556,73 +621,171 @@ const filterSheet = document.getElementById('filter-sheet');
                 return { count: totCount, rating: avgRating.toFixed(1) };
             }
 
-            // 유효 지역 리스트 생성 ('전체', '기타' 제외)
-            let validRegions = [];
-            RegionData.forEach(g => {
-                g.cities.forEach(c => {
-                    if (c !== '전체' && c !== '기타') validRegions.push(g.prov + ' ' + c);
+            // Firebase 실시간 연동 (onSnapshot)
+            if (typeof db !== 'undefined') {
+                db.collection("partners").onSnapshot((snapshot) => {
+                    let fetchedChoice = [];
+                    let fetchedRecommend = [];
+                    let index = 0;
+                    
+                    snapshot.forEach((doc) => {
+                        let data = doc.data();
+                        
+                        let rawPlace = getRandomCondition(data.place, '1인샵 (매장)');
+                        let cleanPlace = rawPlace.replace('프라이빗 방문', '방문').replace('프라이빗 1인샵', '1인샵').replace('스탠다드 다인샵', '다인샵');
+
+                        let appPartner = {
+                            id: doc.id,
+                            name: data.name || '무명 업체',
+                            region: getRandomCondition(data.region, '서울 강남/서초'),
+                            massage: getRandomCondition(data.massage, (index % 2 === 0 ? '스웨디시' : '타이 마사지')),
+                            place: cleanPlace,
+                            age: getRandomCondition(data.age, '20대 초반'),
+                            rating: data.rating?.toString() || (Math.random() * 0.5 + 4.5).toFixed(1),
+                            ticketType: data.ticketType || '일반 입점',
+                            ticketExpiry: data.ticketExpiry || '',
+                            reviews: data.reviews || Math.floor(Math.random() * 80) + 12,
+                            image: data.image || `https://picsum.photos/seed/dadok_${index}/400/400`,
+                            menus: data.pricing || [],
+                            desc: data.description || '여성을 위한 프라이빗 라운지',
+                            tier: data.tier || 'Premium'
+                        };
+
+                        // 파티셔닝
+                        if (appPartner.tier === 'VIP') {
+                            fetchedChoice.push(appPartner);
+                        } else {
+                            fetchedRecommend.push(appPartner);
+                        }
+                        index++;
+                    });
+                    // 파이어베이스 데이터가 부족할 경우 실제 DB에 데이터를 바로 추가 (1회성 동작)
+                    if (fetchedChoice.length + fetchedRecommend.length < 50) {
+                        console.log("DB에 데이터가 부족하여 실제 DB에 데이터를 자동으로 채워넣습니다...");
+                        const areas = ['서울 강남/서초', '서울 마포/서대문/은평', '경기 성남(분당)', '경기 수원', '인천 연수(송도)', '부산 해운대/수영', '제주 공항/노형'];
+                        const msgs = ['스웨디시', '스포츠 마사지', '타이 마사지', '아로마 테라피', '로미로미'];
+                        const plcs = ['방문 (홈케어/출장)', '1인샵 (매장 방문)', '다인샵 (일반 매장)'];
+                        const ages = ['20대 초반', '20대 중후반', '30대 초반', '30대 중후반'];
+                        const imgs = [
+                            'https://images.unsplash.com/photo-1600334089648-b0d9d3028fb2?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3wxMTc3M3wwfDF8c2VhcmNofDV8fHNwYXxlbnwwfHx8fDE3MTI4MjQ4MzZ8MA&ixlib=rb-4.0.3&q=80&w=400',
+                            'https://images.unsplash.com/photo-1544161515-4ab6ce6db874?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3wxMTc3M3wwfDF8c2VhcmNofDd8fHNwYXxlbnwwfHx8fDE3MTI4MjQ4MzZ8MA&ixlib=rb-4.0.3&q=80&w=400',
+                            'https://images.unsplash.com/photo-1540555700478-4be289fbecef?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3wxMTc3M3wwfDF8c2VhcmNofDEyfHxzcGF8ZW58MHx8fHwxNzEyODI0ODM2fDA&ixlib=rb-4.0.3&q=80&w=400',
+                            'https://images.unsplash.com/photo-1519824145371-296894a0daa9?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3wxMTc3M3wwfDF8c2VhcmNofDExfHxzcGF8ZW58MHx8fHwxNzEyODI0ODM2fDA&ixlib=rb-4.0.3&q=80&w=400',
+                            'https://images.unsplash.com/photo-1515377905703-c4788e51af15?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3wxMTc3M3wwfDF8c2VhcmNofDE4fHxzcGF8ZW58MHx8fHwxNzEyODI0ODk0fDA&ixlib=rb-4.0.3&q=80&w=400'
+                        ];
+
+                        const batch = db.batch();
+                        let currentCount = fetchedChoice.length + fetchedRecommend.length;
+                        let ops = 0;
+                        for (let i = currentCount; i < 50; i++) {
+                            let isVip = i < 15;
+                            let docId = `mock_${new Date().getTime()}_${i}`;
+                            let ref = db.collection("partners").doc(docId);
+                            
+                            let partnerData = {
+                                name: `프리미엄 힐링케어 ${i+1}호점`,
+                                region: areas[i % areas.length],
+                                massage: msgs[i % msgs.length],
+                                place: plcs[i % plcs.length],
+                                age: ages[i % ages.length],
+                                rating: (Math.random() * 0.5 + 4.5).toFixed(1),
+                                reviews: Math.floor(Math.random() * 80) + 12,
+                                image: imgs[i % imgs.length],
+                                ticketType: isVip ? '로얄 VIP권' : '스탠다드 입점권',
+                                ticketExpiry: '2026-12-31',
+                                menus: [
+                                    { name: 'A 코스', theme: '스웨디시 & 스포츠 케어', desc: '건식 및 소프트 아로마 60분', price: '100000' },
+                                    { name: 'B 코스', theme: '시그니처 테라피', desc: '프리미엄 90분', price: '140000' }
+                                ],
+                                description: '도심 속 완벽한 휴식을 선사합니다.',
+                                tier: isVip ? 'VIP' : 'Premium',
+                                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                            };
+
+                            // 실제 DB 전송용 Batch 세팅
+                            batch.set(ref, partnerData);
+
+                            // 화면 즉각 렌더링을 위한 임시 배열 Push
+                            let rawPlaceMock = getRandomCondition(partnerData.place, '1인샵 (매장)');
+                            let cleanPlaceMock = rawPlaceMock.replace('프라이빗 방문', '방문').replace('프라이빗 1인샵', '1인샵').replace('스탠다드 다인샵', '다인샵');
+
+                            let appPartner = {
+                                id: docId,
+                                name: partnerData.name,
+                                region: getRandomCondition(partnerData.region, '서울 강남/서초'),
+                                massage: getRandomCondition(partnerData.massage, '스웨디시'),
+                                place: cleanPlaceMock,
+                                age: getRandomCondition(partnerData.age, '20대 초반'),
+                                rating: partnerData.rating,
+                                reviews: partnerData.reviews,
+                                image: partnerData.image,
+                                ticketType: partnerData.ticketType,
+                                ticketExpiry: partnerData.ticketExpiry,
+                                menus: partnerData.menus,
+                                desc: partnerData.description,
+                                tier: partnerData.tier
+                            };
+                            
+                            if (isVip) {
+                                fetchedChoice.push(appPartner);
+                            } else {
+                                fetchedRecommend.push(appPartner);
+                            }
+                            
+                            ops++;
+                        }
+                        if (ops > 0) {
+                            batch.commit().then(() => {
+                                console.log(`Successfully added ${ops} mock partners to real database!`);
+                            }).catch(err => {
+                                console.error('Error adding mock partners to DB:', err);
+                            });
+                        }
+                    }
+
+                    // DB 배열 업데이트
+                    DB_CHOICE = [...fetchedChoice];
+                    DB_RECOMMEND = [...fetchedRecommend];
+                    
+                    // 로컬스토리지에 저장된 유저 생성 매장 덧붙이기
+                    const applyLocalData = () => {
+                        const savedProfile = localStorage.getItem('myPartnerProfile');
+                        if (savedProfile) {
+                            let savedPartner = JSON.parse(savedProfile);
+                            currentPartner = savedPartner;
+                            let rawLocalPlace = getRandomCondition(savedPartner.place, '방문 (홈케어/출장)');
+                            let cleanLocalPlace = rawLocalPlace.replace('프라이빗 방문', '방문').replace('프라이빗 1인샵', '1인샵').replace('스탠다드 다인샵', '다인샵');
+
+                            let myPartnerMock = {
+                                id: savedPartner.id || `local_${Date.now()}`,
+                                name: savedPartner.name,
+                                region: getRandomCondition(savedPartner.region, '서울 강남/서초'),
+                                massage: getRandomCondition(savedPartner.massage, '스웨디시'),
+                                place: cleanLocalPlace,
+                                age: getRandomCondition(savedPartner.age, '연령 무관'),
+                                rating: savedPartner.rating || '5.0',
+                                ticketType: savedPartner.ticketType || '일반 입점',
+                                ticketExpiry: savedPartner.ticketExpiry || '',
+                                reviews: savedPartner.reviews || 0,
+                                tier: 'Premium',
+                                image: savedPartner.image || 'https://images.unsplash.com/photo-1544161515-4ab6ce6db874?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80',
+                                menus: savedPartner.pricing || [],
+                                desc: savedPartner.description || '새로 둥록된 파트너'
+                            };
+                            DB_CHOICE.unshift(myPartnerMock);
+                        }
+                    };
+                    
+                    applyLocalData();
+                    
+                    filteredChoiceDB = [...DB_CHOICE];
+                    filteredRecDB = [...DB_RECOMMEND];
+                    
+                    // 화면 업데이트 (검색 조건 적용)
+                    applyFiltersToData();
                 });
-            });
-
-            const dbMassage = FilterConfig['massage'].options.slice(1);
-            const dbPlace = ['홈케어/출장', '1인샵 (매장)', '다인샵 (일반)']; // 시각적으로 어울리게 줄임
-            const dbAge = ['20대 초반', '20대 중후반', '30대 초반', '30대 중후반', '40대'];
-
-            const getRandomItem = (arr) => arr[Math.floor(Math.random() * arr.length)];
-
-            function generateMockData() {
-                for (let i = 1; i <= 20; i++) {
-                    DB_CHOICE.push({
-                        id: i,
-                        name: `아르테미스 라운지 ${i}호점`,
-                        region: getRandomItem(validRegions),
-                        massage: getRandomItem(dbMassage),
-                        place: getRandomItem(dbPlace),
-                        age: getRandomItem(dbAge),
-                        rating: (Math.random() * 0.5 + 4.5).toFixed(1),
-                        reviews: Math.floor(Math.random() * 80) + 12,
-                        tier: i % 2 === 0 ? 'VIP' : 'Premium',
-                        image: `https://picsum.photos/seed/dadok_choice_${i}/400/400`
-                    });
-                }
-                for (let i = 1; i <= 30; i++) {
-                    DB_RECOMMEND.push({
-                        id: i + 20, // ensure distinct IDs just in case
-                        name: `프리미엄 파트너 ${i}호점`,
-                        region: getRandomItem(validRegions),
-                        massage: getRandomItem(dbMassage),
-                        place: getRandomItem(dbPlace),
-                        age: getRandomItem(dbAge),
-                        rating: (Math.random() * 0.5 + 4.5).toFixed(1),
-                        reviews: Math.floor(Math.random() * 80) + 12,
-                        image: `https://picsum.photos/seed/dadok_rec_${i}/400/400`
-                    });
-                }
-
-                // 전역 필터된 배열 초기화 
-                filteredChoiceDB = [...DB_CHOICE];
-                filteredRecDB = [...DB_RECOMMEND];
-            }
-            generateMockData();
-
-            // 초기 로딩 시 localStorage에서 파트너 데이터 불러오기
-            if (localStorage.getItem('myPartnerProfile')) {
-                let savedPartner = JSON.parse(localStorage.getItem('myPartnerProfile'));
-                currentPartner = savedPartner;
-                let myPartnerMock = {
-                    id: savedPartner.id,
-                    name: savedPartner.name,
-                    region: savedPartner.region || '서울 강남구',
-                    massage: savedPartner.massage || '스웨디시',
-                    place: savedPartner.place || '프라이빗 방문',
-                    age: savedPartner.age || '연령 무관',
-                    rating: savedPartner.rating || '5.0',
-                    reviews: savedPartner.reviews || 0,
-                    tier: 'Premium',
-                    image: savedPartner.image || 'https://images.unsplash.com/photo-1544161515-4ab6ce6db874?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80'
-                };
-                DB_CHOICE.unshift(myPartnerMock);
-                filteredChoiceDB = [...DB_CHOICE];
+            } else {
+                console.error("Firebase is not loaded.");
             }
 
             // -- 데이터 필터링 적용 매칭 로직 --
@@ -725,22 +888,20 @@ const filterSheet = document.getElementById('filter-sheet');
                         }
 
                         html += `
-                <div class="card p-4 flex gap-4 mb-4 items-center relative" onclick="openProfile('${partner.name}', '${partner.region} · ${partner.place}', '${partner.id}', ${partner.reviews}, ${partner.rating}, '${partner.massage}', '${partner.place}', '${partner.age}', '${partner.image}')">
+                <div class="card p-4 flex gap-4 mb-4 items-center relative" onclick="openProfile('${partner.name}', '${partner.region} · ${partner.place}', '${partner.id}', 0, 0, '${partner.massage}', '${partner.place}', '${partner.age}', '${partner.image}', '${partner.ticketType || '일반 입점'}', '${partner.ticketExpiry || ''}')">
                     <div class="w-[108px] h-[108px] rounded-2xl bg-cover bg-center flex-shrink-0 relative border border-[var(--point-color)]" style="background-image: url('${partner.image}'); filter: grayscale(15%) sepia(20%);">
                         ${badgeHtml}
                     </div>
                     <div class="flex-1 py-1">
                         <h3 class="font-bold text-[16px] mb-0.5 tracking-tight" style="color: var(--text-main);">${partner.name}</h3>
                         <p class="text-[13px] mt-0.5" style="color: var(--text-sub);">${partner.region}</p>
-                        <div class="flex flex-wrap gap-1 mt-2">
-                            <span class="text-[11px] px-2 py-0.5 bg-transparent border border-[var(--point-color)] rounded-full font-medium text-[var(--point-color)]">#${partner.massage}</span>
-                            <span class="text-[11px] px-2 py-0.5 bg-transparent border border-[var(--point-color)] rounded-full font-medium text-[var(--point-color)]">#${partner.place}</span>
-                            <span class="text-[11px] px-2 py-0.5 bg-transparent border border-[var(--point-color)] rounded-full font-medium text-[var(--point-color)]">#${partner.age}</span>
+                        <div class="grid grid-cols-2 gap-1.5 mt-2.5">
+                            <span class="text-[11px] px-2 py-1 border border-[var(--point-color)] bg-[var(--point-color)]/10 rounded-full font-medium text-[var(--point-color)] flex items-center justify-center truncate tracking-tight shadow-sm">${partner.region.split(' ')[0]}</span>
+                            <span class="text-[11px] px-2 py-1 border border-[var(--point-color)] bg-transparent rounded-full font-medium text-[var(--text-sub)] flex items-center justify-center truncate tracking-tight shadow-sm">${partner.massage}</span>
+                            <span class="text-[11px] px-2 py-1 border border-[var(--point-color)] bg-transparent rounded-full font-medium text-[var(--text-sub)] flex items-center justify-center truncate tracking-tight shadow-sm">${partner.place}</span>
+                            <span class="text-[11px] px-2 py-1 border border-[var(--point-color)] bg-transparent rounded-full font-medium text-[var(--text-sub)] flex items-center justify-center truncate tracking-tight shadow-sm">${partner.age}</span>
                         </div>
-                        <div class="flex items-center gap-2 mt-2.5 text-[13px]">
-                            <span class="text-[var(--point-color)] font-bold flex items-center gap-1"><svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path></svg> <span class="partner-rating-badge" data-partner-id="${partner.id}">${stats.rating}</span></span>
-                            <span style="color: var(--text-sub);">(리뷰 <span class="partner-reviews-badge" data-partner-id="${partner.id}">${stats.count}</span>)</span>
-                        </div>
+
                     </div>
                 </div>`;
                     }
@@ -1260,20 +1421,18 @@ const filterSheet = document.getElementById('filter-sheet');
                         for (let partner of combined) {
                             let stats = getPartnerStats(partner);
                             html += `
-                    <div class="card p-4 flex gap-4 mb-4 items-center transition-all duration-500 ease-in-out" onclick="openProfile('${partner.name}', '${partner.region} · ${partner.place}', '${partner.id}', ${partner.reviews}, ${partner.rating}, '${partner.massage}', '${partner.place}', '${partner.age}', '${partner.image}')">
+                    <div class="card p-4 flex gap-4 mb-4 items-center transition-all duration-500 ease-in-out" onclick="openProfile('${partner.name}', '${partner.region} · ${partner.place}', '${partner.id}', 0, 0, '${partner.massage}', '${partner.place}', '${partner.age}', '${partner.image}', '${partner.ticketType || '일반 입점'}', '${partner.ticketExpiry || ''}')">
                         <div class="w-[108px] h-[108px] rounded-2xl bg-cover bg-center flex-shrink-0 relative border border-[var(--point-color)]" style="background-image: url('${partner.image}'); filter: grayscale(10%) sepia(10%);"></div>
                         <div class="flex-1 py-1">
                             <h3 class="font-bold text-[16px] mb-0.5 tracking-tight" style="color: var(--text-main);">${partner.name}</h3>
                             <p class="text-[13px] mt-0.5" style="color: var(--text-sub);">${partner.region}</p>
-                            <div class="flex flex-wrap gap-1 mt-2">
-                                <span class="text-[11px] px-2 py-0.5 border border-[var(--point-color)] bg-transparent rounded-full text-[var(--point-color)]">#${partner.massage}</span>
-                                <span class="text-[11px] px-2 py-0.5 border border-[var(--point-color)] bg-transparent rounded-full text-[var(--point-color)]">#${partner.place}</span>
-                                <span class="text-[11px] px-2 py-0.5 border border-[var(--point-color)] bg-transparent rounded-full text-[var(--point-color)]">#${partner.age}</span>
+                            <div class="grid grid-cols-2 gap-1.5 mt-2.5">
+                                <span class="text-[11px] px-2 py-1 border border-[var(--point-color)] bg-[var(--point-color)]/10 rounded-full font-medium text-[var(--point-color)] flex items-center justify-center truncate tracking-tight shadow-sm">${partner.region.split(' ')[0]}</span>
+                                <span class="text-[11px] px-2 py-1 border border-[var(--point-color)] bg-transparent rounded-full font-medium text-[var(--text-sub)] flex items-center justify-center truncate tracking-tight shadow-sm">${partner.massage}</span>
+                                <span class="text-[11px] px-2 py-1 border border-[var(--point-color)] bg-transparent rounded-full font-medium text-[var(--text-sub)] flex items-center justify-center truncate tracking-tight shadow-sm">${partner.place}</span>
+                                <span class="text-[11px] px-2 py-1 border border-[var(--point-color)] bg-transparent rounded-full font-medium text-[var(--text-sub)] flex items-center justify-center truncate tracking-tight shadow-sm">${partner.age}</span>
                             </div>
-                            <div class="flex items-center gap-2 mt-2.5 text-[13px]">
-                                <span class="text-[var(--point-color)] font-bold flex items-center gap-1"><svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path></svg> <span class="partner-rating-badge" data-partner-id="${partner.id}">${stats.rating}</span></span>
-                                <span style="color: var(--text-sub);">(리뷰 <span class="partner-reviews-badge" data-partner-id="${partner.id}">${stats.count}</span>)</span>
-                            </div>
+
                         </div>
                     </div>`;
                         }
@@ -1302,7 +1461,7 @@ const filterSheet = document.getElementById('filter-sheet');
                         }
 
                         chunk += `
-                <div class="card min-w-[280px] max-w-[280px]" onclick="openProfile('${partner.name}', '${partner.region} · ${partner.place}', '${partner.id}', ${partner.reviews}, ${partner.rating}, '${partner.massage}', '${partner.place}', '${partner.age}', '${partner.image}')">
+                <div class="card min-w-[280px] max-w-[280px]" onclick="openProfile('${partner.name}', '${partner.region} · ${partner.place}', '${partner.id}', 0, 0, '${partner.massage}', '${partner.place}', '${partner.age}', '${partner.image}', '${partner.ticketType || '일반 입점'}', '${partner.ticketExpiry || ''}')">
                     <div class="relative h-[180px] bg-cover bg-center rounded-t-2xl" style="background-image: url('${partner.image}'); filter: grayscale(15%) sepia(20%); border-bottom: 1px solid var(--accent-color);">
                         ${badgeHtml}
                         <div class="absolute inset-0 bg-gradient-to-t from-[var(--surface-color)] to-transparent"></div>
@@ -1310,15 +1469,13 @@ const filterSheet = document.getElementById('filter-sheet');
                     <div class="p-5 pt-0 mt-3">
                         <h3 class="font-bold text-lg">${partner.name}</h3>
                         <p class="text-sm mt-1.5" style="color: var(--text-sub);">${partner.region}</p>
-                        <div class="flex gap-2 mt-4 text-xs font-medium flex-wrap">
-                            <span class="bg-transparent text-[var(--point-color)] border border-[var(--point-color)] px-2.5 py-1 rounded-full">#${partner.massage}</span>
-                            <span class="bg-transparent text-[var(--point-color)] border border-[var(--point-color)] px-2.5 py-1 rounded-full">#${partner.place}</span>
-                            <span class="bg-transparent text-[var(--point-color)] border border-[var(--point-color)] px-2.5 py-1 rounded-full">#${partner.age}</span>
+                        <div class="grid grid-cols-2 gap-2 mt-4 text-xs">
+                            <span class="border border-[var(--point-color)] bg-[var(--point-color)]/10 px-2.5 py-1.5 rounded-full font-bold text-[var(--point-color)] flex items-center justify-center truncate tracking-tight shadow-sm">${partner.region.split(' ')[0]}</span>
+                            <span class="border border-[var(--point-color)] bg-transparent px-2.5 py-1.5 rounded-full font-medium text-[var(--text-sub)] flex items-center justify-center truncate tracking-tight shadow-sm">${partner.massage}</span>
+                            <span class="border border-[var(--point-color)] bg-transparent px-2.5 py-1.5 rounded-full font-medium text-[var(--text-sub)] flex items-center justify-center truncate tracking-tight shadow-sm">${partner.place}</span>
+                            <span class="border border-[var(--point-color)] bg-transparent px-2.5 py-1.5 rounded-full font-medium text-[var(--text-sub)] flex items-center justify-center truncate tracking-tight shadow-sm">${partner.age}</span>
                         </div>
-                        <div class="flex items-center gap-2 mt-3 text-sm">
-                            <span class="text-[var(--point-color)] font-bold flex items-center gap-1"><svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path></svg> <span class="partner-rating-badge" data-partner-id="${partner.id}">${stats.rating}</span></span>
-                            <span style="color: var(--text-sub);">(리뷰 <span class="partner-reviews-badge" data-partner-id="${partner.id}">${stats.count}</span>)</span>
-                        </div>
+
                     </div>
                 </div>`;
                     }
@@ -1341,10 +1498,6 @@ const filterSheet = document.getElementById('filter-sheet');
 
                 let mixedRec = [...filteredRecDB].sort(() => Math.random() - 0.5);
                 let currentPartnerIndex = 0;
-                let isFirstRecommendRender = true;
-
-                // 트랜지션 준비
-                recommendList.style.transition = 'opacity 0.4s ease-in-out';
 
                 function renderRecommendedPartners() {
                     let recHtml = '';
@@ -1354,52 +1507,38 @@ const filterSheet = document.getElementById('filter-sheet');
                         let stats = getPartnerStats(partner);
                         let badgeHtml = '';
                         if (partner.tier === 'VIP') {
-                            badgeHtml = `<div class="absolute top-1.5 left-1.5 z-10 bg-gradient-to-r from-[#D4AF37] to-[#B38D1B] text-[#06110D] text-[10px] font-extrabold px-2 py-0.5 rounded opacity-95 tracking-wide shadow-md">VIP</div>`;
+                            badgeHtml = `<div class="absolute top-1 left-1 z-10 bg-gradient-to-r from-[#D4AF37] to-[#B38D1B] text-[#06110D] text-[9px] font-extrabold px-1.5 py-0.5 rounded opacity-95 tracking-wide shadow-md">VIP</div>`;
                         } else if (partner.tier === 'Premium') {
-                            badgeHtml = `<div class="absolute top-1.5 left-1.5 z-10 bg-[var(--surface-color)] text-[var(--point-color)] border border-[var(--point-color)] text-[10px] font-extrabold px-2 py-0.5 rounded opacity-95 tracking-wide shadow-md">Premium</div>`;
+                            badgeHtml = `<div class="absolute top-1 left-1 z-10 bg-[var(--surface-color)] text-[var(--point-color)] border border-[var(--point-color)] text-[9px] font-extrabold px-1.5 py-0.5 rounded opacity-95 tracking-wide shadow-md">Premium</div>`;
                         }
 
-                        // 깜빡이는 애니메이션 제거 및 이미지 영역 최대한 (140x145) 확대
                         recHtml += `
-                <div class="card p-3.5 flex gap-4 mb-4 items-center" onclick="openProfile('${partner.name}', '${partner.region} · ${partner.place}', '${partner.id}', ${partner.reviews}, ${partner.rating}, '${partner.massage}', '${partner.place}', '${partner.age}', '${partner.image}')">
-                    <div class="w-[140px] h-[145px] rounded-2xl bg-cover bg-center flex-shrink-0 relative border border-[var(--point-color)]" style="background-image: url('${partner.image}'); filter: grayscale(10%) sepia(10%);">
+                <div class="card p-4 flex gap-4 mb-4 items-center transition-all duration-500 ease-in-out opacity-0 translate-y-2" style="animation: fadeInUp 0.5s ease forwards;" onclick="openProfile('${partner.name}', '${partner.region} · ${partner.place}', '${partner.id}', 0, 0, '${partner.massage}', '${partner.place}', '${partner.age}', '${partner.image}', '${partner.ticketType || '일반 입점'}', '${partner.ticketExpiry || ''}')">
+                    <div class="w-[108px] h-[108px] rounded-2xl bg-cover bg-center flex-shrink-0 relative border border-[var(--point-color)]" style="background-image: url('${partner.image}'); filter: grayscale(10%) sepia(10%);">
                         ${badgeHtml}
                     </div>
                     <div class="flex-1 py-1">
                         <div class="flex justify-between items-start">
-                            <h3 class="font-bold text-[17px] mb-0.5 tracking-tight" style="color: var(--text-main);">${partner.name}</h3>
+                            <h3 class="font-bold text-[16px] mb-0.5 tracking-tight" style="color: var(--text-main);">${partner.name}</h3>
                         </div>
-                        <p class="text-[13.5px] mt-0.5" style="color: var(--text-sub);">${partner.region}</p>
-                        <div class="flex flex-wrap gap-1 mt-2.5">
-                            <span class="text-[11px] px-2 py-0.5 border border-[var(--point-color)] bg-transparent rounded-full text-[var(--point-color)]">#${partner.massage}</span>
-                            <span class="text-[11px] px-2 py-0.5 border border-[var(--point-color)] bg-transparent rounded-full text-[var(--point-color)]">#${partner.place}</span>
-                            <span class="text-[11px] px-2 py-0.5 border border-[var(--point-color)] bg-transparent rounded-full text-[var(--point-color)]">#${partner.age}</span>
+                        <p class="text-[13px] mt-0.5" style="color: var(--text-sub);">${partner.region}</p>
+                        <div class="grid grid-cols-2 gap-1.5 mt-2.5">
+                            <span class="text-[11px] px-2 py-1 border border-[var(--point-color)] bg-[var(--point-color)]/10 rounded-full font-medium text-[var(--point-color)] flex items-center justify-center truncate tracking-tight shadow-sm">${partner.region.split(' ')[0]}</span>
+                            <span class="text-[11px] px-2 py-1 border border-[var(--point-color)] bg-transparent rounded-full font-medium text-[var(--text-sub)] flex items-center justify-center truncate tracking-tight shadow-sm">${partner.massage}</span>
+                            <span class="text-[11px] px-2 py-1 border border-[var(--point-color)] bg-transparent rounded-full font-medium text-[var(--text-sub)] flex items-center justify-center truncate tracking-tight shadow-sm">${partner.place}</span>
+                            <span class="text-[11px] px-2 py-1 border border-[var(--point-color)] bg-transparent rounded-full font-medium text-[var(--text-sub)] flex items-center justify-center truncate tracking-tight shadow-sm">${partner.age}</span>
                         </div>
-                        <div class="flex items-center gap-2 mt-3 text-[13.5px]">
-                            <span class="text-[var(--point-color)] font-bold flex items-center gap-1"><svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path></svg> <span class="partner-rating-badge" data-partner-id="${partner.id}">${stats.rating}</span></span>
-                            <span style="color: var(--text-sub);">(리뷰 <span class="partner-reviews-badge" data-partner-id="${partner.id}">${stats.count}</span>)</span>
-                        </div>
+
                     </div>
                 </div>`;
                     }
-
-                    if (isFirstRecommendRender) {
-                        recommendList.innerHTML = recHtml;
-                        isFirstRecommendRender = false;
-                    } else {
-                        // 크로스페이드 트랜지션 처리
-                        recommendList.style.opacity = '0';
-                        setTimeout(() => {
-                            recommendList.innerHTML = recHtml;
-                            recommendList.style.opacity = '1';
-                        }, 400); 
-                    }
+                    recommendList.innerHTML = recHtml;
                 }
 
                 renderRecommendedPartners();
 
                 if (totalPartners > 0) {
-                    // 4초마다 5개씩 순차적으로 다음 업체로 로테이션 (더 길게, 고급스럽게 페이드아웃 적용)
+                    // 2초마다 5개씩 순차적으로 다음 업체로 로테이션
                     recommendInterval = setInterval(() => {
                         currentPartnerIndex = (currentPartnerIndex + 5) % totalPartners;
 
@@ -1409,7 +1548,7 @@ const filterSheet = document.getElementById('filter-sheet');
                         }
 
                         renderRecommendedPartners();
-                    }, 4000);
+                    }, 2000);
                 }
             }
 
@@ -2632,14 +2771,14 @@ const filterSheet = document.getElementById('filter-sheet');
                 userFavorites.forEach(partner => {
                     let region = partner.desc ? partner.desc.split(' · ')[0] : (partner.region || '');
                     html += `
-                <div class="bg-[var(--surface-color)] p-4 rounded-xl border border-[var(--border-color)] flex gap-4 cursor-pointer hover:border-[var(--point-color)]/50 transition-colors" onclick="openProfileFromFavorites('${partner.name}', '${partner.desc}', '${partner.id}', ${partner.reviews}, ${partner.rating}, '${partner.massage}', '${partner.place}', '${partner.age}', '${partner.image}')">
+                <div class="bg-[var(--surface-color)] p-4 rounded-xl border border-[var(--border-color)] flex gap-4 cursor-pointer hover:border-[var(--point-color)]/50 transition-colors" onclick="openProfileFromFavorites('${partner.name}', '${partner.desc}', '${partner.id}', 0, 0, '${partner.massage}', '${partner.place}', '${partner.age}', '${partner.image}', '${partner.ticketType || '일반 입점'}', '${partner.ticketExpiry || ''}')">
                     <div class="w-[80px] h-[80px] rounded-lg bg-cover bg-center shrink-0 shadow-sm" style="background-image: url('${partner.image}')"></div>
                     <div class="flex-1 flex flex-col justify-center overflow-hidden">
                         <div class="flex justify-between items-start mb-1.5">
                             <h4 class="text-white font-bold text-lg leading-tight truncate mr-2">${partner.name}</h4>
                             <svg class="w-5 h-5 text-[var(--point-color)] shrink-0 drop-shadow-[0_0_8px_rgba(212,175,55,0.6)]" fill="currentColor" viewBox="0 0 24 24" onclick="event.stopPropagation(); removeFavorite('${partner.id}')"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path></svg>
                         </div>
-                        <p class="text-[13px] text-[var(--point-color)] font-medium mb-1 truncate">#${partner.massage}</p>
+                        <p class="text-[13px] text-[var(--point-color)] font-medium mb-1 truncate">${partner.massage}</p>
                         <p class="text-[12px] text-[var(--text-sub)] truncate">${region}</p>
                     </div>
                 </div>
@@ -2832,19 +2971,13 @@ const filterSheet = document.getElementById('filter-sheet');
                 let isHovering = false;
                 let currentScroll = 0;
                 let isDraggingCard = false;
-                let lastTime = performance.now();
-                const scrollSpeed = 30; // 초당 이동 픽셀 (주사율 무관하게 부드럽고 균일한 속도 보장)
 
-                function smoothScroll(timestamp) {
-                    if (!timestamp) timestamp = performance.now();
-                    const deltaTime = Math.min(timestamp - lastTime, 50); // 최대 50ms (탭 이동 등의 지연 보정)
-                    lastTime = timestamp;
-
+                function smoothScroll() {
                     if (!isHovering && !isDown && sliderTrack.scrollWidth > sliderWrapper.clientWidth) {
-                        currentScroll += (scrollSpeed * deltaTime) / 1000;
-                        // 절반(1세트)를 넘어섰으면 다시 0으로 리셋하여 무한 효과 (부드러운 연결)
+                        currentScroll += 0.5; // 슬라이드 속도
+                        // 절반(1세트)를 넘어섰으면 다시 0으로 리셋하여 무한 효과
                         if (currentScroll >= sliderTrack.scrollWidth / 2) {
-                            currentScroll -= sliderTrack.scrollWidth / 2;
+                            currentScroll = 0;
                         }
                         sliderWrapper.scrollLeft = currentScroll;
                     } else {
@@ -2882,7 +3015,11 @@ const filterSheet = document.getElementById('filter-sheet');
 
                 // 드래그 중 실수로 카드 클릭되는 것 방지
                 sliderWrapper.addEventListener('click', (e) => {
-                    // Click interception removed to fix banner click
+                    if (isDraggingCard) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        isDraggingCard = false;
+                    }
                 }, true);
 
                 // 터치 기기 충돌 방지
@@ -3061,7 +3198,7 @@ const filterSheet = document.getElementById('filter-sheet');
                 currentPartner.tags = [...selectedMassages, ...selectedSpaces, ...selectedAges].filter(Boolean);
                 currentPartner.massage = selectedMassages.join(', ');
                 currentPartner.region = selectedRegions.length > 0 ? selectedRegions[0] : '강남/서초';
-                currentPartner.place = selectedSpaces.length > 0 ? selectedSpaces[0] : '프라이빗 방문';
+                currentPartner.place = selectedSpaces.length > 0 ? selectedSpaces[0] : '방문 (홈케어/출장)';
                 currentPartner.age = selectedAges.length > 0 ? selectedAges[0] : '연령 무관';
 
                 // 메뉴 파싱
@@ -3310,3 +3447,4 @@ const filterSheet = document.getElementById('filter-sheet');
                     if (typeof closeAllModals === 'function') { try { closeAllModals(); } catch (err) { } }
                 }
             });
+// removed end wrapper

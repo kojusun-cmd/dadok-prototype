@@ -11,6 +11,52 @@ if (!firebase.apps.length) {
     firebase.initializeApp(adminFirebaseConfig);
 }
 const db = firebase.firestore();
+const auth = firebase.auth();
+const provider = new firebase.auth.GoogleAuthProvider();
+
+// ─── Authentication ───
+auth.onAuthStateChanged(user => {
+    const userInfoEl = document.getElementById('admin-user-info');
+    const userEmailEl = document.getElementById('admin-user-email');
+    const loginBtn = document.getElementById('admin-login-btn');
+    const logoutBtn = document.getElementById('admin-logout-btn');
+    const authOverlay = document.getElementById('auth-overlay');
+    const mainApp = document.getElementById('main-app');
+
+    if (user) {
+        if(authOverlay) authOverlay.classList.add('hidden');
+        if(mainApp) mainApp.classList.remove('hidden');
+        if(userInfoEl) userInfoEl.classList.remove('hidden');
+        if(userEmailEl) userEmailEl.textContent = user.email;
+        if(loginBtn) loginBtn.classList.add('hidden');
+        if(logoutBtn) logoutBtn.classList.remove('hidden');
+    } else {
+        if(authOverlay) authOverlay.classList.remove('hidden');
+        if(mainApp) mainApp.classList.add('hidden');
+        if(userInfoEl) userInfoEl.classList.add('hidden');
+        if(loginBtn) loginBtn.classList.remove('hidden');
+        if(logoutBtn) logoutBtn.classList.add('hidden');
+    }
+});
+
+function adminLogin() {
+    auth.signInWithPopup(provider)
+        .then((result) => {
+            console.log("Logged in as:", result.user.email);
+        })
+        .catch((error) => {
+            console.error("Login failed:", error.message);
+            alert("로그인 실패: " + error.message);
+        });
+}
+
+function adminLogout() {
+    auth.signOut().then(() => {
+        console.log("Logged out");
+    }).catch((error) => {
+        console.error("Logout failed:", error.message);
+    });
+}
 
 // ─── Global Variables ───
 let currentUserCount = 0;
@@ -25,7 +71,7 @@ const DEFAULT_FILTERS = {
     },
     place: {
         title: '휴식 공간 형태',
-        options: ['상관없음(전체)', '프라이빗 방문 (홈케어/출장)', '프라이빗 1인샵 (매장 방문)', '스탠다드 다인샵 (일반 매장)']
+        options: ['상관없음(전체)', '방문 (홈케어/출장)', '1인샵 (매장 방문)', '다인샵 (일반 매장)']
     },
     age: {
         title: '선호하는 관리사 연령대',
@@ -332,7 +378,7 @@ function loadApprovals() {
                         <span class="text-xs text-[#A7B2AE]">${data.phone || '-'}</span>
                     </td>
                     <td class="p-4 text-[#A7B2AE] text-sm">
-                        최저가: ${Number(data.price || 0).toLocaleString()}원<br>
+                        요청: ${data.ticketType || '기본 입점'}<br>
                         <span class="text-xs text-[#A7B2AE]">카테고리: ${categoriesInfo}</span>
                     </td>
                     <td class="p-4 text-[#A7B2AE] text-sm">${dStr}</td>
@@ -379,45 +425,49 @@ function loadShops() {
     db.collection('partners').orderBy('createdAt', 'desc').onSnapshot(snapshot => {
         container.innerHTML = '';
         if (snapshot.empty) {
-            container.innerHTML = '<div class="col-span-full py-10 text-center text-[#A7B2AE]">등록된 파트너 샵이 없습니다. 우측 상단의 [신규 매장 등록] 버튼을 눌러주세요.</div>';
+            container.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-[#A7B2AE]">등록된 샵이 없습니다.</td></tr>';
             return;
         }
         snapshot.forEach(doc => {
             const data = doc.data();
-            const cats = data.categories && data.categories.length > 0 ? data.categories.join(', ') : '카테고리 미지정';
-            const imgUrl = data.image || 'https://images.unsplash.com/photo-1544161515-4ab6ce6db874?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80';
+            const dateStr = data.createdAt ? data.createdAt.toDate().toLocaleString('ko-KR') : '-';
+            const ticketTypeStr = data.ticketType || '기본 입점 (뱃지 없음)';
+            const ticketExpiryStr = data.ticketExpiry ? `${data.ticketExpiry} 만료` : '만료일 미지정';
             
             const isPending = data.status === 'pending';
             const statusBadge = isPending 
-                ? '<div class="absolute top-3 left-3 bg-red-600 text-white px-2.5 py-1 rounded-full text-xs font-bold border border-red-800">승인대기</div>' 
-                : '<div class="absolute top-3 left-3 bg-green-600 text-white px-2.5 py-1 rounded-full text-xs font-bold border border-green-800">활성됨</div>';
+                ? '<span class="text-red-400 bg-red-400/10 border border-red-500/20 px-2 py-1 rounded text-xs">승인대기</span>' 
+                : '<span class="text-green-400 bg-green-400/10 border border-green-500/20 px-2 py-1 rounded text-xs">정상 활성</span>';
             
             const activateBtn = isPending 
-                ? `<button onclick="activatePartner('${doc.id}')" class="text-xs text-green-500 hover:text-white font-medium bg-green-500/10 hover:bg-green-500 transition-colors px-3 py-1.5 rounded-lg border border-green-500/20 mr-2">가입 승인</button>` 
+                ? `<button onclick="activatePartner('${doc.id}')" class="text-xs text-green-400 hover:text-green-200 ml-2">가입 승인</button>` 
                 : '';
 
             container.innerHTML += `
-                <div class="bg-[#0A1B13] border border-[#2A3731] rounded-2xl overflow-hidden hover:border-[var(--point-color)] transition-colors group shadow-lg flex flex-col">
-                    <div class="h-40 bg-[#11291D] relative overflow-hidden shrink-0">
-                        <img src="${imgUrl}" class="w-full h-full object-cover opacity-60 group-hover:scale-105 transition-transform duration-500" alt="샵 이미지">
-                        ${statusBadge}
-                        <div class="absolute top-3 right-3 bg-black/70 backdrop-blur text-white px-2.5 py-1 rounded-full text-xs font-bold border border-white/10">
-                            ★ ${data.stats?.rating || data.rating || '0.0'} (${data.stats?.count || data.reviews || 0})
+                <tr class="hover:bg-[#11291D] transition-colors">
+                    <td class="p-4">
+                        <div class="font-bold text-white">${data.name}</div>
+                        <div class="text-xs text-[var(--point-color)] mt-0.5">${data.tier || '기본'} | ${data.massage || '-'}</div>
+                    </td>
+                    <td class="p-4">
+                        <div class="text-white">${data.address || data.location || '-'}</div>
+                        <div class="text-xs text-[#A7B2AE] mt-0.5">${data.phone || '-'}</div>
+                    </td>
+                    <td class="p-4">
+                        <div class="text-white font-medium text-[var(--point-color)]">${ticketTypeStr}</div>
+                        <div class="text-xs text-[#A7B2AE] mt-0.5">${ticketExpiryStr}</div>
+                    </td>
+                    <td class="p-4 text-[#A7B2AE]">${dateStr}</td>
+                    <td class="p-4">
+                        <div class="flex items-center">
+                            ${statusBadge}
+                            ${activateBtn}
+                            <button onclick="deleteShop('${doc.id}')" class="text-xs text-red-400 hover:text-red-200 ml-3" title="삭제">
+                                삭제
+                            </button>
                         </div>
-                    </div>
-                    <div class="p-5 flex flex-col flex-1">
-                        <h3 class="text-xl font-bold text-white mb-1 line-clamp-1">${data.name}</h3>
-                        <p class="text-sm text-[#A7B2AE] mb-4 line-clamp-1">${data.address || data.location || ''}</p>
-                        
-                        <div class="mt-auto pt-4 border-t border-[#2A3731] flex justify-between items-center">
-                            <span class="text-white font-bold text-lg">${Number(data.price || 0).toLocaleString()}<span class="text-sm font-normal text-gray-400 ml-0.5">원~</span></span>
-                            <div>
-                                ${activateBtn}
-                                <button onclick="deleteShop('${doc.id}')" class="text-xs text-red-500 hover:text-white font-medium bg-red-500/10 hover:bg-red-500 transition-colors px-3 py-1.5 rounded-lg border border-red-500/20">데이터 삭제</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                    </td>
+                </tr>
             `;
         });
     });
@@ -447,15 +497,14 @@ function handleShopSubmit(e) {
     const name = document.getElementById('shop-name').value.trim();
     const location = document.getElementById('shop-location').value.trim();
     const image = document.getElementById('shop-image').value.trim();
-    const price = document.getElementById('shop-price').value;
-    const rating = document.getElementById('shop-rating').value;
-    const reviews = document.getElementById('shop-reviews').value;
+    const ticketType = document.getElementById('shop-ticket-type').value;
+    const ticketExpiry = document.getElementById('shop-ticket-expiry').value;
     const tagsRaw = document.getElementById('shop-tags').value;
     
     const tags = tagsRaw.split(',').map(t => t.trim()).filter(t => t);
     const checkedCats = Array.from(document.querySelectorAll('.shop-cat-checkbox:checked')).map(cb => cb.value);
 
-    const data = { name, location, image, price: Number(price), rating: Number(rating || 0), reviews: Number(reviews || 0), tags, categories: checkedCats };
+    const data = { name, location, image, ticketType, ticketExpiry, tags, categories: checkedCats };
 
     if (id) {
         data.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
@@ -504,58 +553,166 @@ async function uploadShopImage(event) {
 }
 
 // ─── Dummy Data Generator ───
-async function generateDummyPartners() {
-    if(!confirm("가상의 파트너(마사지샵) 데이터와 리뷰를 대량생성합니다. 계속하시겠습니까?")) return;
-
-    const dummyPartners = [
-        {
-            name: "라포레 스파 (La Foret)", location: "강남대로 100길, 테헤란로", phone: "02-123-4567", categoryMatch: {"마사지 종류": "스웨디시", "공간 형태": "프라이빗 1인샵 (매장 방문)", "관리사 연령대": "20대 초반"},
-            image: "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80",
-            status: "active",
-            amenities: ["샤워실", "와이파이", "개인실"], createdAt: firebase.firestore.FieldValue.serverTimestamp()
-        },
-        {
-            name: "더 타이 힐링 (The Thai)", location: "서울시 마포구 홍대입구", phone: "02-987-6543", categoryMatch: {"마사지 종류": "타이 마사지", "공간 형태": "스탠다드 다인샵 (일반 매장)", "관리사 연령대": "30대 중후반"},
-            image: "https://images.unsplash.com/photo-1519823551278-64ac92734fb1?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80",
-            status: "active",
-            amenities: ["샤워실", "수면가능", "단체석"], createdAt: firebase.firestore.FieldValue.serverTimestamp()
-        },
-        {
-            name: "시크릿 테라피", location: "서울시 용산구 이태원동", phone: "010-1234-5678", categoryMatch: {"마사지 종류": "스포츠 마사지", "공간 형태": "프라이빗 방문 (홈케어/출장)", "관리사 연령대": "20대 중후반"},
-            image: "https://images.unsplash.com/photo-1600334089648-b0d9d3028eb2?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80",
-            status: "active",
-            amenities: ["출장", "야간영업"], createdAt: firebase.firestore.FieldValue.serverTimestamp()
+async function deleteAllPartners() {
+    if(!confirm("진짜로 모든 파트너 데이터를 초기화(삭제) 하시겠습니까? 이 작업은 복구할 수 없습니다.")) return;
+    try {
+        const snapshot = await db.collection('partners').get();
+        if(snapshot.empty) {
+            alert('삭제할 파트너가 없습니다.');
+            return;
         }
+        
+        let deletedCount = 0;
+        // Firestore batch has a limit of 500 operations, our dummy is small (100+) so looping delete with batch is fine for small numbers
+        // Using Promise.all for simple bulk delete without 500 limit complexity
+        const deletePromises = snapshot.docs.map(doc => doc.ref.delete());
+        await Promise.all(deletePromises);
+        deletedCount = deletePromises.length;
+        
+        alert(`총 ${deletedCount}개의 파트너가 성공적으로 삭제되었습니다.`);
+        if (typeof renderPartnersTable === 'function') renderPartnersTable(); // 뷰어 새로고침
+    } catch (err) {
+        console.error("삭제 중 오류:", err);
+        alert("삭제 실패: " + err.message);
+    }
+}
+
+async function generateDummyPartners() {
+    if(!confirm("이전의 테스트용 50개 임의(Mock) 파트너 데이터를 어드민(Firebase)에 등록하시겠습니까? (기존 데이터는 삭제되지 않으며 랜덤 50개가 추가로 생성됩니다)")) return;
+
+    // 지역별 시/구 데이터
+    const RegionData = [
+        { prov: '서울', cities: ['강남/서초', '송파/강동', '영등포/구로/금천', '강서/양천', '마포/서대문/은평', '용산/중구/종로', '성동/광진', '동대문/중랑', '노원/도봉/강북'] },
+        { prov: '경기', cities: ['수원', '성남(분당)', '고양(일산)', '용인', '부천', '안산', '안양/과천', '화성(동탄)', '평택', '의정부', '파주', '시흥', '김포', '광명', '광주', '구리/남양주'] },
+        { prov: '인천', cities: ['부평/계양', '남동(구월)', '연수(송도)', '서구(청라)', '중구/동구'] },
+        { prov: '충청', cities: ['세종', '천안', '아산', '청주', '충주', '서산/당진', '제천'] },
+        { prov: '대전', cities: ['둔산/서구', '유성', '중구/동구', '대덕'] },
+        { prov: '강원', cities: ['춘천', '원주', '강릉', '속초/동해'] },
+        { prov: '전라', cities: ['전주', '익산', '군산', '목포', '여수', '순천'] },
+        { prov: '광주', cities: ['상무/서구', '수완/광산', '남구/북구', '동구'] },
+        { prov: '경상', cities: ['창원', '김해', '진주', '포항', '구미', '경주'] },
+        { prov: '부산', cities: ['해운대/수영', '서면/진구', '동래/연제', '남구/북구', '사하/사상'] },
+        { prov: '제주', cities: ['제주시', '서귀포시'] }
     ];
+    let validRegions = [];
+    RegionData.forEach(g => {
+        g.cities.forEach(c => {
+            validRegions.push(g.prov + ' ' + c);
+        });
+    });
+
+    const dbMassage = ['스웨디시', '스포츠 마사지', '타이 마사지', '커플 마사지 (참관)'];
+    const dbPlace = ['방문 (홈케어/출장)', '1인샵 (매장 방문)', '다인샵 (일반 매장)'];
+    // For Place tag display conformity
+    const dbPlaceShort = ['홈케어/출장', '1인샵 (매장)', '다인샵 (일반)'];
+    const dbAge = ['20대 초반', '20대 중후반', '30대 초반', '30대 중후반', '40대'];
+
+    const getRandomItem = (arr) => arr[Math.floor(Math.random() * arr.length)];
+
+    const dummyPartners = [];
+
+    // 초이스 파트너 20개
+    for (let i = 1; i <= 20; i++) {
+        let rRegion = getRandomItem(validRegions);
+        let rMassage = getRandomItem(dbMassage);
+        let rPlaceIdx = Math.floor(Math.random() * dbPlace.length);
+        let rPlaceFull = dbPlace[rPlaceIdx];
+        let rPlaceShort = dbPlaceShort[rPlaceIdx];
+        let rAge = getRandomItem(dbAge);
+
+        dummyPartners.push({
+            name: `아르테미스 라운지 ${i}호점`,
+            location: rRegion,
+            address: rRegion,
+            phone: `010-1234-${(1000 + i).toString()}`,
+            image: `https://picsum.photos/seed/dadok_choice_${i}/400/400`,
+            status: "active",
+            price: 100000 + (Math.floor(Math.random() * 5) * 10000),
+            rating: parseFloat((Math.random() * 0.5 + 4.5).toFixed(1)),
+            reviews: Math.floor(Math.random() * 80) + 12,
+            
+            // script.js 동기화를 위한 추가 필드
+            region: rRegion,
+            massage: rMassage,
+            place: rPlaceShort,
+            age: rAge,
+            
+            categories: [rMassage, rPlaceFull, rAge], 
+            tier: i % 2 === 0 ? 'VIP' : 'Premium',
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+    }
+
+    // 추천 파트너 30개
+    for (let i = 1; i <= 30; i++) {
+        let rRegion = getRandomItem(validRegions);
+        let rMassage = getRandomItem(dbMassage);
+        let rPlaceIdx = Math.floor(Math.random() * dbPlace.length);
+        let rPlaceFull = dbPlace[rPlaceIdx];
+        let rPlaceShort = dbPlaceShort[rPlaceIdx];
+        let rAge = getRandomItem(dbAge);
+
+        dummyPartners.push({
+            name: `프리미엄 파트너 ${i}호점`,
+            location: rRegion,
+            address: rRegion,
+            phone: `010-9876-${(1000 + i).toString()}`,
+            image: `https://picsum.photos/seed/dadok_rec_${i}/400/400`,
+            status: "active",
+            price: 80000 + (Math.floor(Math.random() * 5) * 10000),
+            rating: parseFloat((Math.random() * 0.5 + 4.5).toFixed(1)),
+            reviews: Math.floor(Math.random() * 80) + 12,
+            
+            // script.js 동기화를 위한 추가 필드
+            region: rRegion,
+            massage: rMassage,
+            place: rPlaceShort,
+            age: rAge,
+            
+            categories: [rMassage, rPlaceFull, rAge], 
+            tier: 'Normal',
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+    }
 
     try {
         let count = 0;
-        for(let p of dummyPartners) {
-            const docRef = await db.collection("partners").add(p);
-            
-            // 더미 리뷰 생성
-            await db.collection("reviews").add({
-                partnerId: docRef.id,
-                rating: 5,
-                text: "정말 친절하고 실력이 뛰어납니다. 강력 추천해요!",
-                date: "2026.04.09",
-                author: "jo*****",
-                createdAt: firebase.firestore.FieldValue.serverTimestamp()
-            });
-
-            await db.collection("reviews").add({
-                partnerId: docRef.id,
-                rating: 4,
-                text: "시설이 깔끔하고 좋아요~ 재방문 의사 있습니다.",
-                date: "2026.04.08",
-                author: "ka*****",
-                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-                reply: "감사합니다 고객님! 다음 방문때도 정성껏 모시겠습니다.",
-                replyAt: firebase.firestore.FieldValue.serverTimestamp()
-            });
-            count++;
+        const progressEl = document.getElementById('discord-log'); 
+        if(progressEl) {
+            progressEl.innerText = "데이터 50건을 생성 중... (조금만 대기해주세요)";
+            progressEl.classList.remove('text-gray-500');
+            progressEl.classList.add('text-green-400');
         }
-        alert(`성공적으로 ${count}개의 더미 파트너와 리뷰가 생성되었습니다.`);
+
+        const batchSize = 10;
+        for (let i = 0; i < dummyPartners.length; i += batchSize) {
+            const batch = db.batch();
+            const slice = dummyPartners.slice(i, i + batchSize);
+            
+            slice.forEach(p => {
+                const docRef = db.collection("partners").doc();
+                batch.set(docRef, p);
+                
+                const reviewRef = db.collection("reviews").doc();
+                batch.set(reviewRef, {
+                    partnerId: docRef.id,
+                    rating: 5,
+                    text: "정말 친절하고 실력이 뛰어납니다. 강력 추천해요!",
+                    date: "2026.04.10",
+                    author: "jo*****",
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                count++;
+            });
+            await batch.commit();
+        }
+
+        if(progressEl) {
+            progressEl.innerText = "대기 중...";
+            progressEl.classList.add('text-gray-500');
+            progressEl.classList.remove('text-green-400');
+        }
+        alert(`성공적으로 ${count}개의 더미 파트너와 리뷰가 실제 DB에 생성되었습니다!`);
     } catch(e) {
         console.error(e);
         alert("데이터 생성 중 오류가 발생했습니다: " + e.message);
