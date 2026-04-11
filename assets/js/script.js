@@ -29,7 +29,7 @@
                                         const isActive = province === currentActiveTab;
                                         btn.className = isActive
                                             ? 'flex-shrink-0 px-4 py-2 rounded-full bg-[#D4AF37] text-[#06110D] text-[12px] font-bold transition-all'
-                                            : 'flex-shrink-0 px-4 py-2 rounded-full border border-[#2A3731] text-[var(--text-sub)] text-[12px] hover:border-[var(--point-color)] transition-all';
+                                            : 'flex-shrink-0 px-4 py-2 rounded-full border border-[#2A3731] text-white  text-[12px] hover:border-[var(--point-color)] transition-all';
                                         btn.innerText = province;
                                         btn.onclick = () => {
                                             currentActiveTab = province;
@@ -74,7 +74,7 @@
 
                                     selectedRegions.forEach(region => {
                                         const btn = document.createElement('button');
-                                        btn.className = 'px-4 py-2 rounded-full border border-[var(--point-color)] bg-[#D4AF37]/10 text-[var(--point-color)] text-[13px] font-medium transition-all flex items-center gap-1';
+                                        btn.className = 'px-4 py-2 rounded-full border border-[var(--point-color)] bg-[#D4AF37]/10 text-white  text-[13px] font-medium transition-all flex items-center gap-1';
 
                                         const parts = region.split(' ');
                                         const dist = parts.slice(1).join(' ');
@@ -153,7 +153,7 @@
                                         countEl.innerText = `${selected.size}개 선택됨`;
                                         selected.forEach(item => {
                                             const btn = document.createElement('button');
-                                            btn.className = 'px-4 py-2 rounded-full border border-[var(--point-color)] bg-[#D4AF37]/10 text-[var(--point-color)] text-[13px] font-medium transition-all flex items-center gap-1 mb-2';
+                                            btn.className = 'px-4 py-2 rounded-full border border-[var(--point-color)] bg-[#D4AF37]/10 text-white  text-[13px] font-medium transition-all flex items-center gap-1 mb-2';
                                             btn.innerHTML = `${item} <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>`;
                                             btn.onclick = () => {
                                                 selected.delete(item);
@@ -168,7 +168,7 @@
                                     renderSelected();
                                 }
 
-                                setupCategory('massage', ['상관없음(전체)', '스웨디시', '스포츠 마사지', '타이 마사지', '커플 마사지 (참관)'], ['스웨디시']);
+                                setupCategory('massage', ['상관없음(전체)', '스웨디시', '스포츠 마사지', '타이 마사지', '커플마사지'], ['스웨디시']);
                                 setupCategory('space', ['상관없음(전체)', '방문 (홈케어/출장)', '1인샵 (매장 방문)', '다인샵 (일반 매장)'], ['상관없음(전체)']);
                                 setupCategory('age', ['연령 무관 (전체)', '20대 초반', '20대 중후반', '30대 초반', '30대 중후반', '40대 초반', '40대 중후반'], ['연령 무관 (전체)']);
 
@@ -204,7 +204,7 @@ const filterSheet = document.getElementById('filter-sheet');
                 'massage': {
                     title: '선호하는 마사지 종류',
                     type: 'list',
-                    options: ['상관없음(전체)', '스웨디시', '스포츠 마사지', '타이 마사지', '커플 마사지 (참관)']
+                    options: ['상관없음(전체)', '스웨디시', '스포츠 마사지', '타이 마사지', '커플마사지']
                 },
                 'place': {
                     title: '휴식 공간 형태',
@@ -491,13 +491,13 @@ const filterSheet = document.getElementById('filter-sheet');
                 if (tagsContainer) {
                     if (currentPartner.tags && currentPartner.tags.length > 0) {
                         tagsContainer.innerHTML = currentPartner.tags.map(tag =>
-                            `<span class="bg-transparent border border-[var(--point-color)] text-[var(--point-color)] px-3 py-1.5 rounded-full text-sm font-medium">${tag}</span>`
+                            `<span class="bg-transparent border border-[var(--point-color)] text-white  px-3 py-1.5 rounded-full text-sm font-medium">${tag}</span>`
                         ).join('');
                     } else if (currentPartner.massage && currentPartner.place && currentPartner.age) {
                         tagsContainer.innerHTML = `
-                    <span class="bg-transparent border border-[var(--point-color)] text-[var(--point-color)] px-3 py-1.5 rounded-full text-sm font-medium">${currentPartner.massage}</span>
-                    <span class="bg-transparent border border-[var(--point-color)] text-[var(--point-color)] px-3 py-1.5 rounded-full text-sm font-medium">${currentPartner.place}</span>
-                    <span class="bg-transparent border border-[var(--point-color)] text-[var(--point-color)] px-3 py-1.5 rounded-full text-sm font-medium">${currentPartner.age}</span>
+                    <span class="bg-transparent border border-[var(--point-color)] text-white  px-3 py-1.5 rounded-full text-sm font-medium">${currentPartner.massage}</span>
+                    <span class="bg-transparent border border-[var(--point-color)] text-white  px-3 py-1.5 rounded-full text-sm font-medium">${currentPartner.place}</span>
+                    <span class="bg-transparent border border-[var(--point-color)] text-white  px-3 py-1.5 rounded-full text-sm font-medium">${currentPartner.age}</span>
                 `;
                     } else {
                         tagsContainer.innerHTML = '';
@@ -512,7 +512,7 @@ const filterSheet = document.getElementById('filter-sheet');
                         menus = [
                             { name: 'A 코스', theme: '스웨디시 & 스포츠 케어', desc: '건식 및 소프트 아로마 60분', price: '100,000' },
                             { name: 'B 코스 (BEST)', theme: '시그니처 감성 테라피', desc: '프리미엄 슈 감성 케어 90분', price: '140,000' },
-                            { name: 'C 코스 (VIP)', theme: '로얄 딥티슈 & 로미로미', desc: '전신 딥티슈 + 집중 감성 케어 120분', price: '180,000' }
+                            { name: 'C 코스 (VIP)', theme: '로얄 딥티슈 & VIP 케어', desc: '전신 딥티슈 + 집중 감성 케어 120분', price: '180,000' }
                         ];
                     }
 
@@ -591,6 +591,17 @@ const filterSheet = document.getElementById('filter-sheet');
             let DB_CHOICE = [];
             let DB_RECOMMEND = [];
 
+            // 랜덤 풀에 사용될 전체 옵션 데이터 설정
+            const ALL_MASSAGES = ['스웨디시', '스포츠 마사지', '타이 마사지', '커플마사지'];
+            const ALL_PLACES = ['방문 (홈케어/출장)', '1인샵 (매장 방문)', '다인샵 (일반 매장)'];
+            const ALL_AGES = ['20대 초반', '20대 중후반', '30대 초반', '30대 중후반', '40대 초반', '40대 중후반'];
+            const ALL_REGIONS = [
+                '서울 강남/서초', '서울 송파/강동', '서울 영등포/구로/금천', '서울 마포/서대문/은평', 
+                '경기 분당(성남)', '경기 고양(일산)', '경기 수원', '인천 부평/계양', 
+                '충청 천안', '충청 세종', '대전 둔산/서구', '강원 춘천', 
+                '전라 전주', '광주 상무/서구', '경상 창원', '부산 해운대/수영', '제주 제주시'
+            ];
+
             // 업체 통계 헬퍼 함수
             // 랜덤 상세 조건 선택 함수
             function getRandomCondition(tagData, fallback) {
@@ -631,16 +642,22 @@ const filterSheet = document.getElementById('filter-sheet');
                     snapshot.forEach((doc) => {
                         let data = doc.data();
                         
-                        let rawPlace = getRandomCondition(data.place, '1인샵 (매장)');
-                        let cleanPlace = rawPlace.replace('프라이빗 방문', '방문').replace('프라이빗 1인샵', '1인샵').replace('스탠다드 다인샵', '다인샵');
+                        let rawPlaceData = data.place || ALL_PLACES;
+                        let placeArray = Array.isArray(rawPlaceData) ? rawPlaceData : (typeof rawPlaceData === 'string' ? rawPlaceData.split(',').map(s=>s.trim()) : [rawPlaceData]);
+                        let cleanPlaceArray = placeArray.map(p => typeof p === 'string' ? p.replace('프라이빗 방문', '방문').replace('프라이빗 1인샵', '1인샵').replace('스탠다드 다인샵', '다인샵') : p);
+                        let cleanPlace = getRandomCondition(cleanPlaceArray, ALL_PLACES);
 
                         let appPartner = {
                             id: doc.id,
                             name: data.name || '무명 업체',
-                            region: getRandomCondition(data.region, '서울 강남/서초'),
-                            massage: getRandomCondition(data.massage, (index % 2 === 0 ? '스웨디시' : '타이 마사지')),
+                            regionList: data.region || ALL_REGIONS,
+                            massageList: data.massage || ALL_MASSAGES,
+                            placeList: cleanPlaceArray,
+                            ageList: data.age || ALL_AGES,
+                            region: getRandomCondition(data.region, ALL_REGIONS),
+                            massage: getRandomCondition(data.massage, ALL_MASSAGES),
                             place: cleanPlace,
-                            age: getRandomCondition(data.age, '20대 초반'),
+                            age: getRandomCondition(data.age, ALL_AGES),
                             rating: data.rating?.toString() || (Math.random() * 0.5 + 4.5).toFixed(1),
                             ticketType: data.ticketType || '일반 입점',
                             ticketExpiry: data.ticketExpiry || '',
@@ -659,89 +676,7 @@ const filterSheet = document.getElementById('filter-sheet');
                         }
                         index++;
                     });
-                    // 파이어베이스 데이터가 부족할 경우 실제 DB에 데이터를 바로 추가 (1회성 동작)
-                    if (fetchedChoice.length + fetchedRecommend.length < 50) {
-                        console.log("DB에 데이터가 부족하여 실제 DB에 데이터를 자동으로 채워넣습니다...");
-                        const areas = ['서울 강남/서초', '서울 마포/서대문/은평', '경기 성남(분당)', '경기 수원', '인천 연수(송도)', '부산 해운대/수영', '제주 공항/노형'];
-                        const msgs = ['스웨디시', '스포츠 마사지', '타이 마사지', '아로마 테라피', '로미로미'];
-                        const plcs = ['방문 (홈케어/출장)', '1인샵 (매장 방문)', '다인샵 (일반 매장)'];
-                        const ages = ['20대 초반', '20대 중후반', '30대 초반', '30대 중후반'];
-                        const imgs = [
-                            'https://images.unsplash.com/photo-1600334089648-b0d9d3028fb2?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3wxMTc3M3wwfDF8c2VhcmNofDV8fHNwYXxlbnwwfHx8fDE3MTI4MjQ4MzZ8MA&ixlib=rb-4.0.3&q=80&w=400',
-                            'https://images.unsplash.com/photo-1544161515-4ab6ce6db874?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3wxMTc3M3wwfDF8c2VhcmNofDd8fHNwYXxlbnwwfHx8fDE3MTI4MjQ4MzZ8MA&ixlib=rb-4.0.3&q=80&w=400',
-                            'https://images.unsplash.com/photo-1540555700478-4be289fbecef?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3wxMTc3M3wwfDF8c2VhcmNofDEyfHxzcGF8ZW58MHx8fHwxNzEyODI0ODM2fDA&ixlib=rb-4.0.3&q=80&w=400',
-                            'https://images.unsplash.com/photo-1519824145371-296894a0daa9?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3wxMTc3M3wwfDF8c2VhcmNofDExfHxzcGF8ZW58MHx8fHwxNzEyODI0ODM2fDA&ixlib=rb-4.0.3&q=80&w=400',
-                            'https://images.unsplash.com/photo-1515377905703-c4788e51af15?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3wxMTc3M3wwfDF8c2VhcmNofDE4fHxzcGF8ZW58MHx8fHwxNzEyODI0ODk0fDA&ixlib=rb-4.0.3&q=80&w=400'
-                        ];
-
-                        const batch = db.batch();
-                        let currentCount = fetchedChoice.length + fetchedRecommend.length;
-                        let ops = 0;
-                        for (let i = currentCount; i < 50; i++) {
-                            let isVip = i < 15;
-                            let docId = `mock_${new Date().getTime()}_${i}`;
-                            let ref = db.collection("partners").doc(docId);
-                            
-                            let partnerData = {
-                                name: `프리미엄 힐링케어 ${i+1}호점`,
-                                region: areas[i % areas.length],
-                                massage: msgs[i % msgs.length],
-                                place: plcs[i % plcs.length],
-                                age: ages[i % ages.length],
-                                rating: (Math.random() * 0.5 + 4.5).toFixed(1),
-                                reviews: Math.floor(Math.random() * 80) + 12,
-                                image: imgs[i % imgs.length],
-                                ticketType: isVip ? '로얄 VIP권' : '스탠다드 입점권',
-                                ticketExpiry: '2026-12-31',
-                                menus: [
-                                    { name: 'A 코스', theme: '스웨디시 & 스포츠 케어', desc: '건식 및 소프트 아로마 60분', price: '100000' },
-                                    { name: 'B 코스', theme: '시그니처 테라피', desc: '프리미엄 90분', price: '140000' }
-                                ],
-                                description: '도심 속 완벽한 휴식을 선사합니다.',
-                                tier: isVip ? 'VIP' : 'Premium',
-                                createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                            };
-
-                            // 실제 DB 전송용 Batch 세팅
-                            batch.set(ref, partnerData);
-
-                            // 화면 즉각 렌더링을 위한 임시 배열 Push
-                            let rawPlaceMock = getRandomCondition(partnerData.place, '1인샵 (매장)');
-                            let cleanPlaceMock = rawPlaceMock.replace('프라이빗 방문', '방문').replace('프라이빗 1인샵', '1인샵').replace('스탠다드 다인샵', '다인샵');
-
-                            let appPartner = {
-                                id: docId,
-                                name: partnerData.name,
-                                region: getRandomCondition(partnerData.region, '서울 강남/서초'),
-                                massage: getRandomCondition(partnerData.massage, '스웨디시'),
-                                place: cleanPlaceMock,
-                                age: getRandomCondition(partnerData.age, '20대 초반'),
-                                rating: partnerData.rating,
-                                reviews: partnerData.reviews,
-                                image: partnerData.image,
-                                ticketType: partnerData.ticketType,
-                                ticketExpiry: partnerData.ticketExpiry,
-                                menus: partnerData.menus,
-                                desc: partnerData.description,
-                                tier: partnerData.tier
-                            };
-                            
-                            if (isVip) {
-                                fetchedChoice.push(appPartner);
-                            } else {
-                                fetchedRecommend.push(appPartner);
-                            }
-                            
-                            ops++;
-                        }
-                        if (ops > 0) {
-                            batch.commit().then(() => {
-                                console.log(`Successfully added ${ops} mock partners to real database!`);
-                            }).catch(err => {
-                                console.error('Error adding mock partners to DB:', err);
-                            });
-                        }
-                    }
+                    // 파이어베이스 데이터가 부족할 경우 실제 DB에 데이터를 바로 추가 (1회성 동작) - 삭제됨
 
                     // DB 배열 업데이트
                     DB_CHOICE = [...fetchedChoice];
@@ -753,16 +688,22 @@ const filterSheet = document.getElementById('filter-sheet');
                         if (savedProfile) {
                             let savedPartner = JSON.parse(savedProfile);
                             currentPartner = savedPartner;
-                            let rawLocalPlace = getRandomCondition(savedPartner.place, '방문 (홈케어/출장)');
-                            let cleanLocalPlace = rawLocalPlace.replace('프라이빗 방문', '방문').replace('프라이빗 1인샵', '1인샵').replace('스탠다드 다인샵', '다인샵');
+                            let rawLocalPlaceData = savedPartner.place || ALL_PLACES;
+                            let placeLocalArray = Array.isArray(rawLocalPlaceData) ? rawLocalPlaceData : (typeof rawLocalPlaceData === 'string' ? rawLocalPlaceData.split(',').map(s=>s.trim()) : [rawLocalPlaceData]);
+                            let cleanLocalPlaceArray = placeLocalArray.map(p => typeof p === 'string' ? p.replace('프라이빗 방문', '방문').replace('프라이빗 1인샵', '1인샵').replace('스탠다드 다인샵', '다인샵') : p);
+                            let cleanLocalPlace = getRandomCondition(cleanLocalPlaceArray, ALL_PLACES);
 
                             let myPartnerMock = {
                                 id: savedPartner.id || `local_${Date.now()}`,
                                 name: savedPartner.name,
-                                region: getRandomCondition(savedPartner.region, '서울 강남/서초'),
-                                massage: getRandomCondition(savedPartner.massage, '스웨디시'),
+                                regionList: savedPartner.region || ALL_REGIONS,
+                                massageList: savedPartner.massage || ALL_MASSAGES,
+                                placeList: cleanLocalPlaceArray,
+                                ageList: savedPartner.age || ALL_AGES,
+                                region: getRandomCondition(savedPartner.region, ALL_REGIONS),
+                                massage: getRandomCondition(savedPartner.massage, ALL_MASSAGES),
                                 place: cleanLocalPlace,
-                                age: getRandomCondition(savedPartner.age, '연령 무관'),
+                                age: getRandomCondition(savedPartner.age, ALL_AGES),
                                 rating: savedPartner.rating || '5.0',
                                 ticketType: savedPartner.ticketType || '일반 입점',
                                 ticketExpiry: savedPartner.ticketExpiry || '',
@@ -792,39 +733,43 @@ const filterSheet = document.getElementById('filter-sheet');
             function matchFilter(partner) {
                 if (activeFilters.region.length > 0) {
                     let passed = false;
+                    let pList = Array.isArray(partner.regionList) ? partner.regionList : (typeof partner.regionList === 'string' ? partner.regionList.split(',').map(s=>s.trim()) : [partner.regionList]);
                     for (let r of activeFilters.region) {
                         if (r.endsWith(' 전체')) {
                             let prov = r.split(' ')[0]; // '서울'
-                            if (partner.region.startsWith(prov)) passed = true;
+                            if (pList.some(v => v && typeof v === 'string' && v.startsWith(prov))) passed = true;
                         } else {
-                            if (partner.region === r) passed = true;
+                            if (pList.some(v => v && typeof v === 'string' && v === r)) passed = true;
                         }
                     }
                     if (!passed) return false;
                 }
                 if (activeFilters.massage.length > 0) {
                     let passed = false;
+                    let pList = Array.isArray(partner.massageList) ? partner.massageList : (typeof partner.massageList === 'string' ? partner.massageList.split(',').map(s=>s.trim()) : [partner.massageList]);
                     for (let m of activeFilters.massage) {
-                        if (m === '상관없음(전체)' || partner.massage === m) passed = true;
+                        if (m === '상관없음(전체)' || pList.some(v => v && typeof v === 'string' && v === m)) passed = true;
                     }
                     if (!passed) return false;
                 }
                 if (activeFilters.place.length > 0) {
                     let passed = false;
+                    let pList = Array.isArray(partner.placeList) ? partner.placeList : (typeof partner.placeList === 'string' ? partner.placeList.split(',').map(s=>s.trim()) : [partner.placeList]);
                     for (let p of activeFilters.place) {
                         if (p === '상관없음(전체)') passed = true;
-                        if (p.includes('방문') && partner.place.includes('홈케어')) passed = true;
-                        if (p.includes('1인샵') && partner.place.includes('1인샵')) passed = true;
-                        if (p.includes('다인샵') && partner.place.includes('다인샵')) passed = true;
+                        if (p.includes('방문') && pList.some(v => v && typeof v === 'string' && (v.includes('홈케어') || v.includes('방문')))) passed = true;
+                        if (p.includes('1인샵') && pList.some(v => v && typeof v === 'string' && v.includes('1인샵'))) passed = true;
+                        if (p.includes('다인샵') && pList.some(v => v && typeof v === 'string' && v.includes('다인샵'))) passed = true;
                     }
                     if (!passed) return false;
                 }
                 if (activeFilters.age.length > 0) {
                     let passed = false;
+                    let pList = Array.isArray(partner.ageList) ? partner.ageList : (typeof partner.ageList === 'string' ? partner.ageList.split(',').map(s=>s.trim()) : [partner.ageList]);
                     for (let a of activeFilters.age) {
                         if (a === '연령 무관 (전체)') passed = true;
                         let f = a.substring(0, 6); // ex: "20대 초반"
-                        if (partner.age.includes(f)) passed = true;
+                        if (pList.some(v => v && typeof v === 'string' && v.includes(f))) passed = true;
                     }
                     if (!passed) return false;
                 }
@@ -843,7 +788,7 @@ const filterSheet = document.getElementById('filter-sheet');
                             let disp = val;
                             if (disp === '상관없음(전체)') disp = '상관없음';
                             else if (disp === '연령 무관 (전체)') disp = '연령 무관';
-                            pillsHtml += `<span class="px-3 py-1.5 text-[13px] bg-transparent border border-[var(--point-color)] text-[var(--point-color)] font-medium rounded-full cursor-pointer flex items-center gap-1 hover:bg-[var(--point-color)] hover:text-[#06110D] transition-colors" onclick="removeFilterItem('${key}', '${val}')">${disp} <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></span>`;
+                            pillsHtml += `<span class="px-3 py-1.5 text-[13px] bg-transparent border border-[var(--point-color)] text-white  font-medium rounded-full cursor-pointer flex items-center gap-1 hover:bg-[var(--point-color)] hover:text-[#06110D] transition-colors" onclick="removeFilterItem('${key}', '${val}')">${disp} <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></span>`;
                         });
                     });
                     summaryDiv.innerHTML = pillsHtml;
@@ -887,19 +832,23 @@ const filterSheet = document.getElementById('filter-sheet');
                             badgeHtml = `<div class="absolute top-2 left-2 z-10 bg-[var(--surface-color)] text-[var(--point-color)] text-[10px] font-extrabold px-2 py-0.5 rounded border border-[var(--point-color)] opacity-95 tracking-wide shadow-md">Premium</div>`;
                         }
 
+                        let rndRegion = getRandomCondition(partner.regionList, partner.region);
+                        let rndMassage = getRandomCondition(partner.massageList, partner.massage);
+                        let rndPlace = getRandomCondition(partner.placeList, partner.place);
+                        let rndAge = getRandomCondition(partner.ageList, partner.age);
                         html += `
-                <div class="card p-4 flex gap-4 mb-4 items-center relative" onclick="openProfile('${partner.name}', '${partner.region} · ${partner.place}', '${partner.id}', 0, 0, '${partner.massage}', '${partner.place}', '${partner.age}', '${partner.image}', '${partner.ticketType || '일반 입점'}', '${partner.ticketExpiry || ''}')">
+                <div class="card p-4 flex gap-4 mb-4 items-center relative" onclick="openProfile('${partner.name}', '${rndRegion} · ${rndPlace}', '${partner.id}', ${partner.reviews || 0}, ${partner.rating || 0}, '${rndMassage}', '${rndPlace}', '${rndAge}', '${partner.image}', '${partner.ticketType || '일반 입점'}', '${partner.ticketExpiry || ''}')">
                     <div class="w-[108px] h-[108px] rounded-2xl bg-cover bg-center flex-shrink-0 relative border border-[var(--point-color)]" style="background-image: url('${partner.image}'); filter: grayscale(15%) sepia(20%);">
                         ${badgeHtml}
                     </div>
                     <div class="flex-1 py-1">
                         <h3 class="font-bold text-[16px] mb-0.5 tracking-tight" style="color: var(--text-main);">${partner.name}</h3>
-                        <p class="text-[13px] mt-0.5" style="color: var(--text-sub);">${partner.region}</p>
+                        <p class="text-[13px] mt-0.5" style="color: var(--text-sub);">${rndRegion}</p>
                         <div class="grid grid-cols-2 gap-1.5 mt-2.5">
-                            <span class="text-[11px] px-2 py-1 border border-[var(--point-color)] bg-[var(--point-color)]/10 rounded-full font-medium text-[var(--point-color)] flex items-center justify-center truncate tracking-tight shadow-sm">${partner.region.split(' ')[0]}</span>
-                            <span class="text-[11px] px-2 py-1 border border-[var(--point-color)] bg-transparent rounded-full font-medium text-[var(--text-sub)] flex items-center justify-center truncate tracking-tight shadow-sm">${partner.massage}</span>
-                            <span class="text-[11px] px-2 py-1 border border-[var(--point-color)] bg-transparent rounded-full font-medium text-[var(--text-sub)] flex items-center justify-center truncate tracking-tight shadow-sm">${partner.place}</span>
-                            <span class="text-[11px] px-2 py-1 border border-[var(--point-color)] bg-transparent rounded-full font-medium text-[var(--text-sub)] flex items-center justify-center truncate tracking-tight shadow-sm">${partner.age}</span>
+                            <span class="text-[11px] px-2 py-1 border border-[var(--point-color)] bg-[var(--point-color)]/10 rounded-full font-medium text-white  flex items-center justify-center truncate tracking-tight shadow-sm">${rndRegion.split(' ')[0]}</span>
+                            <span class="text-[11px] px-2 py-1 border border-[var(--point-color)] bg-transparent rounded-full font-medium text-white  flex items-center justify-center truncate tracking-tight shadow-sm">${rndMassage}</span>
+                            <span class="text-[11px] px-2 py-1 border border-[var(--point-color)] bg-transparent rounded-full font-medium text-white  flex items-center justify-center truncate tracking-tight shadow-sm">${rndPlace}</span>
+                            <span class="text-[11px] px-2 py-1 border border-[var(--point-color)] bg-transparent rounded-full font-medium text-white  flex items-center justify-center truncate tracking-tight shadow-sm">${rndAge}</span>
                         </div>
 
                     </div>
@@ -1420,17 +1369,21 @@ const filterSheet = document.getElementById('filter-sheet');
                         let html = '';
                         for (let partner of combined) {
                             let stats = getPartnerStats(partner);
+                            let rndRegion = getRandomCondition(partner.regionList, partner.region);
+                            let rndMassage = getRandomCondition(partner.massageList, partner.massage);
+                            let rndPlace = getRandomCondition(partner.placeList, partner.place);
+                            let rndAge = getRandomCondition(partner.ageList, partner.age);
                             html += `
-                    <div class="card p-4 flex gap-4 mb-4 items-center transition-all duration-500 ease-in-out" onclick="openProfile('${partner.name}', '${partner.region} · ${partner.place}', '${partner.id}', 0, 0, '${partner.massage}', '${partner.place}', '${partner.age}', '${partner.image}', '${partner.ticketType || '일반 입점'}', '${partner.ticketExpiry || ''}')">
+                    <div class="card p-4 flex gap-4 mb-4 items-center transition-all duration-500 ease-in-out" onclick="openProfile('${partner.name}', '${rndRegion} · ${rndPlace}', '${partner.id}', ${partner.reviews || 0}, ${partner.rating || 0}, '${rndMassage}', '${rndPlace}', '${rndAge}', '${partner.image}', '${partner.ticketType || '일반 입점'}', '${partner.ticketExpiry || ''}')">
                         <div class="w-[108px] h-[108px] rounded-2xl bg-cover bg-center flex-shrink-0 relative border border-[var(--point-color)]" style="background-image: url('${partner.image}'); filter: grayscale(10%) sepia(10%);"></div>
                         <div class="flex-1 py-1">
                             <h3 class="font-bold text-[16px] mb-0.5 tracking-tight" style="color: var(--text-main);">${partner.name}</h3>
-                            <p class="text-[13px] mt-0.5" style="color: var(--text-sub);">${partner.region}</p>
+                            <p class="text-[13px] mt-0.5" style="color: var(--text-sub);">${rndRegion}</p>
                             <div class="grid grid-cols-2 gap-1.5 mt-2.5">
-                                <span class="text-[11px] px-2 py-1 border border-[var(--point-color)] bg-[var(--point-color)]/10 rounded-full font-medium text-[var(--point-color)] flex items-center justify-center truncate tracking-tight shadow-sm">${partner.region.split(' ')[0]}</span>
-                                <span class="text-[11px] px-2 py-1 border border-[var(--point-color)] bg-transparent rounded-full font-medium text-[var(--text-sub)] flex items-center justify-center truncate tracking-tight shadow-sm">${partner.massage}</span>
-                                <span class="text-[11px] px-2 py-1 border border-[var(--point-color)] bg-transparent rounded-full font-medium text-[var(--text-sub)] flex items-center justify-center truncate tracking-tight shadow-sm">${partner.place}</span>
-                                <span class="text-[11px] px-2 py-1 border border-[var(--point-color)] bg-transparent rounded-full font-medium text-[var(--text-sub)] flex items-center justify-center truncate tracking-tight shadow-sm">${partner.age}</span>
+                                <span class="text-[11px] px-2 py-1 border border-[var(--point-color)] bg-[var(--point-color)]/10 rounded-full font-medium text-white  flex items-center justify-center truncate tracking-tight shadow-sm">${rndRegion.split(' ')[0]}</span>
+                                <span class="text-[11px] px-2 py-1 border border-[var(--point-color)] bg-transparent rounded-full font-medium text-white  flex items-center justify-center truncate tracking-tight shadow-sm">${rndMassage}</span>
+                                <span class="text-[11px] px-2 py-1 border border-[var(--point-color)] bg-transparent rounded-full font-medium text-white  flex items-center justify-center truncate tracking-tight shadow-sm">${rndPlace}</span>
+                                <span class="text-[11px] px-2 py-1 border border-[var(--point-color)] bg-transparent rounded-full font-medium text-white  flex items-center justify-center truncate tracking-tight shadow-sm">${rndAge}</span>
                             </div>
 
                         </div>
@@ -1460,20 +1413,24 @@ const filterSheet = document.getElementById('filter-sheet');
                             badgeHtml = `<div class="absolute top-3 left-3 z-10 bg-[var(--surface-color)] text-[var(--point-color)] border border-[var(--point-color)] text-[11px] font-extrabold px-2.5 py-1 rounded opacity-95 tracking-wide shadow-md">Premium</div>`;
                         }
 
+                        let rndRegion = getRandomCondition(partner.regionList, partner.region);
+                        let rndMassage = getRandomCondition(partner.massageList, partner.massage);
+                        let rndPlace = getRandomCondition(partner.placeList, partner.place);
+                        let rndAge = getRandomCondition(partner.ageList, partner.age);
                         chunk += `
-                <div class="card min-w-[280px] max-w-[280px]" onclick="openProfile('${partner.name}', '${partner.region} · ${partner.place}', '${partner.id}', 0, 0, '${partner.massage}', '${partner.place}', '${partner.age}', '${partner.image}', '${partner.ticketType || '일반 입점'}', '${partner.ticketExpiry || ''}')">
+                <div class="card min-w-[280px] max-w-[280px]" onclick="openProfile('${partner.name}', '${rndRegion} · ${rndPlace}', '${partner.id}', ${partner.reviews || 0}, ${partner.rating || 0}, '${rndMassage}', '${rndPlace}', '${rndAge}', '${partner.image}', '${partner.ticketType || '일반 입점'}', '${partner.ticketExpiry || ''}')">
                     <div class="relative h-[180px] bg-cover bg-center rounded-t-2xl" style="background-image: url('${partner.image}'); filter: grayscale(15%) sepia(20%); border-bottom: 1px solid var(--accent-color);">
                         ${badgeHtml}
                         <div class="absolute inset-0 bg-gradient-to-t from-[var(--surface-color)] to-transparent"></div>
                     </div>
                     <div class="p-5 pt-0 mt-3">
                         <h3 class="font-bold text-lg">${partner.name}</h3>
-                        <p class="text-sm mt-1.5" style="color: var(--text-sub);">${partner.region}</p>
+                        <p class="text-sm mt-1.5" style="color: var(--text-sub);">${rndRegion}</p>
                         <div class="grid grid-cols-2 gap-2 mt-4 text-xs">
-                            <span class="border border-[var(--point-color)] bg-[var(--point-color)]/10 px-2.5 py-1.5 rounded-full font-bold text-[var(--point-color)] flex items-center justify-center truncate tracking-tight shadow-sm">${partner.region.split(' ')[0]}</span>
-                            <span class="border border-[var(--point-color)] bg-transparent px-2.5 py-1.5 rounded-full font-medium text-[var(--text-sub)] flex items-center justify-center truncate tracking-tight shadow-sm">${partner.massage}</span>
-                            <span class="border border-[var(--point-color)] bg-transparent px-2.5 py-1.5 rounded-full font-medium text-[var(--text-sub)] flex items-center justify-center truncate tracking-tight shadow-sm">${partner.place}</span>
-                            <span class="border border-[var(--point-color)] bg-transparent px-2.5 py-1.5 rounded-full font-medium text-[var(--text-sub)] flex items-center justify-center truncate tracking-tight shadow-sm">${partner.age}</span>
+                            <span class="border border-[var(--point-color)] bg-[var(--point-color)]/10 px-2.5 py-1.5 rounded-full font-bold text-white  flex items-center justify-center truncate tracking-tight shadow-sm">${rndRegion.split(' ')[0]}</span>
+                            <span class="border border-[var(--point-color)] bg-transparent px-2.5 py-1.5 rounded-full font-medium text-white  flex items-center justify-center truncate tracking-tight shadow-sm">${rndMassage}</span>
+                            <span class="border border-[var(--point-color)] bg-transparent px-2.5 py-1.5 rounded-full font-medium text-white  flex items-center justify-center truncate tracking-tight shadow-sm">${rndPlace}</span>
+                            <span class="border border-[var(--point-color)] bg-transparent px-2.5 py-1.5 rounded-full font-medium text-white  flex items-center justify-center truncate tracking-tight shadow-sm">${rndAge}</span>
                         </div>
 
                     </div>
@@ -1512,8 +1469,12 @@ const filterSheet = document.getElementById('filter-sheet');
                             badgeHtml = `<div class="absolute top-1 left-1 z-10 bg-[var(--surface-color)] text-[var(--point-color)] border border-[var(--point-color)] text-[9px] font-extrabold px-1.5 py-0.5 rounded opacity-95 tracking-wide shadow-md">Premium</div>`;
                         }
 
+                        let rndRegion = getRandomCondition(partner.regionList, partner.region);
+                        let rndMassage = getRandomCondition(partner.massageList, partner.massage);
+                        let rndPlace = getRandomCondition(partner.placeList, partner.place);
+                        let rndAge = getRandomCondition(partner.ageList, partner.age);
                         recHtml += `
-                <div class="card p-4 flex gap-4 mb-4 items-center transition-all duration-500 ease-in-out opacity-0 translate-y-2" style="animation: fadeInUp 0.5s ease forwards;" onclick="openProfile('${partner.name}', '${partner.region} · ${partner.place}', '${partner.id}', 0, 0, '${partner.massage}', '${partner.place}', '${partner.age}', '${partner.image}', '${partner.ticketType || '일반 입점'}', '${partner.ticketExpiry || ''}')">
+                <div class="card p-4 flex gap-4 mb-4 items-center transition-all duration-500 ease-in-out opacity-0 translate-y-2" style="animation: fadeInUp 0.5s ease forwards;" onclick="openProfile('${partner.name}', '${rndRegion} · ${rndPlace}', '${partner.id}', ${partner.reviews || 0}, ${partner.rating || 0}, '${rndMassage}', '${rndPlace}', '${rndAge}', '${partner.image}', '${partner.ticketType || '일반 입점'}', '${partner.ticketExpiry || ''}')">
                     <div class="w-[108px] h-[108px] rounded-2xl bg-cover bg-center flex-shrink-0 relative border border-[var(--point-color)]" style="background-image: url('${partner.image}'); filter: grayscale(10%) sepia(10%);">
                         ${badgeHtml}
                     </div>
@@ -1521,12 +1482,12 @@ const filterSheet = document.getElementById('filter-sheet');
                         <div class="flex justify-between items-start">
                             <h3 class="font-bold text-[16px] mb-0.5 tracking-tight" style="color: var(--text-main);">${partner.name}</h3>
                         </div>
-                        <p class="text-[13px] mt-0.5" style="color: var(--text-sub);">${partner.region}</p>
+                        <p class="text-[13px] mt-0.5" style="color: var(--text-sub);">${rndRegion}</p>
                         <div class="grid grid-cols-2 gap-1.5 mt-2.5">
-                            <span class="text-[11px] px-2 py-1 border border-[var(--point-color)] bg-[var(--point-color)]/10 rounded-full font-medium text-[var(--point-color)] flex items-center justify-center truncate tracking-tight shadow-sm">${partner.region.split(' ')[0]}</span>
-                            <span class="text-[11px] px-2 py-1 border border-[var(--point-color)] bg-transparent rounded-full font-medium text-[var(--text-sub)] flex items-center justify-center truncate tracking-tight shadow-sm">${partner.massage}</span>
-                            <span class="text-[11px] px-2 py-1 border border-[var(--point-color)] bg-transparent rounded-full font-medium text-[var(--text-sub)] flex items-center justify-center truncate tracking-tight shadow-sm">${partner.place}</span>
-                            <span class="text-[11px] px-2 py-1 border border-[var(--point-color)] bg-transparent rounded-full font-medium text-[var(--text-sub)] flex items-center justify-center truncate tracking-tight shadow-sm">${partner.age}</span>
+                            <span class="text-[11px] px-2 py-1 border border-[var(--point-color)] bg-[var(--point-color)]/10 rounded-full font-medium text-white  flex items-center justify-center truncate tracking-tight shadow-sm">${rndRegion.split(' ')[0]}</span>
+                            <span class="text-[11px] px-2 py-1 border border-[var(--point-color)] bg-transparent rounded-full font-medium text-white  flex items-center justify-center truncate tracking-tight shadow-sm">${rndMassage}</span>
+                            <span class="text-[11px] px-2 py-1 border border-[var(--point-color)] bg-transparent rounded-full font-medium text-white  flex items-center justify-center truncate tracking-tight shadow-sm">${rndPlace}</span>
+                            <span class="text-[11px] px-2 py-1 border border-[var(--point-color)] bg-transparent rounded-full font-medium text-white  flex items-center justify-center truncate tracking-tight shadow-sm">${rndAge}</span>
                         </div>
 
                     </div>
@@ -1921,11 +1882,16 @@ const filterSheet = document.getElementById('filter-sheet');
             }
 
             function handleSignupSubmit() {
+                const id = document.getElementById('signup-id').value.trim();
                 const pw = document.getElementById('signup-pw').value.trim();
                 const pwConfirm = document.getElementById('signup-pw-confirm').value.trim();
                 const name = document.getElementById('signup-name').value.trim();
+                const phone = document.getElementById('signup-phone').value.trim();
                 const agreeTerms = document.getElementById('signup-agree-terms').checked;
                 const agree = document.getElementById('signup-agree').checked;
+
+                const selectedGender = document.querySelector('input[name="signup-gender"]:checked');
+                const gender = selectedGender ? (selectedGender.value === 'male' ? '남성' : '여성') : '알수없음';
 
                 if (!agreeTerms || !agree) {
                     alert('필수 확인 항목 및 약관에 동의해주세요.');
@@ -1939,6 +1905,32 @@ const filterSheet = document.getElementById('filter-sheet');
 
                 currentPassword = pw;
 
+                // Firestore에 사용자 정보 저장
+                if (typeof firebase === 'undefined') {
+                    alert('데이터베이스 연결에 실패했습니다. 캐시 문제일 수 있으니 [Ctrl + F5]를 눌러 강력 새로고침 후 다시 시도해주세요.');
+                    return;
+                }
+
+                const firestoreDb = firebase.firestore();
+                const now = firebase.firestore.FieldValue.serverTimestamp();
+                let docRef = firestoreDb.collection('users').doc(id);
+                docRef.set({
+                    userId: id,
+                    password: pw, // UI상 관리자 페이지에서는 제거되지만, 추후 진짜 auth 연동 전까지 데이터 유지
+                    name: name,
+                    phone: phone,
+                    gender: gender,
+                    createdAt: now,
+                    lastLoginAt: now
+                }).then(() => {
+                    completeSignup(name, id);
+                }).catch((error) => {
+                    console.error('Firestore Error:', error);
+                    alert('가입 처리 중 데이터베이스 오류가 발생했습니다: ' + error.message);
+                });
+            }
+
+            function completeSignup(name, id) {
                 alert(name + '님, 다독 회원이 되신 것을 환영합니다!');
                 closeSignupModal();
 
@@ -1951,8 +1943,7 @@ const filterSheet = document.getElementById('filter-sheet');
 
                 // 헤더 UI 상태 업데이트 (메인 화면)
                 if (typeof updateHeaderToLoggedInState === 'function') {
-                    const signupId = document.getElementById('signup-id').value.trim();
-                    updateHeaderToLoggedInState(signupId);
+                    updateHeaderToLoggedInState(id);
                 }
             }
 
@@ -2226,7 +2217,7 @@ const filterSheet = document.getElementById('filter-sheet');
                 openPartnerEntryScreen();
             }
 
-            function handlePartnerMockLogin() {
+            async function handlePartnerMockLogin() {
                 const idInput = document.getElementById('partner-login-id-input');
                 const passwordInput = document.getElementById('partner-login-password-input');
 
@@ -2257,7 +2248,44 @@ const filterSheet = document.getElementById('filter-sheet');
 
                 if (hasError) return;
 
-                if ((idInput.value === 'partner' || idInput.value === 'test') && passwordInput.value === '1234') {
+                let loginSuccess = false;
+                const idValue = idInput.value.trim();
+                const pwValue = passwordInput.value.trim();
+
+                if ((idValue === 'partner' || idValue === 'test') && pwValue === '1234') {
+                    loginSuccess = true;
+                } else {
+                    if (typeof firebase === 'undefined') {
+                        alert('데이터베이스 연결에 실패했습니다. 캐시 문제일 수 있으니 [Ctrl + F5]를 눌러 강력 새로고침 후 다시 시도해주세요.');
+                        return;
+                    }
+                    const firestoreDb = firebase.firestore();
+                    try {
+                        const partnerSnapshot = await firestoreDb.collection('partners').where('userId', '==', idValue).get();
+                        
+                        if (!partnerSnapshot.empty) {
+                            const partnerDoc = partnerSnapshot.docs[0];
+                            const partnerData = partnerDoc.data();
+                            
+                            if (partnerData.password === pwValue) {
+                                if (partnerData.status === 'pending') {
+                                    alert('입점 심사가 진행 중입니다. 승인 완료 후 로그인 가능합니다.');
+                                    return;
+                                }
+                                
+                                loginSuccess = true;
+                                
+                                await firestoreDb.collection('partners').doc(partnerDoc.id).update({
+                                    lastLoginAt: firebase.firestore.FieldValue.serverTimestamp()
+                                });
+                            }
+                        }
+                    } catch (error) {
+                        console.error('파트너 로그인 검증 실패:', error);
+                    }
+                }
+
+                if (loginSuccess) {
                     const keepLogin = document.getElementById('partner-keep-login-checkbox').checked;
                     isPartnerLoggedIn = true;
                     if (keepLogin) {
@@ -2393,10 +2421,14 @@ const filterSheet = document.getElementById('filter-sheet');
                 }
             }
 
-            function handlePartnerSignupSubmit() {
-                // 이미 밸리데이션 통과한 상태에서만 버튼이 클릭가능하지만 혹시 몰라 최종 체크
+            async function handlePartnerSignupSubmit() {
+                const id = document.getElementById('partner-signup-id').value.trim();
                 const pw = document.getElementById('partner-signup-pw').value;
                 const pwConfirm = document.getElementById('partner-signup-pw-confirm').value;
+                const company = document.getElementById('partner-signup-company').value.trim();
+                const ownerName = document.getElementById('partner-signup-name').value.trim();
+                const phone = document.getElementById('partner-signup-phone').value.trim();
+                const bizNo = document.getElementById('partner-signup-biz-no').value.trim();
 
                 if (pw && pw !== pwConfirm) {
                     alert('입력하신 두 비밀번호가 일치하지 않습니다.');
@@ -2411,11 +2443,45 @@ const filterSheet = document.getElementById('filter-sheet');
                     }
                 }
 
-                // 기존 alert창을 띄우지 않고, 회원가입 모달을 닫고 성공 환영 모달을 오픈
+                if (typeof firebase === 'undefined') {
+                    alert('데이터베이스 연결에 실패했습니다. 캐시 문제일 수 있으니 [Ctrl + F5]를 눌러 강력 새로고침 후 다시 시도해주세요.');
+                    return;
+                }
+
+                const firestoreDb = firebase.firestore();
+                
+                try {
+                    const existingPartner = await firestoreDb.collection('partners').where('userId', '==', id).get();
+                    if (!existingPartner.empty) {
+                        alert('이미 사용중인 파트너 아이디입니다.');
+                        return;
+                    }
+
+                    const now = firebase.firestore.FieldValue.serverTimestamp();
+                    
+                    // 파트너 컬렉션에 새 문서 저장
+                    await firestoreDb.collection('partners').add({
+                        userId: id,
+                        password: pw, // 향후 암호화 적용 권장
+                        name: company,
+                        ownerName: ownerName,
+                        phone: phone,
+                        bizNo: bizNo,
+                        status: 'pending', // 대기 상태
+                        createdAt: now,
+                        updatedAt: now
+                    });
+                    
+                } catch (error) {
+                    console.error('파트너 등록 중 오류 발생:', error);
+                    alert('가입 처리 중 문제가 발생했습니다. 관리자에게 문의하세요.');
+                    return;
+                }
+
+                // 모달 전환 로직
                 closePartnerSignupModal();
                 const successModal = document.getElementById('partner-signup-success-modal');
                 successModal.style.display = 'flex';
-                // 애니메이션 효과를 위한 약간의 지연
                 setTimeout(() => {
                     successModal.classList.remove('opacity-0');
                 }, 10);
@@ -2614,38 +2680,70 @@ const filterSheet = document.getElementById('filter-sheet');
                 }, 300);
             }
 
-            function handleMockLogin() {
+            async function handleMockLogin() {
                 const idInput = document.getElementById('login-id-input');
                 const passwordInput = document.getElementById('login-password-input');
+                const idValue = idInput.value.trim();
+                const pwValue = passwordInput.value.trim();
 
-                if (idInput.value === 'test' && passwordInput.value === '1234') {
-                    // 로그인 성공 처리
-                    isLoggedIn = true;
+                if (!idValue || !pwValue) {
+                    alert('아이디와 비밀번호를 입력해주세요.');
+                    return;
+                }
 
-                    // 입력창 초기화
-                    idInput.value = '';
-                    passwordInput.value = '';
+                if (typeof firebase === 'undefined') {
+                    alert('서버 연결 실패. 페이지를 강력 새로고침(Ctrl + F5) 후 다시 시도해주세요.');
+                    return;
+                }
 
-                    // 로그인 관련 폼/모달 모두 닫기
-                    closeLoginFormModal();
-                    closeLoginModal();
+                const firestoreDb = firebase.firestore();
+                try {
+                    const userSnapshot = await firestoreDb.collection('users').where('userId', '==', idValue).get();
+                    
+                    if (!userSnapshot.empty) {
+                        const userDoc = userSnapshot.docs[0];
+                        const userData = userDoc.data();
+                        
+                        // 과거 데이터라서 비밀번호가 없으면 1234로 통과시키거나 저장된 비밀번호 비교
+                        if ((!userData.password && pwValue === '1234') || (userData.password && userData.password === pwValue)) {
+                            
+                            // 최근 접속일시 갱신
+                            await firestoreDb.collection('users').doc(userDoc.id).update({
+                                lastLoginAt: firebase.firestore.FieldValue.serverTimestamp()
+                            });
 
-                    // 헤더 UI 상태 업데이트 (프로필 이미지로 변경)
-                    updateHeaderToLoggedInState(idInput.value);
-
-                    // 로그인 상태 저장
-                    const keepLogin = document.getElementById('keep-login-checkbox').checked;
-                    if (keepLogin) {
-                        localStorage.setItem('dadok_isLoggedIn', 'true');
-                        localStorage.setItem('dadok_username', idInput.value);
-                    } else {
-                        sessionStorage.setItem('dadok_isLoggedIn', 'true');
-                        sessionStorage.setItem('dadok_username', idInput.value);
+                            completeLoginProcess(idValue);
+                            return;
+                        }
                     }
+                    
+                    // ID 없거나 비밀번호 불일치
+                    alert('아이디 또는 비밀번호가 일치하지 않습니다.');
+                } catch (error) {
+                    console.error("Login Error: ", error);
+                    alert("로그인 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
+                }
+            }
 
-                    // 알림 삭제됨
+            function completeLoginProcess(username) {
+                isLoggedIn = true;
+                const idInput = document.getElementById('login-id-input');
+                const passwordInput = document.getElementById('login-password-input');
+                if(idInput) idInput.value = '';
+                if(passwordInput) passwordInput.value = '';
+
+                closeLoginFormModal();
+                closeLoginModal();
+                updateHeaderToLoggedInState(username);
+
+                const keepLoginBox = document.getElementById('keep-login-checkbox');
+                const keepLogin = keepLoginBox ? keepLoginBox.checked : false;
+                if (keepLogin) {
+                    localStorage.setItem('dadok_isLoggedIn', 'true');
+                    localStorage.setItem('dadok_username', username);
                 } else {
-                    alert('아이디 또는 비밀번호가 일치하지 않습니다.\n(테스트 계정: test / 1234)');
+                    sessionStorage.setItem('dadok_isLoggedIn', 'true');
+                    sessionStorage.setItem('dadok_username', username);
                 }
             }
 
@@ -2771,7 +2869,7 @@ const filterSheet = document.getElementById('filter-sheet');
                 userFavorites.forEach(partner => {
                     let region = partner.desc ? partner.desc.split(' · ')[0] : (partner.region || '');
                     html += `
-                <div class="bg-[var(--surface-color)] p-4 rounded-xl border border-[var(--border-color)] flex gap-4 cursor-pointer hover:border-[var(--point-color)]/50 transition-colors" onclick="openProfileFromFavorites('${partner.name}', '${partner.desc}', '${partner.id}', 0, 0, '${partner.massage}', '${partner.place}', '${partner.age}', '${partner.image}', '${partner.ticketType || '일반 입점'}', '${partner.ticketExpiry || ''}')">
+                <div class="bg-[var(--surface-color)] p-4 rounded-xl border border-[var(--border-color)] flex gap-4 cursor-pointer hover:border-[var(--point-color)]/50 transition-colors" onclick="openProfileFromFavorites('${partner.name}', '${partner.desc}', '${partner.id}', ${partner.reviews || 0}, ${partner.rating || 0}, '${partner.massage}', '${partner.place}', '${partner.age}', '${partner.image}', '${partner.ticketType || '일반 입점'}', '${partner.ticketExpiry || ''}')">
                     <div class="w-[80px] h-[80px] rounded-lg bg-cover bg-center shrink-0 shadow-sm" style="background-image: url('${partner.image}')"></div>
                     <div class="flex-1 flex flex-col justify-center overflow-hidden">
                         <div class="flex justify-between items-start mb-1.5">

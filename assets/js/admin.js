@@ -67,7 +67,7 @@ let categoriesList = [];
 const DEFAULT_FILTERS = {
     massage: {
         title: '선호하는 마사지 종류',
-        options: ['상관없음(전체)', '스웨디시', '스포츠 마사지', '타이 마사지', '커플 마사지']
+        options: ['상관없음(전체)', '스웨디시', '스포츠 마사지', '타이 마사지', '커플마사지']
     },
     place: {
         title: '휴식 공간 형태',
@@ -279,23 +279,42 @@ function loadUsers() {
     db.collection('users').orderBy('createdAt', 'desc').onSnapshot((snapshot) => {
         tbody.innerHTML = '';
         if (snapshot.empty) {
-            tbody.innerHTML = '<tr><td colspan="5" class="p-4 text-center">조회된 유저가 없습니다.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="7" class="p-4 text-center">조회된 유저가 없습니다.</td></tr>';
             return;
         }
         snapshot.forEach(doc => {
             const data = doc.data();
             const dStr = data.createdAt ? new Date(data.createdAt.toMillis()).toLocaleString('ko-KR') : '-';
+            const logStr = data.lastLoginAt ? new Date(data.lastLoginAt.toMillis()).toLocaleString('ko-KR') : '-';
             tbody.innerHTML += `
                 <tr class="hover:bg-white/5 transition-colors">
                     <td class="p-4 font-mono">${data.userId || '알수없음'}</td>
                     <td class="p-4">${data.name || '알수없음'}</td>
+                    <td class="p-4">${data.gender || '-'}</td>
                     <td class="p-4 text-[#A7B2AE]">${data.phone || '-'}</td>
                     <td class="p-4 text-[#A7B2AE]">${dStr}</td>
-                    <td class="p-4"><span class="px-2 py-1 bg-green-900/50 text-green-400 rounded text-xs border border-green-800">정상 활성</span></td>
+                    <td class="p-4 text-[#A7B2AE]">${logStr}</td>
+                    <td class="p-4 flex items-center gap-2">
+                        <span class="px-2 py-1 bg-green-900/50 text-green-400 rounded text-xs border border-green-800">정상 활성</span>
+                        <button onclick="deleteUser('${doc.id}', '${data.name || '알수없음'}')" class="px-2 py-1 bg-[#2A1515] text-red-400 hover:text-red-200 hover:bg-red-900/40 border border-red-900/50 rounded text-xs transition-colors">삭제</button>
+                    </td>
                 </tr>
             `;
         });
     });
+}
+
+function deleteUser(userId, userName) {
+    if (confirm(`정말 "${userName}" 회원을 삭제하시겠습니까?\n이 작업은 되돌릴 수 없으며 앱 접속이 즉시 차단됩니다.`)) {
+        db.collection('users').doc(userId).delete()
+            .then(() => {
+                console.log("Deleted user:", userId);
+            })
+            .catch(err => {
+                console.error("회원 삭제 오류:", err);
+                alert('회원 삭제에 실패했습니다: ' + err.message);
+            });
+    }
 }
 
 
@@ -366,7 +385,6 @@ function loadApprovals() {
             const data = doc.data();
             const dStr = data.createdAt ? new Date(data.createdAt.toMillis()).toLocaleString('ko-KR') : '-';
             const categoriesInfo = data.categories && data.categories.length > 0 ? data.categories.join(', ') : '미지정';
-            
             tbody.innerHTML += `
                 <tr class="hover:bg-white/5 transition-colors">
                     <td class="p-4 font-medium">
@@ -383,8 +401,8 @@ function loadApprovals() {
                     </td>
                     <td class="p-4 text-[#A7B2AE] text-sm">${dStr}</td>
                     <td class="p-4 whitespace-nowrap">
-                        <button onclick="activatePartner('${doc.id}')" class="px-3 py-1.5 bg-green-600 hover:bg-green-500 text-white font-bold rounded-lg text-sm mr-2 transition-colors">승인 (Activate)</button>
-                        <button onclick="rejectPartner('${doc.id}')" class="px-3 py-1.5 bg-[#11291D] hover:bg-red-900/50 text-red-400 hover:text-red-300 font-bold border border-red-900/30 rounded-lg text-sm transition-colors">반려</button>
+                        <button onclick="openApprovalReviewModal('${doc.id}')" class="px-3 py-1.5 bg-white text-[#0A1B13] font-bold rounded-lg text-sm mr-2 transition-colors hover:brightness-110 shadow-sm border border-gray-200">상세 심사 및 승인</button>
+                        <button onclick="rejectPartner('${doc.id}')" class="px-3 py-1.5 bg-[#11291D] hover:bg-red-900/50 text-red-400 hover:text-red-300 font-bold border border-red-900/30 rounded-lg text-sm transition-colors">즉시 반려</button>
                     </td>
                 </tr>
             `;
@@ -415,6 +433,106 @@ function rejectPartner(id) {
         alert('반려 처리 중 오류 발생: ' + err.message);
     });
 }
+
+function openApprovalReviewModal(id) {
+    db.collection('partners').doc(id).get().then(doc => {
+        if (!doc.exists) return;
+        const data = doc.data();
+        
+        document.getElementById('approval-id').value = id;
+        document.getElementById('approval-name').value = data.name || '';
+        document.getElementById('approval-owner').value = data.ownerName || '';
+        document.getElementById('approval-address').value = data.address || data.location || '';
+        document.getElementById('approval-phone').value = data.phone || '';
+        document.getElementById('approval-tags').value = (data.categories || []).join(', ');
+        document.getElementById('approval-image').value = data.imageUrl || '';
+        if(data.imageUrl) {
+            document.getElementById('approval-image-preview').src = data.imageUrl;
+            document.getElementById('approval-image-preview').classList.remove('hidden');
+        } else {
+            document.getElementById('approval-image-preview').classList.add('hidden');
+        }
+        document.getElementById('approval-catchphrase').value = data.catchphrase || '';
+        document.getElementById('approval-min-price').value = data.minPrice || '';
+        document.getElementById('approval-tier').value = data.ticketType || 'Normal';
+        document.getElementById('approval-biz-verified').value = data.bizVerified ? 'true' : 'false';
+        document.getElementById('approval-memo').value = data.adminMemo || '';
+        
+        // 동적으로 Select 박스 옵션 채우기
+        const populateSelect = (key, selectId, existingValue) => {
+            db.collection('app_filters').doc(key).get().then(fDoc => {
+                const selectElement = document.getElementById(selectId);
+                selectElement.innerHTML = '';
+                if(fDoc.exists) {
+                    const opts = fDoc.data().options || [];
+                    opts.forEach(opt => {
+                        const optionHTML = `<option value="${opt}">${opt}</option>`;
+                        selectElement.innerHTML += optionHTML;
+                    });
+                    if (existingValue && opts.includes(existingValue)) {
+                        selectElement.value = existingValue;
+                    }
+                }
+            });
+        };
+        populateSelect('massage', 'approval-cat-massage', data.catMassage);
+        populateSelect('place', 'approval-cat-place', data.catPlace);
+        populateSelect('age', 'approval-cat-age', data.catAge);
+
+        openModal('modal-approval-review');
+    }).catch(err => {
+        alert('정보를 불러오는 중 오류가 발생했습니다: ' + err.message);
+    });
+}
+
+function approvePartnerFromReview(e) {
+    e.preventDefault();
+    const id = document.getElementById('approval-id').value;
+    
+    // 사업자 확인 여부가 false면 경고!
+    const bizVerified = document.getElementById('approval-biz-verified').value === 'true';
+    if(!bizVerified) {
+        if(!confirm('실명 및 사업자등록증이 아직 확인되지 않았습니다. 그래도 승인하시겠습니까?')) return;
+    }
+
+    const updateData = {
+        name: document.getElementById('approval-name').value.trim(),
+        ownerName: document.getElementById('approval-owner').value.trim(),
+        address: document.getElementById('approval-address').value.trim(),
+        phone: document.getElementById('approval-phone').value.trim(),
+        catMassage: document.getElementById('approval-cat-massage').value,
+        catPlace: document.getElementById('approval-cat-place').value,
+        catAge: document.getElementById('approval-cat-age').value,
+        categories: document.getElementById('approval-tags').value.split(',').map(s=>s.trim()).filter(Boolean),
+        imageUrl: document.getElementById('approval-image').value.trim(),
+        catchphrase: document.getElementById('approval-catchphrase').value.trim(),
+        minPrice: Number(document.getElementById('approval-min-price').value),
+        ticketType: document.getElementById('approval-tier').value,
+        bizVerified: bizVerified,
+        adminMemo: document.getElementById('approval-memo').value.trim(),
+        status: 'active',
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    };
+    
+    db.collection('partners').doc(id).update(updateData).then(() => {
+        alert('승인 및 정보 업데이트가 완료되었습니다!');
+        closeModal('modal-approval-review');
+    }).catch(err => {
+        alert('승인 처리 중 오류 발생: ' + err.message);
+    });
+}
+
+function rejectPartnerFromModal() {
+    const id = document.getElementById('approval-id').value;
+    if(!id) return;
+    if(confirm('정말 이 샵을 영구 삭제(반려) 하시겠습니까?')) {
+        db.collection('partners').doc(id).delete().then(() => {
+            alert('입점 신청이 반려되었습니다.');
+            closeModal('modal-approval-review');
+        }).catch(err => alert('삭제 중 오류 발생: ' + err.message));
+    }
+}
+
 
 // ═══════════════════════════════════════
 // ▶ SHOPS
@@ -513,7 +631,7 @@ function handleShopSubmit(e) {
           .catch(err => alert("기존 매장 수정 오류: "+err.message));
     } else {
         data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
-        data.status = 'active'; // Admin adds partner directly as active
+        data.status = 'pending'; // Admin adds partner as pending to show in approval list
         db.collection('partners').add(data)
           .then(() => closeModal('modal-shop'))
           .catch(err => alert("신규 매장 추가 오류: "+err.message));
@@ -556,21 +674,50 @@ async function uploadShopImage(event) {
 async function deleteAllPartners() {
     if(!confirm("진짜로 모든 파트너 데이터를 초기화(삭제) 하시겠습니까? 이 작업은 복구할 수 없습니다.")) return;
     try {
-        const snapshot = await db.collection('partners').get();
-        if(snapshot.empty) {
-            alert('삭제할 파트너가 없습니다.');
+        // 네트워크 상태와 무관하게 확실한 최신 데이터를 가져옵니다.
+        const snapshot = await db.collection('partners').get({ source: 'server' });
+        const reviewSnapshot = await db.collection('reviews').get({ source: 'server' });
+        
+        if (snapshot.empty && reviewSnapshot.empty) {
+            alert('삭제할 파트너 또는 리뷰 데이터가 없습니다.');
             return;
         }
         
+        // Firestore batch 사용 (한 번에 500개 제한 등 안정적 처리)
+        // 만약 500개가 넘는다면 분할이 필요하지만, 여기서는 더미 규모이므로 batch 하나로 처리
         let deletedCount = 0;
-        // Firestore batch has a limit of 500 operations, our dummy is small (100+) so looping delete with batch is fine for small numbers
-        // Using Promise.all for simple bulk delete without 500 limit complexity
-        const deletePromises = snapshot.docs.map(doc => doc.ref.delete());
-        await Promise.all(deletePromises);
-        deletedCount = deletePromises.length;
+        let batchIndex = 0;
+        let batch = db.batch();
+        let commitPromises = [];
+
+        snapshot.docs.forEach(doc => {
+            batch.delete(doc.ref);
+            deletedCount++;
+            batchIndex++;
+            if (batchIndex === 500) {
+                commitPromises.push(batch.commit());
+                batch = db.batch();
+                batchIndex = 0;
+            }
+        });
+
+        reviewSnapshot.docs.forEach(doc => {
+            batch.delete(doc.ref);
+            batchIndex++;
+            if (batchIndex === 500) {
+                commitPromises.push(batch.commit());
+                batch = db.batch();
+                batchIndex = 0;
+            }
+        });
+
+        if (batchIndex > 0) {
+            commitPromises.push(batch.commit());
+        }
+
+        await Promise.all(commitPromises);
         
-        alert(`총 ${deletedCount}개의 파트너가 성공적으로 삭제되었습니다.`);
-        if (typeof renderPartnersTable === 'function') renderPartnersTable(); // 뷰어 새로고침
+        alert(`총 ${deletedCount}개의 파트너(및 소속 리뷰들)가 성공적으로 완벽히 삭제되었습니다.`);
     } catch (err) {
         console.error("삭제 중 오류:", err);
         alert("삭제 실패: " + err.message);
@@ -601,7 +748,7 @@ async function generateDummyPartners() {
         });
     });
 
-    const dbMassage = ['스웨디시', '스포츠 마사지', '타이 마사지', '커플 마사지 (참관)'];
+    const dbMassage = ['스웨디시', '스포츠 마사지', '타이 마사지', '커플마사지'];
     const dbPlace = ['방문 (홈케어/출장)', '1인샵 (매장 방문)', '다인샵 (일반 매장)'];
     // For Place tag display conformity
     const dbPlaceShort = ['홈케어/출장', '1인샵 (매장)', '다인샵 (일반)'];
@@ -610,15 +757,19 @@ async function generateDummyPartners() {
     const getRandomItem = (arr) => arr[Math.floor(Math.random() * arr.length)];
 
     const dummyPartners = [];
+    
+    // 조건 배열들을 인덱스(count)에 따라 순차적으로 뽑으면
+    // 배열 길이가 4, 3, 5로 서로소이기 때문에 60번까지 완전히 다른 조합이 나옵니다.
+    let count = 0;
 
     // 초이스 파트너 20개
     for (let i = 1; i <= 20; i++) {
-        let rRegion = getRandomItem(validRegions);
-        let rMassage = getRandomItem(dbMassage);
-        let rPlaceIdx = Math.floor(Math.random() * dbPlace.length);
+        let rRegion = validRegions[count % validRegions.length];
+        let rMassage = dbMassage[count % dbMassage.length];
+        let rPlaceIdx = count % dbPlace.length;
         let rPlaceFull = dbPlace[rPlaceIdx];
         let rPlaceShort = dbPlaceShort[rPlaceIdx];
-        let rAge = getRandomItem(dbAge);
+        let rAge = dbAge[count % dbAge.length];
 
         dummyPartners.push({
             name: `아르테미스 라운지 ${i}호점`,
@@ -641,16 +792,17 @@ async function generateDummyPartners() {
             tier: i % 2 === 0 ? 'VIP' : 'Premium',
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
+        count++;
     }
 
     // 추천 파트너 30개
     for (let i = 1; i <= 30; i++) {
-        let rRegion = getRandomItem(validRegions);
-        let rMassage = getRandomItem(dbMassage);
-        let rPlaceIdx = Math.floor(Math.random() * dbPlace.length);
+        let rRegion = validRegions[count % validRegions.length];
+        let rMassage = dbMassage[count % dbMassage.length];
+        let rPlaceIdx = count % dbPlace.length;
         let rPlaceFull = dbPlace[rPlaceIdx];
         let rPlaceShort = dbPlaceShort[rPlaceIdx];
-        let rAge = getRandomItem(dbAge);
+        let rAge = dbAge[count % dbAge.length];
 
         dummyPartners.push({
             name: `프리미엄 파트너 ${i}호점`,
@@ -673,6 +825,7 @@ async function generateDummyPartners() {
             tier: 'Normal',
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
+        count++;
     }
 
     try {

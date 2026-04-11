@@ -2,6 +2,9 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>다독(Dadok) 관리자 대시보드</title>
     <!-- Reset & Global Styles -->
@@ -18,7 +21,7 @@
         <div class="bg-[#0A1B13] border border-[#2A3731] rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl">
             <h1 class="text-3xl font-bold text-[var(--point-color)] tracking-wider mb-2">DADOK</h1>
             <p class="text-sm text-[#A7B2AE] mb-8">안전한 로그인이 필요한 관리자 콘솔입니다.</p>
-            <button onclick="adminLogin()" class="w-full px-5 py-3.5 bg-gradient-to-r from-[var(--point-color)] to-[#B59530] text-[#06110D] font-bold rounded-xl hover:brightness-110 active:scale-95 transition-all shadow-[0_4px_12px_rgba(212,175,55,0.2)]">
+            <button onclick="adminLogin()" class="w-full px-5 py-4 bg-gradient-to-r from-[var(--point-color)] to-[#B59530] text-white drop-shadow-md font-extrabold text-xl rounded-xl hover:brightness-110 active:scale-95 transition-all shadow-[0_4px_12px_rgba(212,175,55,0.3)]">
                 보안 관리자 구글 로그인
             </button>
         </div>
@@ -35,11 +38,11 @@
             <ul class="space-y-1 px-3">
                 <li><a href="#" onclick="switchTab('dashboard')" class="tab-link active flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-[#11291D] hover:text-white transition-colors">대시보드 홈</a></li>
                 <li><a href="#" onclick="switchTab('users')" class="tab-link flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-[#11291D] hover:text-white transition-colors">회원 관리</a></li>
-                <li><a href="#" onclick="switchTab('shops')" class="tab-link flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-[#11291D] hover:text-white transition-colors">마사지 샵 관리</a></li>
                 <li><a href="#" onclick="switchTab('approvals')" class="tab-link flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-[#11291D] hover:text-white transition-colors">
                     제휴 파트너 승인 
                     <span id="pending-badge" class="ml-auto bg-red-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full hidden">0</span>
                 </a></li>
+                <li><a href="#" onclick="switchTab('shops')" class="tab-link flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-[#11291D] hover:text-white transition-colors">마사지 샵 관리</a></li>
                 <li><a href="#" onclick="switchTab('categories')" class="tab-link flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-[#11291D] hover:text-white transition-colors">앱 카테고리 관리</a></li>
             </ul>
         </nav>
@@ -92,13 +95,15 @@
                         <tr class="border-b border-[#2A3731] text-xs uppercase tracking-wider text-[#A7B2AE]">
                             <th class="p-4 font-medium">아이디 / 계정</th>
                             <th class="p-4 font-medium">이름</th>
+                            <th class="p-4 font-medium">성별</th>
                             <th class="p-4 font-medium">전화번호</th>
                             <th class="p-4 font-medium">가입일시</th>
-                            <th class="p-4 font-medium">상태</th>
+                            <th class="p-4 font-medium">최근 접속일시</th>
+                            <th class="p-4 font-medium">상태 / 관리</th>
                         </tr>
                     </thead>
                     <tbody id="user-table-body" class="divide-y divide-[#2A3731] text-sm text-white/80">
-                        <tr><td colspan="5" class="p-4 text-center">로딩중...</td></tr>
+                        <tr><td colspan="7" class="p-4 text-center">로딩중...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -108,7 +113,7 @@
         <div id="tab-shops" class="tab-content hidden">
             <div class="flex justify-between items-center mb-6">
                 <h2 class="text-3xl font-bold text-white">마사지 샵(파트너) 관리</h2>
-                <button onclick="openShopModal()" class="px-5 py-2.5 bg-gradient-to-r from-[var(--point-color)] to-[#B59530] text-[#06110D] font-bold rounded-xl hover:brightness-110 active:scale-95 transition-all shadow-[0_4px_12px_rgba(212,175,55,0.2)]">
+                <button onclick="openShopModal()" class="px-5 py-2.5 bg-gradient-to-r from-[var(--point-color)] to-[#B59530] text-white font-bold rounded-xl hover:brightness-110 active:scale-95 transition-all shadow-[0_4px_12px_rgba(212,175,55,0.2)]">
                     + 신규 샵 등록
                 </button>
             </div>
@@ -290,6 +295,118 @@
             </form>
         </div>
 
+        <!-- Approval Review Modal -->
+        <div id="modal-approval-review" class="bg-[#0A1B13] border border-[#2A3731] rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto hidden shadow-2xl">
+            <div class="p-6 border-b border-[#2A3731] flex justify-between items-center sticky top-0 bg-[#0A1B13] z-10">
+                <h3 class="text-xl font-bold text-[var(--point-color)] tracking-widest">신규 샵 심사 및 가입 승인</h3>
+                <button type="button" onclick="closeModal('modal-approval-review')" class="text-gray-400 hover:text-white p-2">✕</button>
+            </div>
+            <form id="approval-form" onsubmit="approvePartnerFromReview(event)" class="p-6 space-y-8">
+                <input type="hidden" id="approval-id">
+                
+                <!-- 1단계: 기본 정보 -->
+                <div>
+                    <h4 class="text-lg font-bold text-white mb-4 flex items-center gap-2"><span class="w-6 h-6 rounded-full bg-[#11291D] text-[var(--point-color)] flex items-center justify-center text-sm">1</span> 기본 및 신뢰성 정보</h4>
+                    <div class="grid grid-cols-2 gap-5 p-5 bg-[#06110D] border border-[#2A3731] rounded-xl">
+                        <div>
+                            <label class="block text-sm font-medium text-[#A7B2AE] mb-1">상호명</label>
+                            <input type="text" id="approval-name" required class="w-full bg-[#0A1B13] border border-[#2A3731] rounded-lg px-3 py-2 text-white">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-[#A7B2AE] mb-1">대표자명</label>
+                            <input type="text" id="approval-owner" placeholder="실명 입력" class="w-full bg-[#0A1B13] border border-[#2A3731] rounded-lg px-3 py-2 text-white">
+                        </div>
+                        <div class="col-span-2">
+                            <label class="block text-sm font-medium text-[#A7B2AE] mb-1">정확한 주소 및 오시는 길</label>
+                            <input type="text" id="approval-address" required class="w-full bg-[#0A1B13] border border-[#2A3731] rounded-lg px-3 py-2 text-white">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-[#A7B2AE] mb-1">고객센터 / 예약 연락처</label>
+                            <input type="text" id="approval-phone" required class="w-full bg-[#0A1B13] border border-[#2A3731] rounded-lg px-3 py-2 text-white">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-[#A7B2AE] mb-1">사업자등록증 확인 여부</label>
+                            <select id="approval-biz-verified" class="w-full bg-[#0A1B13] border border-[#2A3731] rounded-lg px-3 py-2 text-white">
+                                <option value="false">미확인 (서류 요청 필요)</option>
+                                <option value="true">확인 완료 (최종 승인 가능)</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2단계: 다독 필터 매칭 정보 -->
+                <div>
+                    <h4 class="text-lg font-bold text-white mb-4 flex items-center gap-2"><span class="w-6 h-6 rounded-full bg-[#11291D] text-[var(--point-color)] flex items-center justify-center text-sm">2</span> 다독 매칭 필터 정보</h4>
+                    <p class="text-xs text-[#A7B2AE] mb-3">소비자 앱의 조건 검색과 연동되므로 정확한 지정이 필요합니다.</p>
+                    <div class="grid grid-cols-3 gap-5 p-5 bg-[#06110D] border border-[#2A3731] rounded-xl">
+                        <div>
+                            <label class="block text-sm font-medium text-[#A7B2AE] mb-1">마사지 카테고리</label>
+                            <select id="approval-cat-massage" class="w-full bg-[#0A1B13] border border-[#2A3731] rounded-lg px-3 py-2 text-white"></select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-[#A7B2AE] mb-1">공간 형태</label>
+                            <select id="approval-cat-place" class="w-full bg-[#0A1B13] border border-[#2A3731] rounded-lg px-3 py-2 text-white"></select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-[#A7B2AE] mb-1">관리사 연령대</label>
+                            <select id="approval-cat-age" class="w-full bg-[#0A1B13] border border-[#2A3731] rounded-lg px-3 py-2 text-white"></select>
+                        </div>
+                        <div class="col-span-3">
+                            <label class="block text-sm font-medium text-[#A7B2AE] mb-1">테마/해시태그 (수면가능, 주차가능 등 쉼표로 구분)</label>
+                            <input type="text" id="approval-tags" class="w-full bg-[#0A1B13] border border-[#2A3731] rounded-lg px-3 py-2 text-white" placeholder="예: 샤워실완비, 무료주차, 커플룸">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3단계: 콘텐츠 및 요금 -->
+                <div>
+                    <h4 class="text-lg font-bold text-white mb-4 flex items-center gap-2"><span class="w-6 h-6 rounded-full bg-[#11291D] text-[var(--point-color)] flex items-center justify-center text-sm">3</span> 프리미엄 노출 콘텐츠 및 운영</h4>
+                    <div class="grid grid-cols-2 gap-5 p-5 bg-[#06110D] border border-[#2A3731] rounded-xl">
+                        <div class="col-span-2">
+                            <label class="block text-sm font-medium text-[#A7B2AE] mb-1">대표 이미지 URL</label>
+                            <input type="url" id="approval-image" class="w-full bg-[#0A1B13] border border-[#2A3731] rounded-lg px-3 py-2 text-white mb-2" oninput="document.getElementById('approval-image-preview').src = this.value || 'https://via.placeholder.com/150'; document.getElementById('approval-image-preview').classList.remove('hidden');">
+                            <div class="flex gap-4 items-start mt-2">
+                                <img id="approval-image-preview" src="https://via.placeholder.com/150" class="w-24 h-24 object-cover rounded-lg border border-[#2A3731] hidden">
+                                <p class="text-xs text-[#A7B2AE] mt-1">고품질 이미지가 등록되어야 승인이 권장됩니다.</p>
+                            </div>
+                        </div>
+                        <div class="col-span-2">
+                            <label class="block text-sm font-medium text-[#A7B2AE] mb-1">한 줄 스와이프 문구 (캐치프레이즈)</label>
+                            <input type="text" id="approval-catchphrase" placeholder="안티그래비티 톤 앤 매너에 맞는 프리미엄 매장 슬로건" class="w-full bg-[#0A1B13] border border-[#2A3731] rounded-lg px-3 py-2 text-white">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-[#A7B2AE] mb-1">시작 가격 (최저 요금)</label>
+                            <div class="flex items-center gap-2">
+                                <input type="number" id="approval-min-price" required class="w-[80%] bg-[#0A1B13] border border-[#2A3731] rounded-lg px-3 py-2 text-white" placeholder="예: 80000">
+                                <span class="text-[#A7B2AE] text-sm">원</span>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-[#A7B2AE] mb-1">요청한 다독 멤버십 등급</label>
+                            <select id="approval-tier" class="w-full bg-[#0A1B13] border border-[#2A3731] rounded-lg px-3 py-2 text-white">
+                                <option value="Normal">일반 파트너</option>
+                                <option value="Premium">👑 프리미엄 파트너</option>
+                                <option value="VIP">✨ VIP 파트너</option>
+                            </select>
+                        </div>
+                        <div class="col-span-2">
+                            <label class="block text-sm font-medium text-[#A7B2AE] mb-1">심사 메모 (관리자 내부 공유/히스토리)</label>
+                            <textarea id="approval-memo" rows="2" class="w-full bg-[#0A1B13] border border-[#2A3731] rounded-lg px-3 py-2 text-white" placeholder="예: 사업자등록증 누락으로 1차 보류함 (26.04.12)"></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 버튼 영역 -->
+                <div class="pt-4 border-t border-[#2A3731] flex justify-between gap-3">
+                    <button type="button" onclick="rejectPartnerFromModal()" class="px-5 py-3 bg-[#11291D] border border-red-900/30 text-red-400 font-bold rounded-xl hover:bg-red-900/30 transition-colors">보류/반려 (데이터 영구 삭제)</button>
+                    <div class="flex gap-3">
+                        <button type="button" onclick="closeModal('modal-approval-review')" class="px-5 py-3 bg-[#06110D] border border-[#2A3731] text-white rounded-xl hover:bg-[#11291D] transition-colors">닫기 (저장 안함)</button>
+                        <button type="submit" class="px-8 py-3 bg-white text-[#0A1B13] font-bold rounded-xl hover:brightness-110 shadow-sm border border-gray-200 transition-all">정보 저장 및 [승인 완료]</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+
         <!-- Category Modal -->
         <div id="modal-category" class="bg-[#0A1B13] border border-[#2A3731] rounded-2xl w-full max-w-md hidden shadow-2xl">
             <div class="p-6 border-b border-[#2A3731] flex justify-between items-center">
@@ -331,7 +448,7 @@
 
     </div>
     <!-- Scripts -->
-    <script src="./assets/js/admin.js"></script>
+    <script src="./assets/js/admin.js?v=20260412_1"></script>
     <style>
         .tab-link.active { background-color: #11291D; color: white; border-left: 3px solid var(--point-color); }
     </style>

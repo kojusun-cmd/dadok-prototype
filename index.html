@@ -3,6 +3,9 @@
 
 <head>
     <meta charset="UTF-8">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <meta name="viewport" content="width=430, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>다독(Da-dok) - 프리미엄 프라이빗 우먼 라운지</title>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -133,7 +136,7 @@
                                 <p class="text-base mt-2" style="color: var(--text-sub);">검증된 이달의 프리미엄 파트너</p>
                             </div>
                             <span
-                                class="text-sm cursor-pointer font-bold hover:bg-[var(--point-color)] hover:text-[#06110D] px-4 py-2 rounded-full transition-colors border border-[var(--point-color)] text-[var(--point-color)] bg-transparent"
+                                class="text-sm cursor-pointer font-bold hover:bg-[var(--point-color)] hover:text-[#06110D] px-4 py-2 rounded-full transition-colors border border-[var(--point-color)] text-white  bg-transparent"
                                 onclick="openListView('choice')">전체보기</span>
                         </div>
 
@@ -149,7 +152,7 @@
                         <div class="flex justify-between items-end mb-6">
                             <h2 class="text-2xl font-bold" style="color: var(--text-main);">추천 파트너</h2>
                             <span
-                                class="text-sm cursor-pointer font-bold hover:bg-[var(--point-color)] hover:text-[#06110D] px-4 py-2 rounded-full transition-colors border border-[var(--point-color)] text-[var(--point-color)] bg-transparent"
+                                class="text-sm cursor-pointer font-bold hover:bg-[var(--point-color)] hover:text-[#06110D] px-4 py-2 rounded-full transition-colors border border-[var(--point-color)] text-white  bg-transparent"
                                 onclick="openListView('recommend')">전체보기</span>
                         </div>
 
@@ -1461,7 +1464,7 @@
                             </svg> 메뉴 및 코스 수정
                         </h3>
                         <button
-                            class="text-[12px] text-[var(--point-color)] font-bold px-3 py-1 bg-[var(--point-color)]/10 border border-[var(--point-color)]/30 rounded-full hover:bg-[var(--point-color)]/20 transition-colors"
+                            class="text-[12px] text-white  font-bold px-3 py-1 bg-[var(--point-color)]/10 border border-[var(--point-color)]/30 rounded-full hover:bg-[var(--point-color)]/20 transition-colors"
                             onclick="addMenuItem()">+ 메뉴 추가</button>
                     </div>
 
@@ -2254,7 +2257,7 @@
                 style="border-color: var(--border-color);">
                 <h3 id="filter-title" class="text-xl font-bold">필터</h3>
                 <button
-                    class="text-base font-bold bg-transparent border border-[var(--point-color)] text-[var(--point-color)] px-5 py-2 rounded-full transition-colors hover:bg-[var(--point-color)] hover:text-[var(--bg-color)]"
+                    class="text-base font-bold bg-transparent border border-[var(--point-color)] text-white  px-5 py-2 rounded-full transition-colors hover:bg-[var(--point-color)] hover:text-[var(--bg-color)]"
                     onclick="closeAllModals()">닫기</button>
             </div>
 
@@ -2420,7 +2423,7 @@
                 style="border-color: var(--border-color);">
                 <h3 id="filter-title" class="text-xl font-bold" style="color: var(--text-main);">조건 검색</h3>
                 <button
-                    class="text-sm font-bold px-4 py-2 rounded-full bg-transparent border border-[var(--point-color)] text-[var(--point-color)] shadow-sm hover:bg-[var(--point-color)] hover:text-[#06110D] transition-colors"
+                    class="text-sm font-bold px-4 py-2 rounded-full bg-transparent border border-[var(--point-color)] text-white  shadow-sm hover:bg-[var(--point-color)] hover:text-[#06110D] transition-colors"
                     onclick="closeFilterSheet()">닫기</button>
             </div>
             <div class="px-5 py-6 overflow-y-auto scroll-active bg-[var(--bg-color)]" style="flex: 1;">
@@ -2436,7 +2439,7 @@
                 style="border-color: var(--border-color);">
                 <h3 id="list-title" class="text-2xl font-bold" style="color: var(--text-main);">전체보기</h3>
                 <button
-                    class="text-base font-bold px-5 py-2.5 rounded-full bg-transparent border border-[var(--point-color)] text-[var(--point-color)] shadow-sm hover:bg-[var(--point-color)] hover:text-[#06110D] transition-colors"
+                    class="text-base font-bold px-5 py-2.5 rounded-full bg-transparent border border-[var(--point-color)] text-white  shadow-sm hover:bg-[var(--point-color)] hover:text-[#06110D] transition-colors"
                     onclick="closeAllModals()">닫기</button>
             </div>
             <div id="list-content" class="px-5 py-6 overflow-y-auto scroll-active"
@@ -2451,7 +2454,7 @@
                 style="border-color: var(--border-color);">
                 <h3 class="text-2xl font-bold" style="color: var(--text-main);">찐리뷰 확인하기</h3>
                 <button
-                    class="text-base font-bold px-5 py-2.5 rounded-full bg-transparent border border-[var(--point-color)] text-[var(--point-color)] shadow-sm hover:bg-[var(--point-color)] hover:text-[#06110D] transition-colors"
+                    class="text-base font-bold px-5 py-2.5 rounded-full bg-transparent border border-[var(--point-color)] text-white  shadow-sm hover:bg-[var(--point-color)] hover:text-[#06110D] transition-colors"
                     onclick="document.getElementById('review-sheet').classList.remove('open')">닫기</button>
             </div>
             <div id="review-content" class="px-5 py-6 overflow-y-auto scroll-active"
@@ -2476,7 +2479,7 @@
                     </div>
                 </div>
                 <button
-                    class="text-base font-bold px-4 py-2 rounded-full bg-transparent border border-[var(--point-color)] text-[var(--point-color)] shadow-sm hover:bg-[var(--point-color)] hover:text-[#06110D] transition-colors"
+                    class="text-base font-bold px-4 py-2 rounded-full bg-transparent border border-[var(--point-color)] text-white  shadow-sm hover:bg-[var(--point-color)] hover:text-[#06110D] transition-colors"
                     onclick="closeChatSheet()">닫기</button>
             </div>
 
@@ -2499,13 +2502,13 @@
                 <!-- 버튼 형태의 빠른 메시지 제안 -->
                 <div class="flex flex-col gap-2 pl-11 mt-2">
                     <button
-                        class="text-left w-fit bg-transparent text-[var(--point-color)] border border-[var(--point-color)] px-4 py-2.5 rounded-full text-sm font-medium hover:bg-[var(--point-color)] hover:text-[#06110D] transition-colors"
+                        class="text-left w-fit bg-transparent text-white  border border-[var(--point-color)] px-4 py-2.5 rounded-full text-sm font-medium hover:bg-[var(--point-color)] hover:text-[#06110D] transition-colors"
                         onclick="sendMockChatMessage('오늘 저녁 8시 예약 가능한가요?')">오늘 저녁 8시 예약 가능한가요?</button>
                     <button
-                        class="text-left w-fit bg-transparent text-[var(--point-color)] border border-[var(--point-color)] px-4 py-2.5 rounded-full text-sm font-medium hover:bg-[var(--point-color)] hover:text-[#06110D] transition-colors"
+                        class="text-left w-fit bg-transparent text-white  border border-[var(--point-color)] px-4 py-2.5 rounded-full text-sm font-medium hover:bg-[var(--point-color)] hover:text-[#06110D] transition-colors"
                         onclick="sendMockChatMessage('코스와 가격 안내 부탁드립니다.')">코스와 가격 안내 부탁드립니다.</button>
                     <button
-                        class="text-left w-fit bg-transparent text-[var(--point-color)] border border-[var(--point-color)] px-4 py-2.5 rounded-full text-sm font-medium hover:bg-[var(--point-color)] hover:text-[#06110D] transition-colors"
+                        class="text-left w-fit bg-transparent text-white  border border-[var(--point-color)] px-4 py-2.5 rounded-full text-sm font-medium hover:bg-[var(--point-color)] hover:text-[#06110D] transition-colors"
                         onclick="sendMockChatMessage('주차 가능한가요?')">주차 가능한가요?</button>
                 </div>
 
@@ -2531,7 +2534,7 @@
                             class="w-full bg-transparent outline-none text-[var(--text-main)] text-[15px]">
                     </div>
                     <button onclick="sendUserMessage()"
-                        class="shrink-0 w-12 h-12 flex items-center justify-center rounded-full bg-[var(--surface-color)] border border-[var(--point-color)] text-[var(--point-color)] hover:bg-[var(--point-color)] hover:text-[#06110D] transition-colors">
+                        class="shrink-0 w-12 h-12 flex items-center justify-center rounded-full bg-[var(--surface-color)] border border-[var(--point-color)] text-white  hover:bg-[var(--point-color)] hover:text-[#06110D] transition-colors">
                         <svg class="w-5 h-5 ml-1" fill="currentColor" viewBox="0 0 20 20">
                             <path
                                 d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z">
@@ -2542,7 +2545,7 @@
             </div>
         </div>
 
-        <script src="assets/js/script.js"></script>
+        <script src="assets/js/script.js?v=20260412_5"></script>
     </div>
 
     <!-- Global Custom Toast -->
