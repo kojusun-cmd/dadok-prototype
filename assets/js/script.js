@@ -2081,7 +2081,7 @@ const filterSheet = document.getElementById('filter-sheet');
                 }
             ];
 
-            function renderPartnerBanners() {
+            async function renderPartnerBanners() {
                 const container = document.getElementById('partner-active-banners');
                 if (!container) return;
 
@@ -2089,81 +2089,107 @@ const filterSheet = document.getElementById('filter-sheet');
                     clearInterval(window.partnerCountdownInterval);
                 }
 
-                const now = new Date();
-                partnerActivePasses = partnerActivePasses.filter(pass => new Date(pass.expirationDate) > now);
-
-                if (partnerActivePasses.length === 0) {
+                const renderEmptyBanner = () => {
                     container.innerHTML = `
                 <div class="bg-gradient-to-br from-[#0A1B13] to-[#040C08] border border-[var(--point-color)]/30 border-dashed rounded-2xl p-6 text-center flex flex-col items-center justify-center min-h-[140px]">
                     <svg class="w-10 h-10 text-[var(--point-color)]/50 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
-                    <p class="text-[var(--text-sub)] text-[14.5px] font-medium leading-relaxed">구매한 입점권 내역이 없습니다.<br><span class="text-white/60">아래 버튼을 눌러 혜택을 확인해보세요.</span></p>
+                    <p class="text-[var(--text-sub)] text-[14.5px] font-medium leading-relaxed">구매한 입점권 확인이 불가능하거나 승인대기중입니다.<br><span class="text-white/60">상품 구매 후 관리자 승인을 기달려주세요.</span></p>
                 </div>
             `;
-                    return;
-                }
-
-                const formatDT = (d) => `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-
-                let isVIP = partnerActivePasses.some(p => p.name.includes("12개월") || p.name.includes("VIP"));
-                let combinedName = "다독 파트너스 통합 입점권";
-
-                let earliestPurchaseDate = new Date(Math.min(...partnerActivePasses.map(p => new Date(p.purchaseDate).getTime())));
-                let totalRemainingMs = partnerActivePasses.reduce((sum, p) => sum + Math.max(0, new Date(p.expirationDate).getTime() - now.getTime()), 0);
-                let finalExpirationDate = new Date(now.getTime() + totalRemainingMs);
-
-                let badgeHtml = '';
-                if (isVIP) {
-                    badgeHtml = `<span class="inline-block bg-gradient-to-r from-[#D4AF37] to-[#B38D1B] text-[#06110D] text-[10px] font-extrabold px-2 py-0.5 rounded shadow-sm tracking-wide ml-2 align-middle">VIP</span>`;
-                } else {
-                    badgeHtml = `<span class="inline-block bg-[var(--surface-color)] text-[var(--point-color)] border border-[var(--point-color)] text-[10px] font-extrabold px-2 py-0.5 rounded shadow-sm tracking-wide ml-2 align-middle">Premium</span>`;
-                }
-
-                let html = `
-            <div class="bg-gradient-to-br from-[#0A1B13] to-[#040C08] border border-[#D4AF37]/30 rounded-2xl p-5 relative overflow-hidden shadow-[0_5px_15px_rgba(212,175,55,0.05)] mb-3">
-                <div class="absolute top-0 right-0 p-3 opacity-10 pointer-events-none"><svg class="w-20 h-20 text-[var(--point-color)]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"></path></svg></div>
-                <div class="flex flex-col relative z-10">
-                    <span class="text-[17px] text-white font-bold tracking-wide mb-1 flex items-center">${combinedName}${badgeHtml}</span>
-                    <div class="flex items-end gap-2 mt-2">
-                        <span class="text-[34px] font-extrabold text-[var(--point-color)] leading-none text-transparent bg-clip-text bg-gradient-to-r from-[#F3E5AB] to-[#D4AF37]" id="pass-days-combined">-일</span>
-                        <span class="text-[22px] font-bold text-[var(--point-color)] leading-none mb-[2px]" id="pass-time-combined">--:--:--</span>
-                        <span class="text-[14px] text-[var(--text-sub)] font-medium pb-[3px] ml-1">남음</span>
-                    </div>
-                    <div class="mt-4 pt-4 border-t border-[#D4AF37]/20 flex flex-col gap-1 text-[13px] text-[#A7B2AE]">
-                        <div><span class="inline-block w-20 text-[var(--text-sub)]">최초 구매일</span> <span class="text-[#E0E8E4]">${formatDT(earliestPurchaseDate)}</span></div>
-                        <div><span class="inline-block w-20 text-[var(--text-sub)]">통합 만료일</span> <span class="text-[#E0E8E4] font-medium">${formatDT(finalExpirationDate)}</span> <span class="text-[11px] opacity-70 ml-1">(자동 삭제)</span></div>
-                    </div>
-                </div>
-            </div>
-        `;
-
-                container.innerHTML = html;
-
-                // 초단위 업데이트
-                const updateCountdown = () => {
-                    const currentTime = new Date().getTime();
-                    const diffTime = finalExpirationDate.getTime() - currentTime;
-
-                    const daysEl = document.getElementById('pass-days-combined');
-                    const timeEl = document.getElementById('pass-time-combined');
-
-                    if (daysEl && timeEl) {
-                        if (diffTime <= 0) {
-                            daysEl.innerText = "만료됨";
-                            timeEl.innerText = "";
-                        } else {
-                            const d = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-                            const h = Math.floor((diffTime % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-                            const m = Math.floor((diffTime % (1000 * 60 * 60)) / (1000 * 60));
-                            const s = Math.floor((diffTime % (1000 * 60)) / 1000);
-
-                            daysEl.innerText = `${d}일`;
-                            timeEl.innerText = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-                        }
-                    }
                 };
 
-                updateCountdown(); // 즉시 한 번 갱신
-                window.partnerCountdownInterval = setInterval(updateCountdown, 1000);
+                const partnerDocId = localStorage.getItem('dadok_loggedInPartnerDocId') || sessionStorage.getItem('dadok_loggedInPartnerDocId');
+                
+                if (!partnerDocId) {
+                    renderEmptyBanner();
+                    return;
+                }
+                
+                try {
+                    const doc = await firebase.firestore().collection('partners').doc(partnerDocId).get();
+                    if (!doc.exists) {
+                        renderEmptyBanner();
+                        return;
+                    }
+                    const data = doc.data();
+                    
+                    if (data.status !== 'active' || !data.ticketType || data.ticketType === 'None') {
+                        renderEmptyBanner();
+                        return;
+                    }
+
+                    const formatDT = (d) => `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+
+                    let isVIP = data.ticketType === "VIP";
+                    let combinedName = "다독 파트너스 입점권";
+
+                    let purchaseDateObj = (data.ticketCreatedAt && typeof data.ticketCreatedAt.toDate === 'function') 
+                        ? data.ticketCreatedAt.toDate() 
+                        : (data.createdAt && typeof data.createdAt.toDate === 'function' ? data.createdAt.toDate() : new Date());
+
+                    // If they have ticketType but no expiration stored, maybe simulate 30 days
+                    let finalExpirationDate = new Date(purchaseDateObj.getTime() + 30 * 24 * 60 * 60 * 1000);
+
+                    let badgeHtml = '';
+                    if (isVIP) {
+                        badgeHtml = `<span class="inline-block bg-gradient-to-r from-[#D4AF37] to-[#B38D1B] text-[#06110D] text-[10px] font-extrabold px-2 py-0.5 rounded shadow-sm tracking-wide ml-2 align-middle">VIP</span>`;
+                    } else if(data.ticketType === "Premium") {
+                        badgeHtml = `<span class="inline-block bg-gradient-to-r from-[#00d2ff] to-[#3a7bd5] text-white text-[10px] font-extrabold px-2 py-0.5 rounded shadow-sm tracking-wide ml-2 align-middle">Premium</span>`;
+                    } else {
+                        badgeHtml = `<span class="inline-block bg-[var(--surface-color)] text-[var(--point-color)] border border-[var(--point-color)] text-[10px] font-extrabold px-2 py-0.5 rounded shadow-sm tracking-wide ml-2 align-middle">${data.ticketType}</span>`;
+                    }
+
+                    let html = `
+                <div class="bg-gradient-to-br from-[#0A1B13] to-[#040C08] border border-[#D4AF37]/30 rounded-2xl p-5 relative overflow-hidden shadow-[0_5px_15px_rgba(212,175,55,0.05)] mb-3">
+                    <div class="absolute top-0 right-0 p-3 opacity-10 pointer-events-none"><svg class="w-20 h-20 text-[var(--point-color)]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"></path></svg></div>
+                    <div class="flex flex-col relative z-10">
+                        <span class="text-[17px] text-white font-bold tracking-wide mb-1 flex items-center">${combinedName}${badgeHtml}</span>
+                        <div class="flex items-end gap-2 mt-2">
+                            <span class="text-[34px] font-extrabold text-[var(--point-color)] leading-none text-transparent bg-clip-text bg-gradient-to-r from-[#F3E5AB] to-[#D4AF37]" id="pass-days-combined">-일</span>
+                            <span class="text-[22px] font-bold text-[var(--point-color)] leading-none mb-[2px]" id="pass-time-combined">--:--:--</span>
+                            <span class="text-[14px] text-[var(--text-sub)] font-medium pb-[3px] ml-1">남음</span>
+                        </div>
+                        <div class="mt-4 pt-4 border-t border-[#D4AF37]/20 flex flex-col gap-1 text-[13px] text-[#A7B2AE]">
+                            <div><span class="inline-block w-20 text-[var(--text-sub)]">최초 구매일</span> <span class="text-[#E0E8E4]">${formatDT(purchaseDateObj)}</span></div>
+                            <div><span class="inline-block w-20 text-[var(--text-sub)]">예상 만료일</span> <span class="text-[#E0E8E4] font-medium">${formatDT(finalExpirationDate)}</span> <span class="text-[11px] opacity-70 ml-1">(자동 삭제)</span></div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+                    container.innerHTML = html;
+
+                    // 초단위 업데이트
+                    const updateCountdown = () => {
+                        const currentTime = new Date().getTime();
+                        const diffTime = finalExpirationDate.getTime() - currentTime;
+
+                        const daysEl = document.getElementById('pass-days-combined');
+                        const timeEl = document.getElementById('pass-time-combined');
+
+                        if (daysEl && timeEl) {
+                            if (diffTime <= 0) {
+                                daysEl.innerText = "만료됨";
+                                timeEl.innerText = "";
+                            } else {
+                                const d = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+                                const h = Math.floor((diffTime % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                                const m = Math.floor((diffTime % (1000 * 60 * 60)) / (1000 * 60));
+                                const s = Math.floor((diffTime % (1000 * 60)) / 1000);
+
+                                daysEl.innerText = `${d}일`;
+                                timeEl.innerText = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+                            }
+                        }
+                    };
+
+                    updateCountdown(); // 즉시 한 번 갱신
+                    window.partnerCountdownInterval = setInterval(updateCountdown, 1000);
+
+                } catch(e) {
+                    console.error("입점권 불러오기 실패:", e);
+                    renderEmptyBanner();
+                }
             }
 
             function openPartnerDashboard() {
@@ -2248,7 +2274,11 @@ const filterSheet = document.getElementById('filter-sheet');
 
                 if (hasError) return;
 
+                // -----------------------
+                // 1. 초기화 및 에러 체크
+                // -----------------------
                 let loginSuccess = false;
+                let loggedInPartnerDocId = null;
                 const idValue = idInput.value.trim();
                 const pwValue = passwordInput.value.trim();
 
@@ -2274,6 +2304,7 @@ const filterSheet = document.getElementById('filter-sheet');
                                 }
                                 
                                 loginSuccess = true;
+                                loggedInPartnerDocId = partnerDoc.id;
                                 
                                 await firestoreDb.collection('partners').doc(partnerDoc.id).update({
                                     lastLoginAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -2288,6 +2319,19 @@ const filterSheet = document.getElementById('filter-sheet');
                 if (loginSuccess) {
                     const keepLogin = document.getElementById('partner-keep-login-checkbox').checked;
                     isPartnerLoggedIn = true;
+                    if (loggedInPartnerDocId) {
+                        if (keepLogin) {
+                            localStorage.setItem('dadok_loggedInPartnerDocId', loggedInPartnerDocId);
+                            sessionStorage.removeItem('dadok_loggedInPartnerDocId');
+                        } else {
+                            sessionStorage.setItem('dadok_loggedInPartnerDocId', loggedInPartnerDocId);
+                            localStorage.removeItem('dadok_loggedInPartnerDocId');
+                        }
+                    } else {
+                        localStorage.removeItem('dadok_loggedInPartnerDocId');
+                        sessionStorage.removeItem('dadok_loggedInPartnerDocId');
+                    }
+                    
                     if (keepLogin) {
                         localStorage.setItem('dadok_isPartnerLoggedIn', 'true');
                         sessionStorage.removeItem('dadok_isPartnerLoggedIn');
@@ -2382,14 +2426,8 @@ const filterSheet = document.getElementById('filter-sheet');
                     valid = false;
                 }
 
-                const bizRadios = document.getElementsByName('business_type');
-                let bizType = '개인사업자';
-                for (let radio of bizRadios) {
-                    if (radio.checked) {
-                        bizType = radio.nextElementSibling.innerText.trim();
-                        break;
-                    }
-                }
+                const checkedRadio = document.querySelector('input[name="business_type"]:checked');
+                let bizType = checkedRadio ? checkedRadio.value : '개인사업자';
 
                 if (bizType === '개인사업자' || bizType === '법인사업자') {
                     const bizNo = document.getElementById('partner-signup-biz-no')?.value?.trim();
@@ -2430,6 +2468,11 @@ const filterSheet = document.getElementById('filter-sheet');
                 const phone = document.getElementById('partner-signup-phone').value.trim();
                 const bizNo = document.getElementById('partner-signup-biz-no').value.trim();
 
+                const checkedRadio = document.querySelector('input[name="business_type"]:checked');
+                let bizType = checkedRadio ? checkedRadio.value : '개인사업자';
+                
+                alert('[시스템 테스트] 입력된 사업자 구분: ' + bizType + '\\n(이 메시지가 안 보이면 새로고침을 안 하신 겁니다!)');
+
                 if (pw && pw !== pwConfirm) {
                     alert('입력하신 두 비밀번호가 일치하지 않습니다.');
                     return;
@@ -2459,6 +2502,28 @@ const filterSheet = document.getElementById('filter-sheet');
 
                     const now = firebase.firestore.FieldValue.serverTimestamp();
                     
+                    const btn = document.getElementById('partner-signup-submit-btn');
+                    if (btn) btn.innerText = '서류 업로드 중...';
+
+                    let bizDocUrl = '';
+                    const fileInput = document.getElementById('partner-signup-file');
+                    if (fileInput && fileInput.files && fileInput.files[0]) {
+                        const file = fileInput.files[0];
+                        try {
+                            const storageRef = firebase.storage().ref();
+                            const fileRef = storageRef.child('partners_biz/' + Date.now() + '_' + file.name);
+                            const snapshot = await fileRef.put(file);
+                            bizDocUrl = await snapshot.ref.getDownloadURL();
+                        } catch (uploadObjError) {
+                            console.error('이미지 업로드 중 실패:', uploadObjError);
+                            alert('증빙 서류 업로드에 실패했습니다. 관리자에게 문의바랍니다.');
+                            if (btn) btn.innerText = '파트너 가입 완료하기';
+                            return;
+                        }
+                    }
+
+                    if (btn) btn.innerText = '데이터 저장 중...';
+
                     // 파트너 컬렉션에 새 문서 저장
                     await firestoreDb.collection('partners').add({
                         userId: id,
@@ -2466,12 +2531,15 @@ const filterSheet = document.getElementById('filter-sheet');
                         name: company,
                         ownerName: ownerName,
                         phone: phone,
+                        bizType: bizType,
                         bizNo: bizNo,
+                        bizDocUrl: bizDocUrl,
                         status: 'pending', // 대기 상태
                         createdAt: now,
                         updatedAt: now
                     });
                     
+                    if (btn) btn.innerText = '파트너 가입 완료하기';
                 } catch (error) {
                     console.error('파트너 등록 중 오류 발생:', error);
                     alert('가입 처리 중 문제가 발생했습니다. 관리자에게 문의하세요.');
@@ -3212,8 +3280,23 @@ const filterSheet = document.getElementById('filter-sheet');
             });
 
             // [추가] currentPartner 상태를 대시보드 UI에 채우기
-            function populateDashboardFromPartner() {
-                if (!currentPartner || currentPartner.id !== 'my-partner') return;
+            async function populateDashboardFromPartner() {
+                const partnerDocId = localStorage.getItem('dadok_loggedInPartnerDocId') || sessionStorage.getItem('dadok_loggedInPartnerDocId');
+                if (partnerDocId && typeof firebase !== 'undefined') {
+                    try {
+                        const doc = await firebase.firestore().collection('partners').doc(partnerDocId).get();
+                        if (doc.exists) {
+                            currentPartner = { id: doc.id, ...doc.data() };
+                            // ticketType fallback string support
+                            if (currentPartner.ticketType && currentPartner.status === 'active') { // check basic pass presence inside component
+                            }
+                        }
+                    } catch(e){
+                        console.error("데이터 통신 중 오류 발생", e);
+                    }
+                }
+
+                if (!currentPartner) return;
 
                 const nameInput = document.getElementById('partner-input-name');
                 const contactInput = document.getElementById('partner-input-contact');
@@ -3221,9 +3304,9 @@ const filterSheet = document.getElementById('filter-sheet');
                 const descInput = document.getElementById('partner-input-desc');
 
                 if (nameInput) nameInput.value = currentPartner.name || '';
-                if (contactInput) contactInput.value = currentPartner.contact || '';
-                if (addressInput) addressInput.value = currentPartner.address || '';
-                if (descInput) descInput.value = currentPartner.desc || '';
+                if (contactInput) contactInput.value = currentPartner.contact || currentPartner.phoneNumber || '';
+                if (addressInput) addressInput.value = currentPartner.address || currentPartner.location || '';
+                if (descInput) descInput.value = currentPartner.desc || currentPartner.catchphrase || '';
 
                 // 메뉴 채우기
                 const menuContainer = document.getElementById('menu-list-container');
@@ -3268,82 +3351,112 @@ const filterSheet = document.getElementById('filter-sheet');
             }
 
             // [추가] 대시보드에서 설정 저장 시 currentPartner 에 반영
-            function saveDashboardSettings() {
-                if (!currentPartner || currentPartner.id !== 'my-partner') {
-                    if (localStorage.getItem('myPartnerProfile')) {
-                        currentPartner = JSON.parse(localStorage.getItem('myPartnerProfile'));
-                    } else {
-                        currentPartner = { id: 'my-partner', reviews: 0, rating: 5.0, image: 'https://images.unsplash.com/photo-1544161515-4ab6ce6db874?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80' };
+            async function saveDashboardSettings() {
+                const partnerDocId = localStorage.getItem('dadok_loggedInPartnerDocId') || sessionStorage.getItem('dadok_loggedInPartnerDocId');
+                if (!partnerDocId || typeof firebase === 'undefined') {
+                    alert('로그인이 만료되었거나 데이터베이스 연결에 실패했습니다.');
+                    return;
+                }
+                
+                try {
+                    const doc = await firebase.firestore().collection('partners').doc(partnerDocId).get();
+                    if (!doc.exists) {
+                        alert('파트너 정보를 찾을 수 없습니다.');
+                        return;
                     }
-                }
+                    const data = doc.data();
+                    
+                    if (data.status !== 'active' || !data.ticketType || data.ticketType === 'None') {
+                        alert('입점권이 구매되어 관리자 승인이 완료된 상태에서만 설정 수정이 가능합니다.');
+                        return;
+                    }
 
-                const nameInput = document.getElementById('partner-input-name');
-                const contactInput = document.getElementById('partner-input-contact');
-                const addressInput = document.getElementById('partner-input-address');
-                const descInput = document.getElementById('partner-input-desc');
+                    if (!currentPartner || currentPartner.id !== partnerDocId) {
+                        currentPartner = { id: partnerDocId, ...data };
+                    }
 
-                if (nameInput) currentPartner.name = nameInput.value;
-                if (contactInput) currentPartner.contact = contactInput.value;
-                if (addressInput) currentPartner.address = addressInput.value;
-                if (descInput) currentPartner.desc = descInput.value;
+                    const nameInput = document.getElementById('partner-input-name');
+                    const contactInput = document.getElementById('partner-input-contact');
+                    const addressInput = document.getElementById('partner-input-address');
+                    const descInput = document.getElementById('partner-input-desc');
 
-                // 카테고리 태그 정리
-                const selectedRegions = Array.from(document.querySelectorAll('#selected-regions-container button')).map(b => b.innerText.trim());
-                const selectedMassages = Array.from(document.querySelectorAll('#selected-massage-container button')).map(b => b.innerText.trim());
-                const selectedSpaces = Array.from(document.querySelectorAll('#selected-space-container button')).map(b => b.innerText.trim());
-                const selectedAges = Array.from(document.querySelectorAll('#selected-age-container button')).map(b => b.innerText.trim());
+                    if (nameInput) currentPartner.name = nameInput.value;
+                    if (contactInput) currentPartner.contact = contactInput.value;
+                    if (addressInput) currentPartner.address = addressInput.value;
+                    if (descInput) currentPartner.desc = descInput.value;
 
-                currentPartner.tags = [...selectedMassages, ...selectedSpaces, ...selectedAges].filter(Boolean);
-                currentPartner.massage = selectedMassages.join(', ');
-                currentPartner.region = selectedRegions.length > 0 ? selectedRegions[0] : '강남/서초';
-                currentPartner.place = selectedSpaces.length > 0 ? selectedSpaces[0] : '방문 (홈케어/출장)';
-                currentPartner.age = selectedAges.length > 0 ? selectedAges[0] : '연령 무관';
+                    // 카테고리 태그 정리
+                    const selectedRegions = Array.from(document.querySelectorAll('#selected-regions-container button')).map(b => b.innerText.trim());
+                    const selectedMassages = Array.from(document.querySelectorAll('#selected-massage-container button')).map(b => b.innerText.trim());
+                    const selectedSpaces = Array.from(document.querySelectorAll('#selected-space-container button')).map(b => b.innerText.trim());
+                    const selectedAges = Array.from(document.querySelectorAll('#selected-age-container button')).map(b => b.innerText.trim());
 
-                // 메뉴 파싱
-                const menuItems = Array.from(document.querySelectorAll('#menu-list-container .menu-item'));
-                currentPartner.menus = menuItems.map(item => {
-                    const mName = item.querySelector('.menu-name-input')?.value || '';
-                    const mPrice = item.querySelector('.menu-price-input')?.value || '';
-                    const mTheme = item.querySelector('.menu-theme-input')?.value || '';
-                    const mDesc = item.querySelector('.menu-desc-input')?.value || '';
-                    return { name: mName, price: mPrice, theme: mTheme, desc: mDesc };
-                }).filter(m => m.name || m.price);
+                    currentPartner.tags = [...selectedMassages, ...selectedSpaces, ...selectedAges].filter(Boolean);
+                    currentPartner.massage = selectedMassages.join(', ');
+                    currentPartner.region = selectedRegions.length > 0 ? selectedRegions[0] : '강남/서초';
+                    currentPartner.place = selectedSpaces.length > 0 ? selectedSpaces[0] : '방문 (홈케어/출장)';
+                    currentPartner.age = selectedAges.length > 0 ? selectedAges[0] : '연령 무관';
 
-                // 전역변수 localStorage 연동 (옵션, 현재는 세션 내에서만)
-                localStorage.setItem('myPartnerProfile', JSON.stringify(currentPartner));
+                    // 메뉴 파싱
+                    const menuItems = Array.from(document.querySelectorAll('#menu-list-container .menu-item'));
+                    currentPartner.menus = menuItems.map(item => {
+                        const mName = item.querySelector('.menu-name-input')?.value || '';
+                        const mPrice = item.querySelector('.menu-price-input')?.value || '';
+                        const mTheme = item.querySelector('.menu-theme-input')?.value || '';
+                        const mDesc = item.querySelector('.menu-desc-input')?.value || '';
+                        return { name: mName, price: mPrice, theme: mTheme, desc: mDesc };
+                    }).filter(m => m.name || m.price);
 
-                // 메인 화면 배너 리스트(DB_CHOICE)에도 실시간 연동
-                let existingIndex = DB_CHOICE.findIndex(p => p.id === 'my-partner');
-                let myPartnerMock = {
-                    id: currentPartner.id,
-                    name: currentPartner.name,
-                    region: currentPartner.region,
-                    massage: currentPartner.massage,
-                    place: currentPartner.place,
-                    age: currentPartner.age,
-                    rating: currentPartner.rating,
-                    reviews: currentPartner.reviews,
-                    tier: 'Premium',
-                    image: currentPartner.image
-                };
+                    await firebase.firestore().collection('partners').doc(partnerDocId).update({
+                        name: currentPartner.name,
+                        phoneNumber: currentPartner.contact,
+                        location: currentPartner.address,
+                        catchphrase: currentPartner.desc,
+                        tags: currentPartner.tags,
+                        massage: currentPartner.massage,
+                        region: currentPartner.region,
+                        place: currentPartner.place,
+                        age: currentPartner.age,
+                        menus: currentPartner.menus,
+                        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
 
-                if (existingIndex > -1) {
-                    DB_CHOICE[existingIndex] = myPartnerMock;
-                } else {
-                    DB_CHOICE.unshift(myPartnerMock);
-                }
+                    // 메인 화면 배너 리스트(DB_CHOICE)에도 실시간 연동 (Mock 반영용)
+                    let existingIndex = DB_CHOICE.findIndex(p => p.id === partnerDocId);
+                    let myPartnerMock = {
+                        id: partnerDocId,
+                        name: currentPartner.name,
+                        region: currentPartner.region,
+                        massage: currentPartner.massage,
+                        place: currentPartner.place,
+                        age: currentPartner.age,
+                        rating: currentPartner.rating || 5.0,
+                        reviews: currentPartner.reviews || 0,
+                        tier: data.ticketType || 'Premium',
+                        image: currentPartner.image || 'https://images.unsplash.com/photo-1544161515-4ab6ce6db874?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80'
+                    };
 
-                // 필터 및 메인 뷰 재렌더링
-                if (typeof applyFiltersToData === 'function') applyFiltersToData();
-                if (typeof initializeDynamicContent === 'function') initializeDynamicContent();
+                    if (existingIndex > -1) {
+                        DB_CHOICE[existingIndex] = myPartnerMock;
+                    } else {
+                        DB_CHOICE.unshift(myPartnerMock);
+                    }
 
-                showCustomToast("설정이 실시간으로 연동/저장되었습니다.");
+                    // 필터 및 메인 뷰 재렌더링
+                    if (typeof applyFiltersToData === 'function') applyFiltersToData();
+                    if (typeof initializeDynamicContent === 'function') initializeDynamicContent();
 
-                // 만약 상세 배너가 열려있다면 즉시 재렌더링
-                const profileSheet = document.getElementById('profile-sheet');
-                if (profileSheet && profileSheet.classList.contains('open') && document.getElementById('profile-name').innerText === currentPartner.name) {
-                    // Re-render
-                    openMyBanner();
+                    showCustomToast("설정이 실시간으로 연동/저장되었습니다.");
+
+                    // 만약 상세 배너가 열려있다면 즉시 재렌더링
+                    const profileSheet = document.getElementById('profile-sheet');
+                    if (profileSheet && profileSheet.classList.contains('open') && document.getElementById('profile-name').innerText === currentPartner.name) {
+                        // Re-render (Assuming openMyBanner checks currentPartner logic or we need to pass doc ID)
+                        openMyBanner();
+                    }
+                } catch(e) {
+                    console.error("저장 중 오류 발생", e);
+                    alert("정보 저장 중 오류가 발생했습니다: " + e.message);
                 }
             }
 

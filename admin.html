@@ -43,6 +43,7 @@
                     <span id="pending-badge" class="ml-auto bg-red-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full hidden">0</span>
                 </a></li>
                 <li><a href="#" onclick="switchTab('shops')" class="tab-link flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-[#11291D] hover:text-white transition-colors">마사지 샵 관리</a></li>
+                <li><a href="#" onclick="switchTab('subscriptions')" class="tab-link flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-[#11291D] hover:text-white transition-colors">입점권 관리</a></li>
                 <li><a href="#" onclick="switchTab('categories')" class="tab-link flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-[#11291D] hover:text-white transition-colors">앱 카테고리 관리</a></li>
             </ul>
         </nav>
@@ -117,42 +118,254 @@
                     + 신규 샵 등록
                 </button>
             </div>
-            <div class="bg-[#0A1B13] border border-[#2A3731] rounded-2xl overflow-hidden shadow-lg">
-                <table class="w-full text-left">
-                    <thead class="bg-[#06110D]">
-                        <tr class="border-b border-[#2A3731] text-xs uppercase tracking-wider text-[#A7B2AE]">
-                            <th class="p-4 font-medium">업체명 (분류)</th>
-                            <th class="p-4 font-medium">주소 / 위치</th>
-                            <th class="p-4 font-medium">입점권 상태</th>
-                            <th class="p-4 font-medium">등록일자</th>
-                            <th class="p-4 font-medium">상태 / 제어</th>
-                        </tr>
-                    </thead>
-                    <tbody id="shop-list-container" class="divide-y divide-[#2A3731] text-sm text-white/80">
-                        <tr><td colspan="5" class="p-4 text-center">로딩중...</td></tr>
-                    </tbody>
-                </table>
+            <!-- KPI Dashboard -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                <div class="bg-[#0A1B13] border border-[#2A3731] rounded-2xl p-5 flex flex-col justify-center shadow-lg">
+                    <span class="text-[#A7B2AE] text-sm font-medium mb-1">총 입점 업체</span>
+                    <span id="kpi-total-shops" class="text-3xl font-bold text-white">0</span>
+                </div>
+                <div class="bg-[rgba(74,222,128,0.05)] border border-green-500/30 rounded-2xl p-5 flex flex-col justify-center shadow-lg">
+                    <span class="text-green-400 text-sm font-medium mb-1">정상 영업 중</span>
+                    <span id="kpi-active-shops" class="text-3xl font-bold text-white">0</span>
+                </div>
+                <div class="bg-[rgba(248,113,113,0.05)] border border-red-500/30 rounded-2xl p-5 flex flex-col justify-center shadow-lg">
+                    <span class="text-red-400 text-sm font-medium mb-1">입점권 만료/제재</span>
+                    <span id="kpi-expired-shops" class="text-3xl font-bold text-white">0</span>
+                </div>
+                <div class="bg-[rgba(250,204,21,0.05)] border border-yellow-500/30 rounded-2xl p-5 flex flex-col justify-center shadow-lg">
+                    <span class="text-yellow-400 text-sm font-medium mb-1">승인 대기중</span>
+                    <span id="kpi-pending-shops" class="text-3xl font-bold text-white">0</span>
+                </div>
+            </div>
+
+            <!-- Search & Filters -->
+            <div class="flex flex-col md:flex-row gap-3 mb-6 bg-[#0A1B13] border border-[#2A3731] rounded-2xl p-4 shadow-lg">
+                <div class="flex-1 relative">
+                    <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-500">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                    </span>
+                    <input type="text" id="shop-filter-search" oninput="filterShops()" placeholder="상호명, 연락처, 지역 검색..." class="w-full bg-[#06110D] border border-[#2A3731] rounded-xl pl-10 pr-4 py-2.5 text-white focus:outline-none focus:border-[var(--point-color)] transition-colors">
+                </div>
+                <select id="shop-filter-status" onchange="filterShops()" class="bg-[#06110D] border border-[#2A3731] rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-[var(--point-color)] min-w-[140px] transition-colors">
+                    <option value="all">모든 상태</option>
+                    <option value="active">운영 중 (승인)</option>
+                    <option value="pending">승인 대기</option>
+                    <option value="expired">입점권 만료</option>
+                </select>
+                <select id="shop-filter-plan" onchange="filterShops()" class="bg-[#06110D] border border-[#2A3731] rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-[var(--point-color)] min-w-[140px] transition-colors">
+                    <option value="all">전체 등급</option>
+                    <option value="premium">프리미엄</option>
+                    <option value="standard">스탠다드</option>
+                    <option value="none">입점권 없음</option>
+                </select>
+            </div>
+
+            <!-- Shop Cards Container -->
+            <div id="shop-cards-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+                <!-- Javascript will populate this -->
+                <div class="col-span-full py-20 text-center text-[#A7B2AE] flex flex-col items-center">
+                    <svg class="animate-spin h-8 w-8 text-[var(--point-color)] mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                    <span>데이터를 불러오는 중입니다...</span>
+                </div>
             </div>
         </div>
 
         <!-- Approvals Tab -->
-        <div id="tab-approvals" class="tab-content hidden">
-            <h2 class="text-3xl font-bold text-white mb-6">입점 대기 파트너 목록</h2>
-            <div class="bg-[#0A1B13] border border-[#2A3731] rounded-2xl overflow-hidden shadow-lg">
-                <table class="w-full text-left">
-                    <thead class="bg-[#06110D]">
-                        <tr class="border-b border-[#2A3731] text-xs uppercase tracking-wider text-[#A7B2AE]">
-                            <th class="p-4 font-medium">샵 이름(대표자)</th>
-                            <th class="p-4 font-medium">위치/연락처</th>
-                            <th class="p-4 font-medium">입점 요금제/유형</th>
-                            <th class="p-4 font-medium">가입 신청일</th>
-                            <th class="p-4 font-medium">관리</th>
-                        </tr>
-                    </thead>
-                    <tbody id="approvals-table-body" class="divide-y divide-[#2A3731] text-sm text-white/80">
-                        <tr><td colspan="5" class="p-4 text-center">로딩중...</td></tr>
-                    </tbody>
-                </table>
+        <div id="tab-approvals" class="tab-content hidden h-[calc(100vh-140px)] min-h-[700px]">
+            <!-- Top Dashboard Widgets -->
+            <div class="flex items-center justify-between mb-6">
+                <div>
+                   <h2 class="text-3xl font-bold text-white">신규 샵 심사 파이프라인</h2>
+                   <p class="text-sm text-[#A7B2AE] mt-1">접수된 입점 신청건을 빠르게 검토하고 즉시 처리합니다.</p>
+                </div>
+                <div class="flex gap-4">
+                    <div class="bg-[#0A1B13] border border-[#2A3731] rounded-xl px-5 py-3 flex items-center gap-3 shadow-md">
+                        <div class="w-10 h-10 rounded-full bg-yellow-500/20 flex items-center justify-center text-yellow-500">
+                           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        </div>
+                        <div>
+                            <p class="text-xs text-[#A7B2AE]">총 심사 대기</p>
+                            <p class="text-xl font-bold text-white" id="kpi-approvals-pending">0</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Split View Container -->
+            <div class="flex gap-6 h-[calc(100%-80px)] overflow-hidden">
+                <!-- Left: Inbox List (1/3) -->
+                <div class="w-1/3 bg-[#0A1B13] border border-[#2A3731] rounded-2xl flex flex-col overflow-hidden shadow-lg">
+                    <div class="p-4 border-b border-[#2A3731] bg-[#06110D]">
+                        <div class="relative">
+                            <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-500">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                            </span>
+                            <input type="text" id="approval-search" oninput="filterApprovalList()" placeholder="샵 이름, 지역, 연락처..." class="w-full bg-[#11291D] border border-[#2A3731] rounded-lg pl-9 pr-4 py-2.5 text-white text-sm focus:outline-none focus:border-[var(--point-color)] transition-colors">
+                        </div>
+                    </div>
+                    <div class="flex-1 overflow-y-auto overflow-x-hidden p-3 space-y-2" id="approvals-inbox-list">
+                        <!-- JS Render -->
+                        <div class="py-10 text-center text-[#A7B2AE] flex flex-col items-center">
+                            <svg class="animate-spin h-6 w-6 text-[var(--point-color)] mb-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                            <span class="text-sm">목록을 불러오는 중...</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right: Application Details (2/3) -->
+                <div class="w-2/3 bg-[#0A1B13] border border-[#2A3731] rounded-2xl flex flex-col relative overflow-hidden shadow-lg">
+                    <div id="approval-empty-state" class="absolute inset-0 flex flex-col items-center justify-center bg-[#0A1B13] z-10 transition-opacity duration-300">
+                         <div class="w-20 h-20 rounded-full bg-[#11291D] flex items-center justify-center text-[#2A3731] mb-4 shadow-inner">
+                             <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                         </div>
+                         <h3 class="text-xl font-bold text-white mb-2">선택된 심사 건이 없습니다</h3>
+                         <p class="text-[#A7B2AE] text-sm">좌측 목록에서 심사할 업체를 선택해주세요.</p>
+                    </div>
+                    
+                    <form id="approval-form" onsubmit="approvePartnerFromReview(event)" class="flex-1 overflow-y-auto p-6 space-y-8 hidden relative z-0">
+                        <!-- Header inside form to ensure it scrolls with content -->
+                        <div class="flex justify-between items-center pb-4 border-b border-[#2A3731]">
+                            <h3 id="approval-view-title" class="text-2xl font-bold text-[var(--point-color)] tracking-widest">상호명</h3>
+                            <span id="approval-view-date" class="text-sm text-[#A7B2AE] bg-[#11291D] px-3 py-1 rounded-full">-</span>
+                        </div>
+                        
+                        <input type="hidden" id="approval-id">
+                        
+                        <!-- 1단계: 사업자 인증 및 기본 신원 정보 -->
+                        <div>
+                            <h4 class="text-lg font-bold text-white mb-4 flex items-center gap-2"><span class="w-6 h-6 rounded-full bg-[#11291D] text-[var(--point-color)] flex items-center justify-center text-sm">1</span> 사업자 인증 및 기본 정보 <span class="text-xs font-normal text-[#A7B2AE] ml-2">(읽기 전용)</span></h4>
+                            <div class="grid grid-cols-2 gap-5 p-5 bg-[#06110D] border border-[#2A3731] rounded-xl shadow-inner">
+                                <div class="col-span-2 md:col-span-1">
+                                    <label class="block text-sm font-medium text-[#A7B2AE] mb-1">상호명</label>
+                                    <p id="approval-name" class="text-white font-medium bg-[#0A1B13] p-3 rounded-lg border border-[#2A3731]/50">-</p>
+                                </div>
+                                <div class="col-span-2 md:col-span-1">
+                                    <label class="block text-sm font-medium text-[#A7B2AE] mb-1">대표자명</label>
+                                    <p id="approval-owner" class="text-white font-medium bg-[#0A1B13] p-3 rounded-lg border border-[#2A3731]/50">-</p>
+                                </div>
+                                <div class="col-span-2 md:col-span-1">
+                                    <label class="block text-sm font-medium text-[#A7B2AE] mb-1">휴대폰 번호</label>
+                                    <p id="approval-phone" class="text-white font-medium bg-[#0A1B13] p-3 rounded-lg border border-[#2A3731]/50">-</p>
+                                </div>
+                                <div class="col-span-2 md:col-span-1">
+                                    <label class="block text-sm font-medium text-[#A7B2AE] mb-1">사업자 구분</label>
+                                    <p id="approval-biz-type" class="text-white font-medium bg-[#0A1B13] p-3 rounded-lg border border-[#2A3731]/50">-</p>
+                                </div>
+                                <div class="col-span-2">
+                                    <label class="block text-sm font-medium text-[#A7B2AE] mb-1">상세 주소 (지점 위치)</label>
+                                    <p id="approval-address" class="text-white font-medium bg-[#0A1B13] p-3 rounded-lg border border-[#2A3731]/50">-</p>
+                                </div>
+                                <div class="col-span-2 md:col-span-1">
+                                    <label class="block text-sm font-medium text-[#A7B2AE] mb-1">사업자등록번호</label>
+                                    <p id="approval-biz-no" class="text-white font-medium bg-[#0A1B13] p-3 rounded-lg border border-[#2A3731]/50">-</p>
+                                </div>
+                                <div class="col-span-2 md:col-span-1">
+                                    <label class="block text-sm font-medium text-[#A7B2AE] mb-1">신청 시스템 아이디</label>
+                                    <p id="approval-userid" class="text-[#A7B2AE] text-sm bg-[#0A1B13] p-3 rounded-lg border border-[#2A3731]/50">-</p>
+                                </div>
+                                <div class="col-span-2">
+                                    <label class="block text-sm font-medium text-[#A7B2AE] mb-2">제출된 사업자 증빙 서류 이미지 <span class="text-xs text-[var(--point-color)] font-normal ml-2">(클릭시 원본보기)</span></label>
+                                    <div class="bg-[#0A1B13] p-4 rounded-lg border border-[#2A3731]/50 flex justify-center w-full">
+                                        <img id="approval-biz-doc" src="https://via.placeholder.com/300" class="max-h-64 object-contain rounded hidden cursor-pointer hover:opacity-80 transition-opacity" onclick="window.open(this.src, '_blank')">
+                                        <p id="approval-biz-doc-fail" class="text-[#A7B2AE] text-sm py-4">업로드된 파일이 없습니다.</p>
+                                    </div>
+                                </div>
+                                <div class="col-span-2 mt-2">
+                                    <label class="block text-sm font-bold text-[var(--point-color)] mb-2">사업자등록증 진위 여부 (관리자 확인)</label>
+                                    <select id="approval-biz-verified" class="w-full bg-[#11291D] border border-[var(--point-color)]/30 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-[var(--point-color)] font-medium">
+                                        <option value="false">❌ 미확인 (서류 확인 전 또는 요청 필요)</option>
+                                        <option value="true">✅ 확인 완료 (이상 없음)</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 2단계: 소비자 앱 노출 콘텐츠 -->
+                        <div>
+                            <h4 class="text-lg font-bold text-white mb-4 flex items-center gap-2"><span class="w-6 h-6 rounded-full bg-[#11291D] text-[var(--point-color)] flex items-center justify-center text-sm">2</span> 소비자 앱 노출 콘텐츠 <span class="text-xs font-normal text-[#A7B2AE] ml-2">(읽기 전용)</span></h4>
+                            <div class="grid grid-cols-2 gap-5 p-5 bg-[#06110D] border border-[#2A3731] rounded-xl shadow-inner">
+                                <div class="col-span-2">
+                                    <label class="block text-sm font-medium text-[#A7B2AE] mb-2">제출된 샵 메인 이미지</label>
+                                    <div class="flex flex-col md:flex-row gap-4 items-start">
+                                        <img id="approval-image-preview" src="https://via.placeholder.com/150" class="w-full md:w-48 h-32 object-cover rounded-lg border border-[#2A3731] hidden">
+                                        <div class="w-full bg-[#0A1B13] p-3 rounded-lg border border-[#2A3731]/50 h-full">
+                                            <p class="text-xs font-semibold text-gray-400 mb-1">이미지 원본 URL</p>
+                                            <p id="approval-image-text" class="text-sm text-[#A7B2AE] break-all">-</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-span-2">
+                                    <label class="block text-sm font-medium text-[#A7B2AE] mb-1">한 줄 캐치프레이즈 (목록 노출용)</label>
+                                    <p id="approval-catchphrase" class="text-white font-medium bg-[#0A1B13] p-3 rounded-lg border border-[#2A3731]/50">-</p>
+                                </div>
+                                <div class="col-span-2">
+                                    <label class="block text-sm font-medium text-[#A7B2AE] mb-1">샵 핵심 소개글 (상세페이지 노출용)</label>
+                                    <div id="approval-description" class="text-white font-medium bg-[#0A1B13] p-4 rounded-lg border border-[#2A3731]/50 min-h-[100px] whitespace-pre-wrap text-sm leading-relaxed">-</div>
+                                </div>
+                                <div class="col-span-2 md:col-span-1">
+                                    <label class="block text-sm font-medium text-[#A7B2AE] mb-1">영업 시간</label>
+                                    <p id="approval-hours" class="text-white font-medium bg-[#0A1B13] p-3 rounded-lg border border-[#2A3731]/50">-</p>
+                                </div>
+                                <div class="col-span-2 md:col-span-1">
+                                    <label class="block text-sm font-medium text-[#A7B2AE] mb-1">시작 가격 (최저 요금)</label>
+                                    <p id="approval-min-price" class="text-[var(--point-color)] font-bold bg-[#0A1B13] p-3 rounded-lg border border-[#2A3731]/50">-</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 3단계: 매칭 필터 및 제공 서비스 -->
+                        <div>
+                            <h4 class="text-lg font-bold text-white mb-4 flex items-center gap-2"><span class="w-6 h-6 rounded-full bg-[#11291D] text-[var(--point-color)] flex items-center justify-center text-sm">3</span> 매칭 필터 및 부가 서비스 <span class="text-xs font-normal text-[#A7B2AE] ml-2">(읽기 전용)</span></h4>
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-5 p-5 bg-[#06110D] border border-[#2A3731] rounded-xl shadow-inner">
+                                <div>
+                                    <label class="block text-sm font-medium text-[#A7B2AE] mb-1">마사지 카테고리</label>
+                                    <p id="approval-cat-massage" class="text-white font-medium bg-[#0A1B13] p-3 rounded-lg border border-[#2A3731]/50 min-h-[46px]">-</p>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-[#A7B2AE] mb-1">공간 형태</label>
+                                    <p id="approval-cat-place" class="text-white font-medium bg-[#0A1B13] p-3 rounded-lg border border-[#2A3731]/50 min-h-[46px]">-</p>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-[#A7B2AE] mb-1">관리사 연령대</label>
+                                    <p id="approval-cat-age" class="text-white font-medium bg-[#0A1B13] p-3 rounded-lg border border-[#2A3731]/50 min-h-[46px]">-</p>
+                                </div>
+                                <div class="col-span-1 md:col-span-3">
+                                    <label class="block text-sm font-medium text-[#A7B2AE] mb-1">시설/테마/제공 서비스 해시태그 (수면가, 주차장 등)</label>
+                                    <div id="approval-tags" class="text-white font-medium bg-[#0A1B13] p-3 rounded-lg border border-[#2A3731]/50 min-h-[46px] flex flex-wrap gap-2">-</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 4단계: 관리자 최종 심사 및 설정 -->
+                        <div>
+                            <h4 class="text-lg font-bold text-white mb-4 flex items-center gap-2"><span class="w-6 h-6 rounded-full bg-[#11291D] text-[var(--point-color)] flex items-center justify-center text-sm">4</span> 관리자 전용 심사 설정</h4>
+                            <div class="gap-5 p-5 bg-[rgba(212,175,55,0.05)] border border-[var(--point-color)]/30 rounded-xl shadow-inner space-y-5">
+                                
+                                <div>
+                                    <label class="block text-sm font-medium text-[var(--point-color)] mb-2">최종 승인 멤버십 등급 부여 (앱 노출 뱃지)</label>
+                                    <select id="approval-tier" class="w-full bg-[#11291D] border border-[var(--point-color)]/50 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-[var(--point-color)] font-bold">
+                                        <option value="Normal">일반 파트너 (기본 노출)</option>
+                                        <option value="Premium">👑 프리미엄 파트너 (상단 우선 달성)</option>
+                                        <option value="VIP">✨ VIP 파트너 (뱃지 및 리뷰어 혜택)</option>
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label class="block text-sm font-medium text-white mb-2">총괄 심사 메모 (관리자만 볼 수 있습니다)</label>
+                                    <textarea id="approval-memo" rows="3" class="w-full bg-[#06110D] border border-[#2A3731] rounded-lg px-4 py-3 text-[#A7B2AE] focus:outline-none focus:border-[var(--point-color)] transition-colors" placeholder="예: 사업자 정보 불일치로 반려함 (26.04.12) / 프리미엄 입점권 30일 부여 승인함"></textarea>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 버튼 영역 (Floating at bottom inside the right pane) -->
+                        <div class="sticky bottom-0 bg-[#0A1B13] pt-4 pb-2 border-t border-[#2A3731] flex justify-between gap-3 mt-4 z-10 w-full">
+                            <button type="button" onclick="rejectPartnerFromReview()" class="px-5 py-3 bg-[#11291D] border border-red-900/30 text-red-400 font-bold rounded-xl hover:bg-red-900/40 transition-colors shadow flex-1 md:flex-none">보류/반려 (해당 업체 삭제)</button>
+                            <button type="submit" class="px-8 py-3 bg-gradient-to-r from-[var(--point-color)] to-[#B59530] text-white font-extrabold rounded-xl hover:brightness-110 shadow-[0_4px_12px_rgba(212,175,55,0.3)] transition-all flex items-center justify-center gap-2 flex-grow">
+                                입점 최종 승인 (소비자 앱 즉시 표출)
+                            </button>
+                        </div>
+                    </form>
+                </div>
             </div>
         </div>
 
@@ -236,11 +449,150 @@
                 </div>
             </div>
         </div>
+
+        <!-- Subscriptions Tab -->
+        <div id="tab-subscriptions" class="tab-content hidden">
+            <h2 class="text-3xl font-bold text-white mb-6">입점권 및 패널티 관리 (Subscriptions)</h2>
+            <p class="text-[#A7B2AE] mb-8">모든 파트너의 입점권 결제, 변경, 차감 및 패널티 현황을 통합 관리합니다.</p>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <!-- Manual Adjustment & Penalty Management (수동 조정 / 패널티) -->
+                <div class="bg-[#0A1B13] border border-[#2A3731] rounded-2xl p-6 shadow-lg flex flex-col">
+                    <h3 class="text-xl font-bold text-[var(--point-color)] mb-4">입점권 기간 수동 조정 및 발급</h3>
+                    <p class="text-sm text-[#A7B2AE] mb-4 flex-1">
+                        어뷰징 패널티 목적의 기간 차감, 또는 이벤트/보상 목적의 무료 기간 발급 등의 작업을 일괄 또는 개별적으로 수행할 수 있습니다.
+                    </p>
+                    <button onclick="openManualSubscriptionModal()" class="w-full px-4 py-3 bg-[var(--point-color)]/20 hover:bg-[var(--point-color)]/40 text-[var(--point-color)] border border-[var(--point-color)] font-bold rounded-xl transition-all">수동 발급 및 차감 처리</button>
+                </div>
+
+                <!-- Product Setting (입점권 상품 관리) -->
+                <div class="bg-[#0A1B13] border border-[#2A3731] rounded-2xl p-6 shadow-lg flex flex-col opacity-50">
+                    <h3 class="text-xl font-bold text-white mb-4">입점권 상품 구성 세팅</h3>
+                    <p class="text-sm text-[#A7B2AE] mb-4 flex-1">
+                        판매 중인 입점권의 티어(Basic, Premium 등)와 혜택, 가격 및 기간을 설정합니다. (개발 예정)
+                    </p>
+                    <button disabled class="w-full px-4 py-3 bg-[#06110D] text-gray-500 border border-[#2A3731] rounded-xl cursor-not-allowed">상품 설정 (준비 중)</button>
+                </div>
+            </div>
+
+            <!-- Dashboard Sub-Tabs for List views -->
+            <div class="flex gap-4 border-b border-[#2A3731] mb-6">
+                <button onclick="switchSubTab('sub-list-history')" id="btn-sub-history" class="sub-tab-btn pb-2 text-[var(--point-color)] border-b-2 border-[var(--point-color)] font-medium">결제 및 환불 내역</button>
+                <button onclick="switchSubTab('sub-list-usage')" id="btn-sub-usage" class="sub-tab-btn pb-2 text-[#A7B2AE] hover:text-white font-medium border-b-2 border-transparent">이용 현황 모니터링</button>
+            </div>
+
+            <!-- Sub History List (결제 내역) -->
+            <div id="sub-list-history" class="sub-tab-content block bg-[#0A1B13] border border-[#2A3731] rounded-2xl overflow-hidden shadow-lg">
+                <table class="w-full text-left">
+                    <thead class="bg-[#06110D]">
+                        <tr class="border-b border-[#2A3731] text-xs uppercase tracking-wider text-[#A7B2AE]">
+                            <th class="p-4 font-medium">결제 일시</th>
+                            <th class="p-4 font-medium">업체 ID</th>
+                            <th class="p-4 font-medium">상품명</th>
+                            <th class="p-4 font-medium">상태</th>
+                            <th class="p-4 font-medium">금액/비고</th>
+                        </tr>
+                    </thead>
+                    <tbody id="sub-history-table-body" class="divide-y divide-[#2A3731] text-sm text-white/80">
+                        <tr><td colspan="5" class="p-4 text-center">아직 시스템이 준비 중입니다.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Sub Usage List (이용 현황 모니터링) -->
+            <div id="sub-list-usage" class="sub-tab-content hidden bg-[#0A1B13] border border-[#2A3731] rounded-2xl overflow-hidden shadow-lg">
+                <table class="w-full text-left">
+                    <thead class="bg-[#06110D]">
+                        <tr class="border-b border-[#2A3731] text-xs uppercase tracking-wider text-[#A7B2AE]">
+                            <th class="p-4 font-medium">업체 아이디(상호명)</th>
+                            <th class="p-4 font-medium">이용 중인 티어</th>
+                            <th class="p-4 font-medium">남은 기간</th>
+                            <th class="p-4 font-medium" width="100">조작</th>
+                        </tr>
+                    </thead>
+                    <tbody id="sub-usage-table-body" class="divide-y divide-[#2A3731] text-sm text-white/80">
+                        <tr><td colspan="4" class="p-4 text-center">현황 데이터를 불러오는 중...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            
+        </div>
     </main>
 
     <!-- Modals -->
     <div id="admin-modal-overlay" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
         
+        <!-- Manual Subscription Modal -->
+        <div id="modal-manual-sub" class="bg-[#0A1B13] border border-[#2A3731] rounded-2xl w-full max-w-lg hidden shadow-2xl flex flex-col max-h-[90vh]">
+            <div class="p-6 border-b border-[#2A3731] flex justify-between items-center sticky top-0 bg-[#0A1B13] z-10 shrink-0">
+                <h3 class="text-xl font-bold text-[var(--point-color)] tracking-widest">입점권 강력 수동 조정 (패널티/보상)</h3>
+                <button type="button" onclick="closeModal('modal-manual-sub')" class="text-gray-400 hover:text-white p-2">✕</button>
+            </div>
+            <form id="manual-sub-form" onsubmit="handleManualSubscriptionSubmit(event)" class="p-6 space-y-6 overflow-y-auto">
+                <!-- 1. 업체 검색 및 다중 선택 -->
+                <div>
+                    <label class="block text-sm font-bold text-white mb-2">1. 대상 업체 선택 (다중 선택 가능) *</label>
+                    <div class="relative">
+                        <input type="text" id="manual-sub-search" autocomplete="off" oninput="searchPartnersForSub(this.value)" onfocus="searchPartnersForSub(this.value)" onclick="searchPartnersForSub(this.value)" placeholder="상호명 입력 또는 전체 목록에서 클릭..." class="w-full bg-[#06110D] border border-[#2A3731] rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[var(--point-color)]">
+                        <div id="manual-sub-search-results" class="absolute left-0 right-0 mt-1 bg-[#11291D] border border-[#2A3731] rounded-xl shadow-xl max-h-[300px] overflow-y-auto hidden z-20"></div>
+                    </div>
+                    <div id="manual-sub-targets-container" class="flex flex-wrap gap-2 mt-3 p-3 min-h-[58px] bg-[#06110D] border border-[#2A3731] rounded-xl">
+                        <!-- Chips go here -->
+                        <span id="manual-sub-empty-msg" class="text-xs text-gray-500 my-auto">선택된 업체가 없습니다. 위에서 검색 후 클릭하세요.</span>
+                    </div>
+                </div>
+
+                <!-- 2. 처리 방식 -->
+                <div>
+                    <label class="block text-sm font-bold text-white mb-2">2. 조치 방법 선택 *</label>
+                    <select id="manual-sub-type" onchange="toggleManualSubInput(this.value)" class="w-full bg-[#06110D] border border-[#2A3731] rounded-xl px-4 py-3 text-white mb-3 focus:outline-none focus:border-[var(--point-color)]">
+                        <option value="add">기간 연장 (+ 보상/이벤트)</option>
+                        <option value="subtract">기간 차감 (- 어뷰징 패널티)</option>
+                        <option value="set_date">특정 만료일으로 고정 (캘린더 지정)</option>
+                        <option value="force_stop" class="text-red-400 font-bold">🛑 즉시 만료 (강제 제재 / 노출 중단)</option>
+                    </select>
+                    
+                    <!-- 동적 입력 영역 -->
+                    <div id="manual-sub-value-container" class="flex gap-2">
+                        <input type="number" id="manual-sub-days" min="1" placeholder="조정할 일수 (예: 30)" class="flex-1 bg-[#06110D] border border-[#2A3731] rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[var(--point-color)]">
+                        <span id="manual-sub-days-label" class="my-auto text-[#A7B2AE] whitespace-nowrap">일 (Days)</span>
+                    </div>
+                    <div id="manual-sub-date-container" class="hidden">
+                        <input type="datetime-local" id="manual-sub-date" class="w-full bg-[#06110D] border border-[#2A3731] rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[var(--point-color)] [color-scheme:dark]">
+                    </div>
+                </div>
+
+                <!-- 3. 사유 (카테고리 + 상세) -->
+                <div>
+                    <label class="block text-sm font-bold text-white mb-2">3. 처리 사유 분류 *</label>
+                    <select id="manual-sub-reason-category" onchange="toggleManualSubMemo(this.value)" class="w-full bg-[#06110D] border border-[#2A3731] rounded-xl px-4 py-3 text-white mb-3 focus:outline-none focus:border-[var(--point-color)]">
+                        <option value="reward_event">🎁 가입/이벤트 보상 지급</option>
+                        <option value="reward_cs">🤝 CS 항의 보상 차원 지급</option>
+                        <option value="penalty_policy">⛔ 규정 조항 위반 (영업/어뷰징 적발)</option>
+                        <option value="penalty_noshow">⚠️ 과도한 예약 취소 및 노쇼 누적</option>
+                        <option value="test">🛠️ 서버 개발 테스트 연동</option>
+                        <option value="custom">✏️ 기타 (사유 직접 입력)</option>
+                    </select>
+                    
+                    <input type="text" id="manual-sub-memo" placeholder="상세 처리 사유를 명확히 적어주세요." class="hidden w-full bg-[#06110D] border border-[#2A3731] rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[var(--point-color)]">
+                </div>
+                
+                <!-- 4. 알림 전송 -->
+                <div class="bg-[#11291D]/50 border border-[var(--point-color)]/30 rounded-xl p-4 flex items-center gap-3">
+                    <input type="checkbox" id="manual-sub-notify" checked class="w-5 h-5 accent-[var(--point-color)] rounded bg-black cursor-pointer">
+                    <div class="flex-1">
+                        <h4 class="text-sm font-bold text-white">파트너에게 변동 알림(푸시/문자) 자동 전송 허용</h4>
+                        <p class="text-[10px] text-[#A7B2AE] mt-0.5">선택된 업체들에게 카카오 알림톡/앱 푸시 메시지가 발송됩니다.</p>
+                    </div>
+                </div>
+
+                <div class="flex gap-3 pt-4 sticky bottom-0 bg-[#0A1B13]">
+                    <button type="button" onclick="closeModal('modal-manual-sub')" class="flex-1 px-4 py-3 bg-[#11291D] text-white rounded-xl hover:bg-[#183928] font-bold transition-all">취소</button>
+                    <button type="submit" class="flex-[2] px-4 py-3 bg-gradient-to-r from-[var(--point-color)] to-[#B59530] text-white rounded-xl hover:brightness-110 font-bold transition-all text-lg shadow-[0_0_15px_rgba(212,175,55,0.2)]">선택 업체 모두 적용</button>
+                </div>
+            </form>
+        </div>
+
         <!-- Shop Modal -->
         <div id="modal-shop" class="bg-[#0A1B13] border border-[#2A3731] rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto hidden shadow-2xl">
             <div class="p-6 border-b border-[#2A3731] flex justify-between items-center sticky top-0 bg-[#0A1B13] z-10">
@@ -295,117 +647,7 @@
             </form>
         </div>
 
-        <!-- Approval Review Modal -->
-        <div id="modal-approval-review" class="bg-[#0A1B13] border border-[#2A3731] rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto hidden shadow-2xl">
-            <div class="p-6 border-b border-[#2A3731] flex justify-between items-center sticky top-0 bg-[#0A1B13] z-10">
-                <h3 class="text-xl font-bold text-[var(--point-color)] tracking-widest">신규 샵 심사 및 가입 승인</h3>
-                <button type="button" onclick="closeModal('modal-approval-review')" class="text-gray-400 hover:text-white p-2">✕</button>
-            </div>
-            <form id="approval-form" onsubmit="approvePartnerFromReview(event)" class="p-6 space-y-8">
-                <input type="hidden" id="approval-id">
-                
-                <!-- 1단계: 기본 정보 -->
-                <div>
-                    <h4 class="text-lg font-bold text-white mb-4 flex items-center gap-2"><span class="w-6 h-6 rounded-full bg-[#11291D] text-[var(--point-color)] flex items-center justify-center text-sm">1</span> 기본 및 신뢰성 정보</h4>
-                    <div class="grid grid-cols-2 gap-5 p-5 bg-[#06110D] border border-[#2A3731] rounded-xl">
-                        <div>
-                            <label class="block text-sm font-medium text-[#A7B2AE] mb-1">상호명</label>
-                            <input type="text" id="approval-name" required class="w-full bg-[#0A1B13] border border-[#2A3731] rounded-lg px-3 py-2 text-white">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-[#A7B2AE] mb-1">대표자명</label>
-                            <input type="text" id="approval-owner" placeholder="실명 입력" class="w-full bg-[#0A1B13] border border-[#2A3731] rounded-lg px-3 py-2 text-white">
-                        </div>
-                        <div class="col-span-2">
-                            <label class="block text-sm font-medium text-[#A7B2AE] mb-1">정확한 주소 및 오시는 길</label>
-                            <input type="text" id="approval-address" required class="w-full bg-[#0A1B13] border border-[#2A3731] rounded-lg px-3 py-2 text-white">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-[#A7B2AE] mb-1">고객센터 / 예약 연락처</label>
-                            <input type="text" id="approval-phone" required class="w-full bg-[#0A1B13] border border-[#2A3731] rounded-lg px-3 py-2 text-white">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-[#A7B2AE] mb-1">사업자등록증 확인 여부</label>
-                            <select id="approval-biz-verified" class="w-full bg-[#0A1B13] border border-[#2A3731] rounded-lg px-3 py-2 text-white">
-                                <option value="false">미확인 (서류 요청 필요)</option>
-                                <option value="true">확인 완료 (최종 승인 가능)</option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
 
-                <!-- 2단계: 다독 필터 매칭 정보 -->
-                <div>
-                    <h4 class="text-lg font-bold text-white mb-4 flex items-center gap-2"><span class="w-6 h-6 rounded-full bg-[#11291D] text-[var(--point-color)] flex items-center justify-center text-sm">2</span> 다독 매칭 필터 정보</h4>
-                    <p class="text-xs text-[#A7B2AE] mb-3">소비자 앱의 조건 검색과 연동되므로 정확한 지정이 필요합니다.</p>
-                    <div class="grid grid-cols-3 gap-5 p-5 bg-[#06110D] border border-[#2A3731] rounded-xl">
-                        <div>
-                            <label class="block text-sm font-medium text-[#A7B2AE] mb-1">마사지 카테고리</label>
-                            <select id="approval-cat-massage" class="w-full bg-[#0A1B13] border border-[#2A3731] rounded-lg px-3 py-2 text-white"></select>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-[#A7B2AE] mb-1">공간 형태</label>
-                            <select id="approval-cat-place" class="w-full bg-[#0A1B13] border border-[#2A3731] rounded-lg px-3 py-2 text-white"></select>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-[#A7B2AE] mb-1">관리사 연령대</label>
-                            <select id="approval-cat-age" class="w-full bg-[#0A1B13] border border-[#2A3731] rounded-lg px-3 py-2 text-white"></select>
-                        </div>
-                        <div class="col-span-3">
-                            <label class="block text-sm font-medium text-[#A7B2AE] mb-1">테마/해시태그 (수면가능, 주차가능 등 쉼표로 구분)</label>
-                            <input type="text" id="approval-tags" class="w-full bg-[#0A1B13] border border-[#2A3731] rounded-lg px-3 py-2 text-white" placeholder="예: 샤워실완비, 무료주차, 커플룸">
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 3단계: 콘텐츠 및 요금 -->
-                <div>
-                    <h4 class="text-lg font-bold text-white mb-4 flex items-center gap-2"><span class="w-6 h-6 rounded-full bg-[#11291D] text-[var(--point-color)] flex items-center justify-center text-sm">3</span> 프리미엄 노출 콘텐츠 및 운영</h4>
-                    <div class="grid grid-cols-2 gap-5 p-5 bg-[#06110D] border border-[#2A3731] rounded-xl">
-                        <div class="col-span-2">
-                            <label class="block text-sm font-medium text-[#A7B2AE] mb-1">대표 이미지 URL</label>
-                            <input type="url" id="approval-image" class="w-full bg-[#0A1B13] border border-[#2A3731] rounded-lg px-3 py-2 text-white mb-2" oninput="document.getElementById('approval-image-preview').src = this.value || 'https://via.placeholder.com/150'; document.getElementById('approval-image-preview').classList.remove('hidden');">
-                            <div class="flex gap-4 items-start mt-2">
-                                <img id="approval-image-preview" src="https://via.placeholder.com/150" class="w-24 h-24 object-cover rounded-lg border border-[#2A3731] hidden">
-                                <p class="text-xs text-[#A7B2AE] mt-1">고품질 이미지가 등록되어야 승인이 권장됩니다.</p>
-                            </div>
-                        </div>
-                        <div class="col-span-2">
-                            <label class="block text-sm font-medium text-[#A7B2AE] mb-1">한 줄 스와이프 문구 (캐치프레이즈)</label>
-                            <input type="text" id="approval-catchphrase" placeholder="안티그래비티 톤 앤 매너에 맞는 프리미엄 매장 슬로건" class="w-full bg-[#0A1B13] border border-[#2A3731] rounded-lg px-3 py-2 text-white">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-[#A7B2AE] mb-1">시작 가격 (최저 요금)</label>
-                            <div class="flex items-center gap-2">
-                                <input type="number" id="approval-min-price" required class="w-[80%] bg-[#0A1B13] border border-[#2A3731] rounded-lg px-3 py-2 text-white" placeholder="예: 80000">
-                                <span class="text-[#A7B2AE] text-sm">원</span>
-                            </div>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-[#A7B2AE] mb-1">요청한 다독 멤버십 등급</label>
-                            <select id="approval-tier" class="w-full bg-[#0A1B13] border border-[#2A3731] rounded-lg px-3 py-2 text-white">
-                                <option value="Normal">일반 파트너</option>
-                                <option value="Premium">👑 프리미엄 파트너</option>
-                                <option value="VIP">✨ VIP 파트너</option>
-                            </select>
-                        </div>
-                        <div class="col-span-2">
-                            <label class="block text-sm font-medium text-[#A7B2AE] mb-1">심사 메모 (관리자 내부 공유/히스토리)</label>
-                            <textarea id="approval-memo" rows="2" class="w-full bg-[#0A1B13] border border-[#2A3731] rounded-lg px-3 py-2 text-white" placeholder="예: 사업자등록증 누락으로 1차 보류함 (26.04.12)"></textarea>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 버튼 영역 -->
-                <div class="pt-4 border-t border-[#2A3731] flex justify-between gap-3">
-                    <button type="button" onclick="rejectPartnerFromModal()" class="px-5 py-3 bg-[#11291D] border border-red-900/30 text-red-400 font-bold rounded-xl hover:bg-red-900/30 transition-colors">보류/반려 (데이터 영구 삭제)</button>
-                    <div class="flex gap-3">
-                        <button type="button" onclick="closeModal('modal-approval-review')" class="px-5 py-3 bg-[#06110D] border border-[#2A3731] text-white rounded-xl hover:bg-[#11291D] transition-colors">닫기 (저장 안함)</button>
-                        <button type="submit" class="px-8 py-3 bg-white text-[#0A1B13] font-bold rounded-xl hover:brightness-110 shadow-sm border border-gray-200 transition-all">정보 저장 및 [승인 완료]</button>
-                    </div>
-                </div>
-            </form>
-        </div>
 
         <!-- Category Modal -->
         <div id="modal-category" class="bg-[#0A1B13] border border-[#2A3731] rounded-2xl w-full max-w-md hidden shadow-2xl">
@@ -448,7 +690,7 @@
 
     </div>
     <!-- Scripts -->
-    <script src="./assets/js/admin.js?v=20260412_1"></script>
+    <script src="./assets/js/admin.js?v=20260412_9"></script>
     <style>
         .tab-link.active { background-color: #11291D; color: white; border-left: 3px solid var(--point-color); }
     </style>

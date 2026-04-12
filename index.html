@@ -29,6 +29,7 @@
     <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-storage-compat.js"></script>
     <script>
         const firebaseConfig = {
             apiKey: "AIzaSyAY7VmMHV333Bi7zTgnJshIRAFWnBWn6BU",
@@ -848,7 +849,7 @@
                                 구분</label>
                             <div class="flex items-center gap-5 pl-1">
                                 <label class="flex items-center gap-2 cursor-pointer group">
-                                    <input type="radio" name="business_type"
+                                    <input type="radio" name="business_type" value="개인사업자"
                                         class="w-5 h-5 text-[var(--point-color)] focus:ring-[var(--point-color)] bg-[#0A1B13] border-[#2A3731]"
                                         checked
                                         onchange="document.getElementById('biz-no-wrapper').style.display='flex'">
@@ -856,14 +857,14 @@
                                         class="text-[var(--text-main)] text-[15px] group-hover:text-[var(--point-color)] transition-colors">개인사업자</span>
                                 </label>
                                 <label class="flex items-center gap-2 cursor-pointer group">
-                                    <input type="radio" name="business_type"
+                                    <input type="radio" name="business_type" value="법인사업자"
                                         class="w-5 h-5 text-[var(--point-color)] focus:ring-[var(--point-color)] bg-[#0A1B13] border-[#2A3731]"
                                         onchange="document.getElementById('biz-no-wrapper').style.display='flex'">
                                     <span
                                         class="text-[var(--text-main)] text-[15px] group-hover:text-[var(--point-color)] transition-colors">법인사업자</span>
                                 </label>
                                 <label class="flex items-center gap-2 cursor-pointer group">
-                                    <input type="radio" name="business_type"
+                                    <input type="radio" name="business_type" value="미등록(개인)"
                                         class="w-5 h-5 text-[var(--point-color)] focus:ring-[var(--point-color)] bg-[#0A1B13] border-[#2A3731]"
                                         onchange="document.getElementById('biz-no-wrapper').style.display='none'">
                                     <span
@@ -2545,7 +2546,7 @@
             </div>
         </div>
 
-        <script src="assets/js/script.js?v=20260412_5"></script>
+        <script src="assets/js/script.js?v=20260412_100"></script>
     </div>
 
     <!-- Global Custom Toast -->
