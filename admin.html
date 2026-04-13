@@ -479,24 +479,28 @@
 
             <!-- Dashboard Sub-Tabs for List views -->
             <div class="flex gap-4 border-b border-[#2A3731] mb-6">
-                <button onclick="switchSubTab('sub-list-history')" id="btn-sub-history" class="sub-tab-btn pb-2 text-[var(--point-color)] border-b-2 border-[var(--point-color)] font-medium">결제 및 환불 내역</button>
+                <button onclick="switchSubTab('sub-list-history')" id="btn-sub-history" class="sub-tab-btn pb-2 text-[var(--point-color)] border-b-2 border-[var(--point-color)] font-medium">실시간 신청 현황 🔔</button>
                 <button onclick="switchSubTab('sub-list-usage')" id="btn-sub-usage" class="sub-tab-btn pb-2 text-[#A7B2AE] hover:text-white font-medium border-b-2 border-transparent">이용 현황 모니터링</button>
             </div>
 
-            <!-- Sub History List (결제 내역) -->
+            <!-- Sub History List (실시간 입점권 신청 현황) -->
             <div id="sub-list-history" class="sub-tab-content block bg-[#0A1B13] border border-[#2A3731] rounded-2xl overflow-hidden shadow-lg">
+                <div class="flex border-b border-[#2A3731] bg-[#06110D]">
+                    <button onclick="switchSubRequestTab('pending')" id="sub-req-tab-pending" class="flex-1 py-3 text-[13px] font-bold text-center text-[var(--point-color)] border-b-2 border-[var(--point-color)] bg-[#11291D]/50 transition-colors">🟡 처리 대기중</button>
+                    <button onclick="switchSubRequestTab('completed')" id="sub-req-tab-completed" class="flex-1 py-3 text-[13px] font-bold text-center text-[#A7B2AE] border-b-2 border-transparent hover:text-white transition-colors">🟢 처리 완료 / 반려</button>
+                </div>
                 <table class="w-full text-left">
                     <thead class="bg-[#06110D]">
                         <tr class="border-b border-[#2A3731] text-xs uppercase tracking-wider text-[#A7B2AE]">
-                            <th class="p-4 font-medium">결제 일시</th>
-                            <th class="p-4 font-medium">업체 ID</th>
-                            <th class="p-4 font-medium">상품명</th>
-                            <th class="p-4 font-medium">상태</th>
-                            <th class="p-4 font-medium">금액/비고</th>
+                            <th class="p-4 font-medium">신청 일시</th>
+                            <th class="p-4 font-medium">신청 상호명(ID)</th>
+                            <th class="p-4 font-medium">신청 상품</th>
+                            <th class="p-4 font-medium">입금자명 / 메시지</th>
+                            <th class="p-4 font-medium text-center w-[180px]">스마트 승인</th>
                         </tr>
                     </thead>
-                    <tbody id="sub-history-table-body" class="divide-y divide-[#2A3731] text-sm text-white/80">
-                        <tr><td colspan="5" class="p-4 text-center">아직 시스템이 준비 중입니다.</td></tr>
+                    <tbody id="sub-requests-table-body" class="divide-y divide-[#2A3731] text-sm text-white/80">
+                        <tr><td colspan="5" class="p-8 text-center text-[#A7B2AE]">데이터를 불러오는 중입니다... <script>setTimeout(window.loadSubscriptionRequests, 500);</script></td></tr>
                     </tbody>
                 </table>
             </div>
@@ -535,7 +539,10 @@
                 <div>
                     <label class="block text-sm font-bold text-white mb-2">1. 대상 업체 선택 (다중 선택 가능) *</label>
                     <div class="relative">
-                        <input type="text" id="manual-sub-search" autocomplete="off" oninput="searchPartnersForSub(this.value)" onfocus="searchPartnersForSub(this.value)" onclick="searchPartnersForSub(this.value)" placeholder="상호명 입력 또는 전체 목록에서 클릭..." class="w-full bg-[#06110D] border border-[#2A3731] rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[var(--point-color)]">
+                        <div class="flex items-center gap-2">
+                            <input type="text" id="manual-sub-search" autocomplete="off" oninput="searchPartnersForSub(this.value)" onfocus="searchPartnersForSub(this.value)" onclick="searchPartnersForSub(this.value)" placeholder="상호명 입력 또는 전체 목록에서 클릭..." class="w-full bg-[#06110D] border border-[#2A3731] rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[var(--point-color)]">
+                            <button type="button" id="manual-sub-list-toggle-btn" onclick="toggleManualSubSearchList()" class="shrink-0 px-3 py-3 text-xs font-bold rounded-xl border border-[#2A3731] bg-[#11291D] text-[#A7B2AE] hover:text-white hover:border-[var(--point-color)] transition-colors">목록 열기</button>
+                        </div>
                         <div id="manual-sub-search-results" class="absolute left-0 right-0 mt-1 bg-[#11291D] border border-[#2A3731] rounded-xl shadow-xl max-h-[300px] overflow-y-auto hidden z-20"></div>
                     </div>
                     <div id="manual-sub-targets-container" class="flex flex-wrap gap-2 mt-3 p-3 min-h-[58px] bg-[#06110D] border border-[#2A3731] rounded-xl">
@@ -716,7 +723,10 @@
                         </div>
                         <label class="relative inline-flex items-center cursor-pointer ml-4 shrink-0">
                             <input type="checkbox" id="sub-promo-trial-active" class="sr-only peer" onchange="togglePromoDays()">
-                            <div class="w-14 h-7 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-[26px] peer-checked:after:border-white after:content-[''] after:absolute after:top-[3px] after:left-[3px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5.5 after:w-5.5 after:shadow-sm after:transition-all peer-checked:bg-[var(--point-color)]"></div>
+                            <div class="w-16 h-9 rounded-full border border-gray-500 bg-gray-600 shadow-inner transition-all duration-200 peer-focus:ring-2 peer-focus:ring-[var(--point-color)]/50 peer-checked:bg-[var(--point-color)] peer-checked:border-[var(--point-color)]"></div>
+                            <span class="absolute left-2.5 top-1/2 -translate-y-1/2 text-[10px] font-extrabold tracking-wider text-gray-300 peer-checked:opacity-0 transition-opacity">OFF</span>
+                            <span class="absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] font-extrabold tracking-wider text-[#06110D] opacity-0 peer-checked:opacity-100 transition-opacity">ON</span>
+                            <span class="absolute top-1 left-1 h-7 w-7 rounded-full bg-white border border-gray-300 shadow-md transition-transform duration-200 peer-checked:translate-x-7"></span>
                         </label>
                     </div>
                     <div class="flex items-center gap-3 opacity-50 transition-opacity duration-300 ml-1" id="sub-promo-trial-days-container">

@@ -1244,6 +1244,173 @@ function switchSubTab(tabId) {
     }
 }
 
+// ════════════ REALTME SUBSCRIPTION REQUESTS ════════════
+let currentSubRequestStatus = 'pending';
+let unsubscribeSubRequests = null;
+
+window.switchSubRequestTab = function(status) {
+    currentSubRequestStatus = status;
+    const tabPending = document.getElementById('sub-req-tab-pending');
+    const tabCompleted = document.getElementById('sub-req-tab-completed');
+    
+    if(tabPending && tabCompleted) {
+        tabPending.classList.remove('text-[var(--point-color)]', 'border-[var(--point-color)]', 'text-[#A7B2AE]', 'border-transparent');
+        tabCompleted.classList.remove('text-[var(--point-color)]', 'border-[var(--point-color)]', 'text-[#A7B2AE]', 'border-transparent');
+        
+        if (status === 'pending') {
+            tabPending.classList.add('text-[var(--point-color)]', 'border-[var(--point-color)]');
+            tabCompleted.classList.add('text-[#A7B2AE]', 'border-transparent');
+        } else {
+            tabCompleted.classList.add('text-[var(--point-color)]', 'border-[var(--point-color)]');
+            tabPending.classList.add('text-[#A7B2AE]', 'border-transparent');
+        }
+    }
+    
+    window.loadSubscriptionRequests();
+};
+
+window.loadSubscriptionRequests = function() {
+    const tbody = document.getElementById('sub-requests-table-body');
+    if (!tbody) return;
+    
+    if (unsubscribeSubRequests) {
+        unsubscribeSubRequests();
+    }
+    
+    tbody.innerHTML = '<tr><td colspan="5" class="p-8 text-center text-[#A7B2AE]">로딩 중...</td></tr>';
+    
+    // We fetch all records and filter in memory to avoid throwing composite index errors across projects.
+    unsubscribeSubRequests = db.collection('subscription_requests')
+        .orderBy('createdAt', 'desc')
+        .limit(100)
+        .onSnapshot(snapshot => {
+            let matches = [];
+            snapshot.forEach(doc => {
+                const data = doc.data();
+                if (currentSubRequestStatus === 'pending') {
+                    if (data.status === 'pending') matches.push({...data, id: doc.id});
+                } else {
+                    if (data.status === 'completed' || data.status === 'rejected') matches.push({...data, id: doc.id});
+                }
+            });
+
+            if(matches.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" class="p-8 text-center text-[#A7B2AE]">${currentSubRequestStatus === 'pending' ? '현재 입금 대기 중인 신청 건이 없습니다.' : '처리 완료/반려 내역이 없습니다.'}</td></tr>`;
+                return;
+            }
+            
+            let html = '';
+            matches.forEach(data => {
+                const reqId = data.id;
+                const d = data.createdAt ? new Date(data.createdAt.toMillis()) : new Date();
+                const dStr = `${d.getFullYear().toString().substr(-2)}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+                
+                let btnHtml = '';
+                if(data.status === 'pending') {
+                    btnHtml = `
+                    <div class="flex flex-col gap-1.5 items-end justify-center h-full">
+                        <button onclick="approveSubscriptionRequest('${reqId}', '${data.partnerId}', ${data.months}, '${data.companyName}')" class="px-3 py-1.5 bg-[#11291D] hover:bg-[var(--point-color)] hover:text-black text-[var(--point-color)] border border-[var(--point-color)] rounded-lg text-xs font-bold transition-colors w-[150px] shadow-md relative overflow-hidden group">
+                           <span class="relative z-10 flex items-center justify-center gap-1"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>입금확인 • 즉시승인</span>
+                           <div class="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform"></div>
+                        </button>
+                        <button onclick="rejectSubscriptionRequest('${reqId}', '${data.companyName}')" class="px-3 py-1 bg-[#0A1B13] hover:bg-black text-[#A7B2AE] hover:text-red-400 border border-[#2A3731] hover:border-red-900 rounded-lg text-[11px] transition-colors w-[150px]">보류 / 반려</button>
+                    </div>`;
+                } else if(data.status === 'completed') {
+                    btnHtml = `<span class="bg-[#11291D] text-green-400 border border-green-900/50 px-2.5 py-1 rounded-md text-xs font-bold">🟢 승인 완료</span>`;
+                } else {
+                    btnHtml = `<span class="bg-[#0A1B13] text-red-400 border border-[#2A3731] px-2.5 py-1 rounded-md text-xs">🔴 반려됨<br><span class="text-[9px] text-[#A7B2AE] font-normal tracking-tighter block mt-0.5 max-w-[80px] break-keep truncate" title="${data.rejectReason || ''}">${data.rejectReason || ''}</span></span>`;
+                }
+                
+                html += `
+                <tr class="hover:bg-[#11291D]/40 transition-colors">
+                    <td class="p-4 align-middle text-[#A7B2AE] font-mono text-xs">${dStr}</td>
+                    <td class="p-4 align-middle">
+                        <div class="font-bold text-white text-[14px]">${data.companyName || '상호명 없음'}</div>
+                        <div class="text-[11px] text-[#A7B2AE] mt-0.5 truncate max-w-[120px]">${data.partnerId || ''}</div>
+                    </td>
+                    <td class="p-4 align-middle text-[var(--point-color)] font-bold text-sm">🎫 ${data.months}개월 입점권</td>
+                    <td class="p-4 align-middle">
+                        <div class="text-[13px] text-white flex items-center gap-2">
+                           <span class="bg-blue-900/40 text-blue-300 border border-blue-800/60 px-1.5 py-0.5 rounded text-[10px] font-bold">입금인</span>
+                           ${data.depositorName || '-'} 
+                           <span class="text-[var(--point-color)] font-bold ml-1">${(data.amount || 0).toLocaleString()}원</span>
+                        </div>
+                        ${data.message ? `<div class="text-[11px] text-[#A7B2AE] mt-1.5 bg-[#06110D] p-1.5 rounded border border-[#2A3731] max-w-[200px] truncate" title="${data.message}">💬 ${data.message}</div>` : ''}
+                    </td>
+                    <td class="p-3 align-middle text-right">${btnHtml}</td>
+                </tr>`;
+            });
+            tbody.innerHTML = html;
+        }, err => {
+            console.error("Error loading sub requests: ", err);
+        });
+};
+
+window.approveSubscriptionRequest = async function(reqId, partnerId, addMonths, companyName) {
+    try {
+        if (!confirm(`[${companyName}] 업체의 입금(결제) 사실을 확인하셨나요?\n승인 시 자동으로 입점권이 ${addMonths}개월 연장됩니다.`)) return;
+        
+        // Fetch partner details
+        const partnerRef = db.collection('partners').doc(partnerId);
+        const docSnap = await partnerRef.get();
+        if (!docSnap.exists) {
+            alert('파트너 정보를 찾을 수 없습니다 (삭제된 업체일 수 있습니다).');
+            return;
+        }
+        
+        const currentData = docSnap.data();
+        const now = Date.now();
+        let baseTime = now;
+        
+        // If current expiry exists and is in the future, add to it. Otherwise, add from NOW.
+        if (currentData.ticketExpiryTimestamp && currentData.ticketExpiryTimestamp > now) {
+            baseTime = currentData.ticketExpiryTimestamp;
+        }
+
+        // Add requested months
+        const newDate = new Date(baseTime);
+        newDate.setMonth(newDate.getMonth() + addMonths);
+        const newExpiryStr = `${newDate.getFullYear()}-${String(newDate.getMonth() + 1).padStart(2, '0')}-${String(newDate.getDate()).padStart(2, '0')}`;
+
+        // 1. Update partner expiry
+        await partnerRef.update({
+            ticketExpiryTimestamp: newDate.getTime(),
+            ticketExpiry: newExpiryStr,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        // 2. Mark request as completed
+        await db.collection('subscription_requests').doc(reqId).update({
+            status: 'completed',
+            completedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        alert(`✅ [${companyName}] 스마트 승인 완료!\n종료 날짜가 ${newExpiryStr} 로 연장되었습니다.`);
+
+    } catch (err) {
+        console.error('Error approving subscription request', err);
+        alert('승인 중 오류가 발생했습니다: ' + err.message);
+    }
+};
+
+window.rejectSubscriptionRequest = async function(reqId, companyName) {
+    try {
+        const reason = prompt(`[${companyName}] 업체의 입점권 신청을 보류/반려 처리합니다.\n반려 사유(예: 입금 금액 불일치 등)를 적어주세요.`);
+        if (reason === null) return; // User cancelled
+        
+        await db.collection('subscription_requests').doc(reqId).update({
+            status: 'rejected',
+            rejectReason: reason,
+            completedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        
+        alert(`🔴 반려 처리되었습니다.\n사유: ${reason}`);
+    } catch (err) {
+        console.error('Error rejecting sub request', err);
+        alert('처리 중 오류 발생: ' + err.message);
+    }
+};
+
 function loadSubscriptionUsage() {
     const tbody = document.getElementById('sub-usage-table-body');
     if (!tbody) return;
@@ -1288,16 +1455,74 @@ function loadSubscriptionUsage() {
 }
 
 let selectedSubTargets = [];
+let manualSubPartners = [];
+
+function setManualSubListToggleLabel() {
+    const btn = document.getElementById('manual-sub-list-toggle-btn');
+    const results = document.getElementById('manual-sub-search-results');
+    if (!btn || !results) return;
+    btn.innerText = results.classList.contains('hidden') ? '목록 열기' : '목록 닫기';
+}
+
+function toggleManualSubSearchList() {
+    const input = document.getElementById('manual-sub-search');
+    const results = document.getElementById('manual-sub-search-results');
+    if (!input || !results) return;
+
+    if (results.classList.contains('hidden')) {
+        searchPartnersForSub(input.value || '');
+    } else {
+        results.classList.add('hidden');
+        setManualSubListToggleLabel();
+    }
+}
+
+async function loadManualSubPartners() {
+    const resContainer = document.getElementById('manual-sub-search-results');
+    if (resContainer) {
+        resContainer.innerHTML = '<div class="px-4 py-3 text-sm text-[#A7B2AE] text-center">업체 목록을 불러오는 중...</div>';
+        resContainer.classList.remove('hidden');
+        setManualSubListToggleLabel();
+    }
+
+    try {
+        const snapshot = await db.collection('partners').get({ source: 'server' });
+        manualSubPartners = [];
+
+        snapshot.forEach(doc => {
+            const data = doc.data() || {};
+            manualSubPartners.push({ id: doc.id, ...data });
+        });
+
+        manualSubPartners.sort((a, b) => {
+            const nameA = (a.name || a.company || '').toString().trim();
+            const nameB = (b.name || b.company || '').toString().trim();
+            return nameA.localeCompare(nameB, 'ko');
+        });
+    } catch (err) {
+        console.error('manual sub partners load error:', err);
+        manualSubPartners = [];
+        if (resContainer) {
+            resContainer.innerHTML = `<div class="px-4 py-3 text-sm text-red-400 text-center">업체 목록 로드 실패: ${err.message}</div>`;
+            resContainer.classList.remove('hidden');
+            setManualSubListToggleLabel();
+        }
+    }
+}
 
 function openManualSubscriptionModal() {
     selectedSubTargets = [];
     renderSubTargets();
     document.getElementById('manual-sub-search').value = '';
     document.getElementById('manual-sub-search-results').classList.add('hidden');
+    setManualSubListToggleLabel();
     document.getElementById('manual-sub-form').reset();
     toggleManualSubInput('add');
     toggleManualSubMemo('reward_event');
     openModal('modal-manual-sub');
+    loadManualSubPartners().then(() => {
+        searchPartnersForSub('');
+    });
 }
 
 function openManualSubscriptionModalWithTarget(id, name) {
@@ -1305,20 +1530,24 @@ function openManualSubscriptionModalWithTarget(id, name) {
     renderSubTargets();
     document.getElementById('manual-sub-search').value = '';
     document.getElementById('manual-sub-search-results').classList.add('hidden');
+    setManualSubListToggleLabel();
     document.getElementById('manual-sub-form').reset();
     toggleManualSubInput('add');
     toggleManualSubMemo('reward_event');
     openModal('modal-manual-sub');
+    loadManualSubPartners().then(() => {
+        searchPartnersForSub('');
+    });
 }
 
 function searchPartnersForSub(query) {
     const resContainer = document.getElementById('manual-sub-search-results');
     
-    // 전체 파트너 업체 목록 표시를 위해 상태 필터링 제거
-    const activeShops = windowShops;
+    // 수동조정 모달은 탭 상태와 무관하게 로드한 전체 파트너 목록을 사용
+    const sourcePartners = manualSubPartners.length > 0 ? manualSubPartners : windowShops;
     
     let matches = [];
-    activeShops.forEach(data => {
+    sourcePartners.forEach(data => {
         const n = data.name || data.company || '';
         const p = data.phone || data.managerPhone || '';
         
@@ -1354,9 +1583,11 @@ function searchPartnersForSub(query) {
             </div>
         `).join('');
         resContainer.classList.remove('hidden');
+        setManualSubListToggleLabel();
     } else {
         resContainer.innerHTML = '<div class="px-4 py-3 text-sm text-[#A7B2AE] text-center">검색 결과가 없습니다.</div>';
         resContainer.classList.remove('hidden');
+        setManualSubListToggleLabel();
     }
 }
 
@@ -1367,6 +1598,7 @@ function addSubTarget(id, name, plan, remainStr) {
     }
     document.getElementById('manual-sub-search').value = '';
     document.getElementById('manual-sub-search-results').classList.add('hidden');
+    setManualSubListToggleLabel();
 }
 
 function removeSubTarget(id) {
@@ -1636,39 +1868,111 @@ function resetSubProductsToDefault() {
 function getDefaultProducts() {
     return [
         {
-            id: 'premium_1',
-            tier: 'premium',
-            name: '프리미엄 입점권',
+            id: 'starter_1',
+            tier: 'basic',
+            name: '1개월 입점권',
             months: 1,
-            price: 55000,
-            originalPrice: 55000,
+            price: 300000,
+            originalPrice: 300000,
             discountRate: 0,
             color: 'white',
             isActive: true,
             features: [
-                '전 지역 스탠다드 노출',
-                '내 샵 상세페이지 제공',
-                '리뷰 무제한 수집 및 관리'
+                '지역별 리스트 기본 노출',
+                '파트너 전용 관리자 페이지'
             ]
         },
         {
-            id: 'vip_6',
-            tier: 'vip',
-            name: 'VIP 파트너',
+            id: 'popular_3',
+            tier: 'standard',
+            name: '3개월 입점권',
+            months: 3,
+            price: 850000,
+            originalPrice: 900000,
+            discountRate: 5,
+            color: 'white',
+            isActive: true,
+            features: [
+                '지역별 리스트 기본 노출',
+                '검색 노출 순위 소폭 상승',
+                '3개월 결제 시 5% 할인'
+            ],
+            badge: 'Popular'
+        },
+        {
+            id: 'premium_6',
+            tier: 'premium',
+            name: '6개월 입점권 (Premium)',
             months: 6,
-            price: 297000,
-            originalPrice: 330000,
-            discountRate: 10,
+            price: 1530000,
+            originalPrice: 1800000,
+            discountRate: 15,
             color: '[var(--point-color)]',
             isActive: true,
             features: [
-                '지역 최상단(VIP) 우선 노출',
-                '메인 홈 \'추천 샵\' 배너 노출',
-                '6개월 결제 시 10% 할인'
+                '메인 [다독 초이스] 배너 노출 혜택',
+                '추천 리스트 상위 노출 우선권',
+                '파트너 전용 프리미엄 뱃지',
+                '6개월 결제 시 15% 할인'
             ],
             badge: 'Best'
+        },
+        {
+            id: 'vip_12',
+            tier: 'vip',
+            name: '12개월 입점권 (VIP)',
+            months: 12,
+            price: 2700000,
+            originalPrice: 3600000,
+            discountRate: 25,
+            color: '[var(--point-color)]',
+            isActive: true,
+            features: [
+                '메인 [다독 초이스] 상시 노출 보장',
+                '검색결과 최상단 고정 노출',
+                'VIP 전용 1:1 담당 매니저 배정',
+                '12개월 결제 시 25% 할인'
+            ],
+            badge: 'VIP'
         }
     ];
+}
+
+function getDefaultProductNameByTier(tier) {
+    const normalizedTier = (tier || '').toString().toLowerCase();
+    const nameMap = {
+        basic: '1개월 입점권',
+        standard: '3개월 입점권',
+        premium: '6개월 입점권 (Premium)',
+        vip: '12개월 입점권 (VIP)'
+    };
+    return nameMap[normalizedTier] || '1개월 입점권';
+}
+
+function getAllDefaultProductNames() {
+    return new Set([
+        getDefaultProductNameByTier('basic'),
+        getDefaultProductNameByTier('standard'),
+        getDefaultProductNameByTier('premium'),
+        getDefaultProductNameByTier('vip')
+    ]);
+}
+
+function syncProductNameWithTierWhenSafe(productItemEl) {
+    if (!productItemEl) return;
+
+    const tierEl = productItemEl.querySelector('.prod-tier');
+    const nameEl = productItemEl.querySelector('.prod-name');
+    if (!tierEl || !nameEl) return;
+
+    const defaultNames = getAllDefaultProductNames();
+    const currentName = (nameEl.value || '').trim();
+    const nextDefaultName = getDefaultProductNameByTier(tierEl.value);
+
+    // B안: 기본 상품명인 경우에만 자동 변경, 커스텀 명칭은 보존.
+    if (!currentName || defaultNames.has(currentName)) {
+        nameEl.value = nextDefaultName;
+    }
 }
 
 function renderSubProducts(products) {
@@ -1677,6 +1981,11 @@ function renderSubProducts(products) {
     
     products.forEach((prod, index) => {
         const id = prod.id || `prod_${Date.now()}_${index}`;
+        const normalizedTier = (prod.tier || '').toString().toLowerCase();
+        const monthNum = Number(prod.months || 0);
+        const selectedTier = ['basic', 'standard', 'premium', 'vip'].includes(normalizedTier)
+            ? normalizedTier
+            : (monthNum === 12 ? 'vip' : monthNum === 6 ? 'premium' : monthNum === 3 ? 'standard' : 'basic');
         
         let featuresHtml = '';
         if (prod.features && prod.features.length > 0) {
@@ -1689,7 +1998,10 @@ function renderSubProducts(products) {
                     <label class="text-[12px] text-[#A7B2AE] mr-1">활성화</label>
                     <label class="relative inline-flex items-center cursor-pointer">
                         <input type="checkbox" class="sr-only peer prod-active" ${prod.isActive ? 'checked' : ''}>
-                        <div class="w-9 h-5 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-[16px] peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:shadow-sm after:transition-all peer-checked:bg-[var(--point-color)]"></div>
+                        <div class="w-16 h-9 rounded-full border border-[#4A5A54] bg-[#27342F] shadow-inner transition-all duration-200 peer-focus:ring-2 peer-focus:ring-[var(--point-color)]/50 peer-checked:bg-[var(--point-color)] peer-checked:border-[var(--point-color)]"></div>
+                        <span class="absolute left-2.5 top-1/2 -translate-y-1/2 text-[10px] font-extrabold tracking-wider text-[#95A39D] peer-checked:opacity-0 transition-opacity">OFF</span>
+                        <span class="absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] font-extrabold tracking-wider text-[#06110D] opacity-0 peer-checked:opacity-100 transition-opacity">ON</span>
+                        <span class="absolute top-1 left-1 h-7 w-7 rounded-full bg-white border border-[#D4D9D7] shadow-md transition-transform duration-200 peer-checked:translate-x-7"></span>
                     </label>
                 </div>
                 
@@ -1700,9 +2012,11 @@ function renderSubProducts(products) {
                     </div>
                     <div>
                         <label class="block text-xs text-[#A7B2AE] mb-1">적용 티어</label>
-                        <select class="prod-tier w-full bg-[#06110D] border border-[#2A3731] rounded-lg px-3 py-2 text-white text-sm">
-                            <option value="premium" ${prod.tier === 'premium' ? 'selected' : ''}>Premium (기본 노출)</option>
-                            <option value="vip" ${prod.tier === 'vip' ? 'selected' : ''}>VIP (최상위 노출)</option>
+                        <select class="prod-tier w-full bg-[#06110D] border border-[#2A3731] rounded-lg px-3 py-2 text-white text-sm" onchange="syncProductNameWithTierWhenSafe(this.closest('.sub-product-item'))">
+                            <option value="basic" ${selectedTier === 'basic' ? 'selected' : ''}>Basic (1개월 입점권)</option>
+                            <option value="standard" ${selectedTier === 'standard' ? 'selected' : ''}>Standard (3개월 입점권)</option>
+                            <option value="premium" ${selectedTier === 'premium' ? 'selected' : ''}>Premium (6개월 입점권)</option>
+                            <option value="vip" ${selectedTier === 'vip' ? 'selected' : ''}>VIP (12개월 입점권)</option>
                         </select>
                     </div>
                 </div>
@@ -1773,11 +2087,11 @@ function addNewEmptyProduct() {
     products.push({
         id: `prod_${Date.now()}`,
         isActive: true,
-        name: '새 상품',
-        tier: 'premium',
+        name: '1개월 입점권',
+        tier: 'basic',
         months: 1,
-        originalPrice: 30000,
-        price: 30000,
+        originalPrice: 300000,
+        price: 300000,
         color: 'white',
         features: ['기본 혜택']
     });

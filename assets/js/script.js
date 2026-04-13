@@ -470,6 +470,7 @@ const filterSheet = document.getElementById('filter-sheet');
                 window.partnerDashboardStats.todayVisitors++;
                 saveDashboardStats();
                 updateDashboardDOM();
+                syncDashboardStatsToFirestore();
 
                 if (id === 'my-partner') {
                     if (localStorage.getItem('myPartnerProfile')) {
@@ -1139,6 +1140,7 @@ const filterSheet = document.getElementById('filter-sheet');
                 window.partnerDashboardStats.todayReviews++;
                 saveDashboardStats();
                 updateDashboardDOM();
+                syncDashboardStatsToFirestore();
 
                 const starPath = "M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z";
                 let starsHtml = '';
@@ -3254,11 +3256,125 @@ const filterSheet = document.getElementById('filter-sheet');
                 }
             }
 
+            const DEFAULT_PARTNER_DASHBOARD_STATS = {
+                totalVisitors: 4285,
+                todayVisitors: 12,
+                totalReviews: 152,
+                todayReviews: 3
+            };
+
             // [추가] 글로벌 파트너 대시보드 스탯 연동
-            window.partnerDashboardStats = JSON.parse(localStorage.getItem('partnerDashboardStats') || '{"totalVisitors":4285,"todayVisitors":12,"totalReviews":152,"todayReviews":3}');
+            window.partnerDashboardStats = JSON.parse(
+                localStorage.getItem('partnerDashboardStats') || JSON.stringify(DEFAULT_PARTNER_DASHBOARD_STATS)
+            );
+            window.partnerDashboardStatsDate = localStorage.getItem('partnerDashboardStatsDate') || '';
+
+            function getTodayDateKey() {
+                // KST(Asia/Seoul) fixed day key for daily reset consistency.
+                const kstDate = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
+                return `${kstDate.getFullYear()}-${String(kstDate.getMonth() + 1).padStart(2, '0')}-${String(kstDate.getDate()).padStart(2, '0')}`;
+            }
+
+            function applyDailyStatsReset(stats, statsDate) {
+                const todayKey = getTodayDateKey();
+                if (statsDate === todayKey) {
+                    return { stats, statsDate: todayKey, wasReset: false };
+                }
+                return {
+                    stats: {
+                        ...stats,
+                        todayVisitors: 0,
+                        todayReviews: 0
+                    },
+                    statsDate: todayKey,
+                    wasReset: true
+                };
+            }
 
             function saveDashboardStats() {
                 localStorage.setItem('partnerDashboardStats', JSON.stringify(window.partnerDashboardStats));
+                localStorage.setItem('partnerDashboardStatsDate', window.partnerDashboardStatsDate || getTodayDateKey());
+            }
+
+            function getLoggedInPartnerDocId() {
+                return localStorage.getItem('dadok_loggedInPartnerDocId') || sessionStorage.getItem('dadok_loggedInPartnerDocId');
+            }
+
+            function normalizeDashboardStats(rawStats = {}) {
+                return {
+                    totalVisitors: Number(rawStats.totalVisitors || 0),
+                    todayVisitors: Number(rawStats.todayVisitors || 0),
+                    totalReviews: Number(rawStats.totalReviews || 0),
+                    todayReviews: Number(rawStats.todayReviews || 0)
+                };
+            }
+
+            async function syncDashboardStatsToFirestore() {
+                const partnerDocId = getLoggedInPartnerDocId();
+                if (!partnerDocId || typeof firebase === 'undefined') return;
+
+                try {
+                    window.partnerDashboardStatsDate = getTodayDateKey();
+                    await firebase.firestore().collection('partners').doc(partnerDocId).set({
+                        stats: normalizeDashboardStats(window.partnerDashboardStats),
+                        statsDate: window.partnerDashboardStatsDate,
+                        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                    }, { merge: true });
+                } catch (e) {
+                    console.error('대시보드 통계 동기화 실패', e);
+                }
+            }
+
+            async function loadPartnerDashboardStats() {
+                const partnerDocId = getLoggedInPartnerDocId();
+                const todayKey = getTodayDateKey();
+                const localStatsDate = localStorage.getItem('partnerDashboardStatsDate') || '';
+                if (!partnerDocId || typeof firebase === 'undefined') {
+                    const localStats = normalizeDashboardStats(window.partnerDashboardStats || DEFAULT_PARTNER_DASHBOARD_STATS);
+                    const resetResult = applyDailyStatsReset(localStats, localStatsDate);
+                    window.partnerDashboardStats = resetResult.stats;
+                    window.partnerDashboardStatsDate = resetResult.statsDate;
+                    saveDashboardStats();
+                    updateDashboardDOM();
+                    return;
+                }
+
+                try {
+                    const doc = await firebase.firestore().collection('partners').doc(partnerDocId).get();
+                    if (!doc.exists) {
+                        const localStats = normalizeDashboardStats(window.partnerDashboardStats || DEFAULT_PARTNER_DASHBOARD_STATS);
+                        const resetResult = applyDailyStatsReset(localStats, localStatsDate);
+                        window.partnerDashboardStats = resetResult.stats;
+                        window.partnerDashboardStatsDate = resetResult.statsDate;
+                    } else {
+                        const partnerData = doc.data() || {};
+                        const dbStats = partnerData.stats || {};
+                        const dbStatsDate = partnerData.statsDate || '';
+                        const mergedStats = {
+                            ...DEFAULT_PARTNER_DASHBOARD_STATS,
+                            ...normalizeDashboardStats(window.partnerDashboardStats || {}),
+                            ...normalizeDashboardStats(dbStats)
+                        };
+                        if (!mergedStats.totalReviews && Number(partnerData.reviews) > 0) {
+                            mergedStats.totalReviews = Number(partnerData.reviews);
+                        }
+                        const resetResult = applyDailyStatsReset(mergedStats, dbStatsDate || localStatsDate);
+                        window.partnerDashboardStats = resetResult.stats;
+                        window.partnerDashboardStatsDate = resetResult.statsDate;
+                        if (resetResult.wasReset) {
+                            syncDashboardStatsToFirestore();
+                        }
+                    }
+                } catch (e) {
+                    console.error('대시보드 통계 로드 실패', e);
+                    const localStats = normalizeDashboardStats(window.partnerDashboardStats || DEFAULT_PARTNER_DASHBOARD_STATS);
+                    const resetResult = applyDailyStatsReset(localStats, localStatsDate || todayKey);
+                    window.partnerDashboardStats = resetResult.stats;
+                    window.partnerDashboardStatsDate = resetResult.statsDate;
+                }
+
+                saveDashboardStats();
+                updateDashboardDOM();
             }
 
             function updateDashboardDOM() {
@@ -3276,6 +3392,7 @@ const filterSheet = document.getElementById('filter-sheet');
             // 초기 DOM 로드 시 스탯 렌더링
             document.addEventListener('DOMContentLoaded', () => {
                 updateDashboardDOM();
+                loadPartnerDashboardStats();
                 populateDashboardFromPartner();
             });
 
@@ -3418,6 +3535,8 @@ const filterSheet = document.getElementById('filter-sheet');
                         place: currentPartner.place,
                         age: currentPartner.age,
                         menus: currentPartner.menus,
+                        stats: normalizeDashboardStats(window.partnerDashboardStats),
+                        statsDate: window.partnerDashboardStatsDate || getTodayDateKey(),
                         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
                     });
 
