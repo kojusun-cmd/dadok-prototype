@@ -86,15 +86,15 @@ const DEFAULT_FILTERS = {
 };
 
 const FILTER_STYLES = {
-    massage: { badge: 'bg-purple-900/40 border-purple-500/30 text-purple-200', deleteBtn: 'text-purple-400 hover:text-purple-200' },
-    place:   { badge: 'bg-blue-900/40 border-blue-500/30 text-blue-200',     deleteBtn: 'text-blue-400 hover:text-blue-200' },
-    age:     { badge: 'bg-amber-900/40 border-amber-500/30 text-amber-200',   deleteBtn: 'text-amber-400 hover:text-amber-200' }
+    massage: { badge: 'bg-[#11291D] border-[#2A3731] text-[var(--point-color)]', deleteBtn: 'text-[#A7B2AE] hover:text-white' },
+    place:   { badge: 'bg-[#11291D] border-[#2A3731] text-[var(--point-color)]', deleteBtn: 'text-[#A7B2AE] hover:text-white' },
+    age:     { badge: 'bg-[#11291D] border-[#2A3731] text-[var(--point-color)]', deleteBtn: 'text-[#A7B2AE] hover:text-white' }
 };
 
 const FILTER_LABELS = {
-    massage: '마사지 종류',
-    place: '공간 형태',
-    age: '관리사 연령대'
+    massage: '마사지 테마',
+    place: '샵 형태',
+    age: '관리사 연령'
 };
 
 // ─── Tab System ───
@@ -340,9 +340,9 @@ function loadCategories() {
         snapshot.forEach(doc => {
             const data = doc.data();
             container.innerHTML += `
-                <div class="px-4 py-2 bg-[#11291D] border border-[#2A3731] rounded-full text-white text-sm flex items-center gap-2 group shadow-sm transition-all hover:bg-[#183928]">
+                <div class="px-4 py-2 bg-[#11291D] border border-[#2A3731] rounded-full text-[var(--point-color)] text-sm flex items-center gap-2 group shadow-sm transition-all hover:brightness-110">
                     \${data.name}
-                    <button onclick="deleteCategory('\${doc.id}')" class="text-red-400 opacity-0 group-hover:opacity-100 transition-opacity ml-1 hover:text-red-300">✕</button>
+                    <button onclick="deleteCategory('\${doc.id}')" class="text-[#A7B2AE] opacity-0 group-hover:opacity-100 transition-opacity ml-1 hover:text-white" title="삭제">✕</button>
                 </div>
             `;
         });
