@@ -45,8 +45,14 @@ function adminLogin() {
             console.log("Logged in as:", result.user.email);
         })
         .catch((error) => {
-            console.error("Login failed:", error.message);
-            alert("로그인 실패: " + error.message);
+            console.error("Login failed:", error);
+            if (error.code === 'auth/unauthorized-domain') {
+                alert("로그인 실패: 현재 접속하신 주소(도메인)가 Firebase에 등록되지 않았습니다.\n\n해결방법: \n1. 브라우저에서 'http://localhost:5500' 또는 'http://127.0.0.1:5500' 으로 접속해주세요.\n2. file:/// 주소나 내부 IP(59.x.x.x 등)에서는 구글 로그인이 차단됩니다.");
+            } else if (error.code === 'auth/network-request-failed') {
+                alert("로그인 실패: 네트워크 상태를 확인해주세요.");
+            } else {
+                alert("로그인 실패: " + error.message + " (Code: " + error.code + ")");
+            }
         });
 }
 
@@ -592,13 +598,48 @@ function approvePartnerFromReview(e) {
         if(!confirm('실명 및 사업자등록증이 아직 확인되지 않았습니다. 그래도 승인하시겠습니까?')) return;
     }
 
+    const tierValue = document.getElementById('approval-tier').value;
+    
+    let ticketType = 'None';
+    let ticketPlan = 'none';
+    let monthsToAdd = 0;
+    
+    if (tierValue === '1') {
+        ticketType = '1개월 입점권';
+        ticketPlan = 'standard';
+        monthsToAdd = 1;
+    } else if (tierValue === '3') {
+        ticketType = '3개월 입점권';
+        ticketPlan = 'standard';
+        monthsToAdd = 3;
+    } else if (tierValue === '6') {
+        ticketType = '6개월 입점권';
+        ticketPlan = 'premium';
+        monthsToAdd = 6;
+    } else if (tierValue === '12') {
+        ticketType = '12개월 입점권';
+        ticketPlan = 'VIP';
+        monthsToAdd = 12;
+    }
+    
     const updateData = {
-        ticketType: document.getElementById('approval-tier').value,
+        ticketType: ticketType,
+        ticketPlan: ticketPlan,
         bizVerified: bizVerified,
         adminMemo: document.getElementById('approval-memo').value.trim(),
         status: 'active',
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
     };
+    
+    if (monthsToAdd > 0) {
+        const now = new Date();
+        now.setMonth(now.getMonth() + monthsToAdd);
+        updateData.ticketExpiryTimestamp = now.getTime();
+        updateData.ticketExpiry = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+    } else {
+        updateData.ticketExpiryTimestamp = 0;
+        updateData.ticketExpiry = '';
+    }
     
     db.collection('partners').doc(id).update(updateData).then(() => {
         // Firebase snapshot will auto trigger list re-render
@@ -1362,7 +1403,12 @@ function toggleManualSubInput(type) {
     const label = document.getElementById('manual-sub-days-label');
     const daysInput = document.getElementById('manual-sub-days');
     
-    if (type === 'add') {
+    if (['add_1', 'add_3', 'add_6', 'add_12'].includes(type)) {
+        valContainer.classList.add('hidden');
+        dateContainer.classList.add('hidden');
+        daysInput.required = false;
+        document.getElementById('manual-sub-date').required = false;
+    } else if (type === 'add') {
         valContainer.classList.remove('hidden');
         dateContainer.classList.add('hidden');
         label.innerText = '일 연장';
@@ -1421,16 +1467,50 @@ function handleManualSubscriptionSubmit(e) {
         return ref.get().then(doc => {
             if (!doc.exists) return;
             const data = doc.data();
-            let newExpiry = data.ticketExpiryTimestamp || Date.now();
+            // 신규 발급의 경우, 기존 만료일이 현재보다 과거라면 '오늘 기준'으로, 만료 전이라면 '기존 만료일 기준'으로 연장
+            let baseDate = (data.ticketExpiryTimestamp && data.ticketExpiryTimestamp > Date.now()) ? new Date(data.ticketExpiryTimestamp) : new Date();
+            let newExpiry = baseDate.getTime();
             
-            if (type === 'add') {
+            let ticketPlan = data.ticketPlan || 'standard';
+            let ticketType = data.ticketType || 'None';
+            let addedDaysMessage = '';
+            
+            if (type === 'add_1') {
+                baseDate.setMonth(baseDate.getMonth() + 1);
+                newExpiry = baseDate.getTime();
+                ticketType = '1개월 입점권';
+                addedDaysMessage = '+1개월';
+            } else if (type === 'add_3') {
+                baseDate.setMonth(baseDate.getMonth() + 3);
+                newExpiry = baseDate.getTime();
+                ticketType = '3개월 입점권';
+                addedDaysMessage = '+3개월';
+            } else if (type === 'add_6') {
+                baseDate.setMonth(baseDate.getMonth() + 6);
+                newExpiry = baseDate.getTime();
+                ticketType = '6개월 입점권';
+                ticketPlan = 'premium';
+                addedDaysMessage = '+6개월(Premium)';
+            } else if (type === 'add_12') {
+                baseDate.setMonth(baseDate.getMonth() + 12);
+                newExpiry = baseDate.getTime();
+                ticketType = '12개월 입점권';
+                ticketPlan = 'VIP';
+                addedDaysMessage = '+12개월(VIP)';
+            } else if (type === 'add') {
                 newExpiry += (days * 24 * 60 * 60 * 1000);
+                addedDaysMessage = `+${days}일`;
             } else if (type === 'subtract') {
                 newExpiry -= (days * 24 * 60 * 60 * 1000);
+                addedDaysMessage = `-${days}일`;
             } else if (type === 'set_date') {
                 newExpiry = new Date(dateInput).getTime();
+                addedDaysMessage = '만료일 변경';
             } else if (type === 'force_stop') {
                 newExpiry = Date.now();
+                addedDaysMessage = '강제 만료';
+                ticketType = 'None';
+                ticketPlan = 'none';
             }
             
             const d = new Date(newExpiry);
@@ -1439,6 +1519,8 @@ function handleManualSubscriptionSubmit(e) {
             batch.update(ref, {
                 ticketExpiryTimestamp: newExpiry,
                 ticketExpiry: strDate,
+                ticketType: ticketType,
+                ticketPlan: ticketPlan,
                 updatedAt: firebase.firestore.FieldValue.serverTimestamp()
             });
             
@@ -1463,7 +1545,7 @@ function handleManualSubscriptionSubmit(e) {
                     targetUserId: data.userId || null,
                     partnerId: target.id,
                     title: '입점권 기간 변동 알림',
-                    body: `조치 사유: ${reasonText}\n조치 내용: ${type === 'add' ? '+' + days + '일' : type === 'subtract' ? '-' + days + '일' : '만료일 변경'}\n\n상세한 변동 내역은 앱 내 샵 관리 메뉴를 통해 확인하실 수 있습니다.`,
+                    body: `조치 사유: ${reasonText}\n조치 내용: ${addedDaysMessage}\n\n상세한 변동 내역은 앱 내 샵 관리 메뉴를 통해 확인하실 수 있습니다.`,
                     isRead: false,
                     type: 'SUBSCRIPTION_UPDATE',
                     createdAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -1482,3 +1564,275 @@ function handleManualSubscriptionSubmit(e) {
     });
 }
 
+// ═══════════════════════════════════════
+// ▶ SUBSCRIPTION PRODUCTS CONFIGURATION
+// ═══════════════════════════════════════
+
+function openSubscriptionProductsModal() {
+    openModal('modal-subscription-products');
+    
+    // Load config from Firestore
+    const configRef = db.collection('admin_configs').doc('subscription_products');
+    configRef.get().then(doc => {
+        if (doc.exists) {
+            const data = doc.data();
+            applySubProductsData(data);
+        } else {
+            // Apply defaults
+            applyDefaultSubProducts();
+        }
+    }).catch(err => {
+        console.error("Failed to load subscription config:", err);
+        applyDefaultSubProducts();
+    });
+}
+
+function applySubProductsData(data) {
+    const trialActive = document.getElementById('sub-promo-trial-active');
+    const trialDays = document.getElementById('sub-promo-trial-days');
+    
+    if (data.promoTrial && data.promoTrial.active) {
+        trialActive.checked = true;
+        trialDays.value = data.promoTrial.days || 30;
+    } else {
+        trialActive.checked = false;
+        trialDays.value = 30; // default 30 but inactive
+    }
+    togglePromoDays();
+    
+    if (data.products && data.products.length > 0) {
+        renderSubProducts(data.products);
+    } else {
+        renderSubProducts(getDefaultProducts());
+    }
+}
+
+function applyDefaultSubProducts() {
+    document.getElementById('sub-promo-trial-active').checked = false;
+    document.getElementById('sub-promo-trial-days').value = 30;
+    togglePromoDays();
+    renderSubProducts(getDefaultProducts());
+}
+
+function togglePromoDays() {
+    const active = document.getElementById('sub-promo-trial-active').checked;
+    const container = document.getElementById('sub-promo-trial-days-container');
+    const input = document.getElementById('sub-promo-trial-days');
+    if (active) {
+        container.classList.remove('opacity-50');
+        input.disabled = false;
+    } else {
+        container.classList.add('opacity-50');
+        input.disabled = true;
+    }
+}
+
+function resetSubProductsToDefault() {
+    if(confirm('모든 설정을 다독의 기본 상품 양식으로 덮어쓰시겠습니까? 저장 전까지는 실제 적용되지 않습니다.')) {
+        applyDefaultSubProducts();
+    }
+}
+
+function getDefaultProducts() {
+    return [
+        {
+            id: 'premium_1',
+            tier: 'premium',
+            name: '프리미엄 입점권',
+            months: 1,
+            price: 55000,
+            originalPrice: 55000,
+            discountRate: 0,
+            color: 'white',
+            isActive: true,
+            features: [
+                '전 지역 스탠다드 노출',
+                '내 샵 상세페이지 제공',
+                '리뷰 무제한 수집 및 관리'
+            ]
+        },
+        {
+            id: 'vip_6',
+            tier: 'vip',
+            name: 'VIP 파트너',
+            months: 6,
+            price: 297000,
+            originalPrice: 330000,
+            discountRate: 10,
+            color: '[var(--point-color)]',
+            isActive: true,
+            features: [
+                '지역 최상단(VIP) 우선 노출',
+                '메인 홈 \'추천 샵\' 배너 노출',
+                '6개월 결제 시 10% 할인'
+            ],
+            badge: 'Best'
+        }
+    ];
+}
+
+function renderSubProducts(products) {
+    const container = document.getElementById('sub-products-container');
+    container.innerHTML = '';
+    
+    products.forEach((prod, index) => {
+        const id = prod.id || `prod_${Date.now()}_${index}`;
+        
+        let featuresHtml = '';
+        if (prod.features && prod.features.length > 0) {
+            featuresHtml = prod.features.join('\\n');
+        }
+        
+        container.innerHTML += `
+            <div class="sub-product-item border border-[#2A3731] bg-[#11291D]/30 p-5 rounded-xl shadow-sm relative group transition-all" data-id="${id}">
+                <div class="absolute top-4 right-4 flex items-center gap-2">
+                    <label class="text-[12px] text-[#A7B2AE] mr-1">활성화</label>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" class="sr-only peer prod-active" ${prod.isActive ? 'checked' : ''}>
+                        <div class="w-9 h-5 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-[16px] peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:shadow-sm after:transition-all peer-checked:bg-[var(--point-color)]"></div>
+                    </label>
+                </div>
+                
+                <div class="grid grid-cols-2 gap-4 mb-4 pr-32">
+                    <div>
+                        <label class="block text-xs text-[#A7B2AE] mb-1">상품명</label>
+                        <input type="text" class="prod-name w-full bg-[#06110D] border border-[#2A3731] rounded-lg px-3 py-2 text-white text-sm" value="${prod.name}">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-[#A7B2AE] mb-1">적용 티어</label>
+                        <select class="prod-tier w-full bg-[#06110D] border border-[#2A3731] rounded-lg px-3 py-2 text-white text-sm">
+                            <option value="premium" ${prod.tier === 'premium' ? 'selected' : ''}>Premium (기본 노출)</option>
+                            <option value="vip" ${prod.tier === 'vip' ? 'selected' : ''}>VIP (최상위 노출)</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="grid grid-cols-3 gap-4 mb-4">
+                    <div>
+                        <label class="block text-xs text-[#A7B2AE] mb-1">기간 (개월)</label>
+                        <input type="number" class="prod-months w-full bg-[#06110D] border border-[#2A3731] rounded-lg px-3 py-2 text-white text-sm" value="${prod.months}">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-[#A7B2AE] mb-1">정상가(원)</label>
+                        <input type="number" class="prod-original-price w-full bg-[#06110D] border border-[#2A3731] rounded-lg px-3 py-2 text-white text-sm" value="${prod.originalPrice || prod.price}">
+                    </div>
+                    <div>
+                        <label class="block text-[0.7rem] text-[var(--point-color)] mb-1 font-bold">할인가/판매가(원)</label>
+                        <input type="number" class="prod-price w-full bg-[#06110D] border border-[var(--point-color)]/50 rounded-lg px-3 py-2 text-white text-sm font-bold" value="${prod.price}">
+                    </div>
+                </div>
+                
+                <div>
+                    <label class="block text-xs text-[#A7B2AE] mb-1">제공 혜택 (줄바꿈으로 구분)</label>
+                    <textarea class="prod-features w-full bg-[#06110D] border border-[#2A3731] rounded-lg px-3 py-2 text-white text-sm h-20 resize-none font-mono" placeholder="혜택 하나\\n혜택 둘">${featuresHtml}</textarea>
+                </div>
+                
+                <div class="mt-4 flex justify-between items-center">
+                    <div class="flex items-center gap-2">
+                        <label class="text-xs text-[#A7B2AE]">상품 뱃지</label>
+                        <input type="text" class="prod-badge bg-[#06110D] border border-[#2A3731] rounded-lg px-2 py-1.5 text-white text-xs w-20" placeholder="Best" value="${prod.badge || ''}">
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <label class="text-xs text-[#A7B2AE]">포인트 컬러</label>
+                        <select class="prod-color bg-[#06110D] border border-[#2A3731] rounded-lg px-2 py-1.5 text-white text-xs">
+                            <option value="white" ${prod.color === 'white' ? 'selected' : ''}>화이트(기본)</option>
+                            <option value="[var(--point-color)]" ${prod.color === '[var(--point-color)]' ? 'selected' : ''}>골드(포인트)</option>
+                        </select>
+                    </div>
+                    <button type="button" onclick="this.closest('.sub-product-item').remove()" class="px-2 py-1 rounded bg-red-500/10 text-red-400 text-xs hover:bg-red-500/20 transition-colors">삭제</button>
+                </div>
+            </div>
+        `;
+    });
+    
+    // Add product button
+    container.innerHTML += `
+        <button type="button" onclick="addNewEmptyProduct()" class="col-span-full py-12 text-center text-[#A7B2AE] hover:text-[#06110D] bg-[#06110D] rounded-xl border border-dashed border-[#2A3731] hover:border-[var(--point-color)] hover:bg-[var(--point-color)] transition-all group flex flex-col items-center gap-2">
+            <svg class="w-8 h-8 text-gray-500 group-hover:text-[#06110D] transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+            <span class="font-bold text-sm">새 입점권 상품 추가하기</span>
+        </button>
+    `;
+}
+
+function addNewEmptyProduct() {
+    const container = document.getElementById('sub-products-container');
+    const products = Array.from(container.querySelectorAll('.sub-product-item')).map(el => {
+        return {
+            id: el.dataset.id,
+            isActive: el.querySelector('.prod-active').checked,
+            name: el.querySelector('.prod-name').value,
+            tier: el.querySelector('.prod-tier').value,
+            months: parseInt(el.querySelector('.prod-months').value) || 1,
+            originalPrice: parseInt(el.querySelector('.prod-original-price').value) || 0,
+            price: parseInt(el.querySelector('.prod-price').value) || 0,
+            features: el.querySelector('.prod-features').value.split('\n').map(f => f.trim()).filter(f => f),
+            color: el.querySelector('.prod-color').value,
+            badge: el.querySelector('.prod-badge').value
+        };
+    });
+    
+    products.push({
+        id: `prod_${Date.now()}`,
+        isActive: true,
+        name: '새 상품',
+        tier: 'premium',
+        months: 1,
+        originalPrice: 30000,
+        price: 30000,
+        color: 'white',
+        features: ['기본 혜택']
+    });
+    
+    renderSubProducts(products);
+}
+
+function handleSubProductsSubmit(e) {
+    if(e) e.preventDefault();
+    
+    const trialActive = document.getElementById('sub-promo-trial-active').checked;
+    const trialDays = parseInt(document.getElementById('sub-promo-trial-days').value) || 30;
+    
+    const productElements = document.querySelectorAll('.sub-product-item');
+    const products = [];
+    
+    productElements.forEach(el => {
+        let discountRate = 0;
+        let p = parseInt(el.querySelector('.prod-price').value) || 0;
+        let op = parseInt(el.querySelector('.prod-original-price').value) || 0;
+        if(op > 0 && p < op) {
+            discountRate = Math.round(((op - p) / op) * 100);
+        }
+
+        products.push({
+            id: el.dataset.id || `prod_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            isActive: el.querySelector('.prod-active').checked,
+            name: el.querySelector('.prod-name').value,
+            tier: el.querySelector('.prod-tier').value,
+            months: parseInt(el.querySelector('.prod-months').value) || 1,
+            originalPrice: op,
+            price: p,
+            discountRate: discountRate,
+            features: el.querySelector('.prod-features').value.split('\n').map(f => f.trim()).filter(f => f),
+            color: el.querySelector('.prod-color').value,
+            badge: el.querySelector('.prod-badge').value
+        });
+    });
+    
+    const configData = {
+        promoTrial: {
+            active: trialActive,
+            days: trialDays
+        },
+        products: products,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    };
+    
+    db.collection('admin_configs').doc('subscription_products').set(configData, {merge: true})
+        .then(() => {
+            alert('입점권 상품 구성 정보가 저장되었습니다.');
+            closeModal('modal-subscription-products');
+        })
+        .catch(err => {
+            console.error("Error saving config: ", err);
+            alert("정보 저장 중 오류가 발생했습니다: " + err.message);
+        });
+}

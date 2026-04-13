@@ -344,9 +344,11 @@
                                 <div>
                                     <label class="block text-sm font-medium text-[var(--point-color)] mb-2">최종 승인 멤버십 등급 부여 (앱 노출 뱃지)</label>
                                     <select id="approval-tier" class="w-full bg-[#11291D] border border-[var(--point-color)]/50 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-[var(--point-color)] font-bold">
-                                        <option value="Normal">일반 파트너 (기본 노출)</option>
-                                        <option value="Premium">👑 프리미엄 파트너 (상단 우선 달성)</option>
-                                        <option value="VIP">✨ VIP 파트너 (뱃지 및 리뷰어 혜택)</option>
+                                        <option value="1">1개월 입점권 승인 (기본)</option>
+                                        <option value="3">3개월 입점권 승인</option>
+                                        <option value="6">6개월 입점권 승인 (Premium 파트너)</option>
+                                        <option value="12">12개월 입점권 승인 (VIP 파트너)</option>
+                                        <option value="0">입점권 없음 (승인 보류/무료 노출제한)</option>
                                     </select>
                                 </div>
 
@@ -466,12 +468,12 @@
                 </div>
 
                 <!-- Product Setting (입점권 상품 관리) -->
-                <div class="bg-[#0A1B13] border border-[#2A3731] rounded-2xl p-6 shadow-lg flex flex-col opacity-50">
+                <div class="bg-[#0A1B13] border border-[#2A3731] rounded-2xl p-6 shadow-lg flex flex-col transition-all hover:border-[var(--point-color)]/50">
                     <h3 class="text-xl font-bold text-white mb-4">입점권 상품 구성 세팅</h3>
                     <p class="text-sm text-[#A7B2AE] mb-4 flex-1">
-                        판매 중인 입점권의 티어(Basic, Premium 등)와 혜택, 가격 및 기간을 설정합니다. (개발 예정)
+                        판매 중인 입점권의 티어(Standard, Premium, VIP 등)별 노출 혜택과 다이내믹 프로모션, 원가 및 할인가를 구성합니다.
                     </p>
-                    <button disabled class="w-full px-4 py-3 bg-[#06110D] text-gray-500 border border-[#2A3731] rounded-xl cursor-not-allowed">상품 설정 (준비 중)</button>
+                    <button onclick="openSubscriptionProductsModal()" class="w-full px-4 py-3 bg-[var(--point-color)]/10 hover:bg-[var(--point-color)]/20 text-[#D4AF37] border border-[#2A3731] hover:border-[var(--point-color)] font-bold rounded-xl transition-all">상품 설정 및 가격 제어</button>
                 </div>
             </div>
 
@@ -546,7 +548,11 @@
                 <div>
                     <label class="block text-sm font-bold text-white mb-2">2. 조치 방법 선택 *</label>
                     <select id="manual-sub-type" onchange="toggleManualSubInput(this.value)" class="w-full bg-[#06110D] border border-[#2A3731] rounded-xl px-4 py-3 text-white mb-3 focus:outline-none focus:border-[var(--point-color)]">
-                        <option value="add">기간 연장 (+ 보상/이벤트)</option>
+                        <option value="add_1">1개월 신규/연장 발급 (+30일)</option>
+                        <option value="add_3">3개월 신규/연장 발급 (+90일)</option>
+                        <option value="add_6" class="text-[var(--point-color)]">6개월 신규/연장 발급 (+180일 / Premium)</option>
+                        <option value="add_12" class="text-[var(--point-color)] font-bold">12개월 신규/연장 발급 (+365일 / VIP)</option>
+                        <option value="add">커스텀 기간 연장 (+ 보상/이벤트)</option>
                         <option value="subtract">기간 차감 (- 어뷰징 패널티)</option>
                         <option value="set_date">특정 만료일으로 고정 (캘린더 지정)</option>
                         <option value="force_stop" class="text-red-400 font-bold">🛑 즉시 만료 (강제 제재 / 노출 중단)</option>
@@ -686,8 +692,75 @@
                 </div>
             </form>
         </div>
-    </div>
+        <!-- Subscription Products Modal -->
+        <div id="modal-subscription-products" class="bg-[#0A1B13] border border-[#2A3731] rounded-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden hidden shadow-2xl flex-col">
+            <div class="p-6 border-b border-[#2A3731] flex justify-between items-center bg-[#06110D] shrink-0">
+                <h3 class="text-xl font-bold text-[var(--point-color)] tracking-widest flex items-center gap-2">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    입점권 상품 구성 및 마케팅 세팅
+                </h3>
+                <button type="button" onclick="closeModal('modal-subscription-products')" class="text-gray-400 hover:text-white transition-colors p-2"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
+            </div>
+            
+            <form id="subscription-products-form" onsubmit="handleSubProductsSubmit(event)" class="p-6 overflow-y-auto overflow-x-hidden flex-1 space-y-8 bg-[#0A1B13]">
+                <!-- 1. 신규 가입 이벤트 -->
+                <div class="p-6 border border-[#2A3731] rounded-xl bg-[#06110D]/50 shadow-inner">
+                    <div class="flex items-center gap-2 mb-4">
+                        <svg class="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                        <h4 class="text-lg font-bold text-white">신규 파트너 웰컴 혜택</h4>
+                    </div>
+                    <div class="flex items-center justify-between bg-[#11291D]/50 border border-[var(--point-color)]/30 rounded-xl p-5 mb-4 shadow-sm hover:border-[var(--point-color)]/60 transition-colors">
+                        <div>
+                            <h5 class="text-[15px] font-bold text-white flex items-center gap-2">신규 가입 시 무료 체험권 제공 <span class="bg-[var(--point-color)] text-[#030906] text-[10px] px-1.5 py-0.5 rounded-sm font-bold uppercase tracking-wider animate-pulse">Hot</span></h5>
+                            <p class="text-[13px] text-[#A7B2AE] mt-1.5 leading-relaxed">회원가입 후 최초 1회 심사 승인 시 즉시 무료 입점 혜택을 자동으로 제공합니다.<br>이 기능은 마케팅 프로모션으로 유용합니다.</p>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer ml-4 shrink-0">
+                            <input type="checkbox" id="sub-promo-trial-active" class="sr-only peer" onchange="togglePromoDays()">
+                            <div class="w-14 h-7 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-[26px] peer-checked:after:border-white after:content-[''] after:absolute after:top-[3px] after:left-[3px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5.5 after:w-5.5 after:shadow-sm after:transition-all peer-checked:bg-[var(--point-color)]"></div>
+                        </label>
+                    </div>
+                    <div class="flex items-center gap-3 opacity-50 transition-opacity duration-300 ml-1" id="sub-promo-trial-days-container">
+                        <label class="text-[14px] font-medium text-[#A7B2AE]">부여할 무료 체험 일수:</label>
+                        <div class="relative flex items-center">
+                            <input type="number" id="sub-promo-trial-days" disabled class="w-24 bg-[#0A1B13] border border-[#2A3731] rounded-lg px-4 py-2.5 text-center text-white font-bold focus:outline-none focus:border-[var(--point-color)] focus:ring-1 focus:ring-[var(--point-color)] disabled:opacity-50 transition-all">
+                            <span class="absolute right-3 text-[#A7B2AE] text-sm pointer-events-none w-5 bg-[#0A1B13]">일</span>
+                        </div>
+                    </div>
+                </div>
 
+                <!-- 2. 입점권 상품 설정 -->
+                <div class="relative">
+                    <div class="flex items-end justify-between mb-5">
+                        <div>
+                            <div class="flex items-center gap-2 mb-1">
+                                <svg class="w-5 h-5 text-[var(--point-color)]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+                                <h4 class="text-lg font-bold text-white">판매 입점권 상품 상세 설정</h4>
+                            </div>
+                            <p class="text-[13px] text-[#A7B2AE] ml-7">소비자 앱의 '파트너 입점 안내' 페이지에 노출되는 구성입니다. 드래그앤드롭으로 상품 순서를 변경할 수 있습니다.</p>
+                        </div>
+                        <button type="button" onclick="resetSubProductsToDefault()" class="text-[12px] px-3 py-1.5 border border-[#2A3731] bg-[#06110D] text-[#A7B2AE] font-medium hover:text-white rounded-md hover:bg-[#11291D] transition-all flex items-center gap-1.5 group shrink-0">
+                            <svg class="w-3.5 h-3.5 group-hover:-rotate-180 transition-transform duration-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                            기본 양식으로 덮어쓰기
+                        </button>
+                    </div>
+
+                    <div class="grid grid-cols-1 xl:grid-cols-2 gap-6" id="sub-products-container">
+                        <div class="col-span-full py-16 text-center text-[#A7B2AE] flex flex-col items-center bg-[#06110D] rounded-xl border border-dashed border-[#2A3731]">
+                            <svg class="animate-spin h-8 w-8 text-[var(--point-color)] mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                            <span>상품 구성을 불러오는 중...</span>
+                        </div>
+                    </div>
+                </div>
+            </form>
+
+            <div class="p-5 border-t border-[#2A3731] bg-[#06110D] flex justify-end gap-3 shrink-0">
+                <button type="button" onclick="closeModal('modal-subscription-products')" class="px-6 py-3.5 bg-[#11291D] border border-[#2A3731] text-white rounded-xl hover:bg-[#183928] font-bold text-sm tracking-widest transition-colors shadow-sm">취소</button>
+                <button type="button" onclick="document.getElementById('subscription-products-form').dispatchEvent(new Event('submit'))" class="px-8 py-3.5 bg-gradient-to-r from-[var(--point-color)] to-[#B59530] text-[#06110D] rounded-xl hover:brightness-110 font-extrabold tracking-widest shadow-[0_4px_15px_rgba(212,175,55,0.2)] hover:shadow-[0_6px_20px_rgba(212,175,55,0.3)] transition-all active:scale-[0.98] flex items-center gap-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path></svg>옵션 저장 및 적용하기
+                </button>
+            </div>
+        </div>
+    </div>
     </div>
     <!-- Scripts -->
     <script src="./assets/js/admin.js?v=20260412_9"></script>
