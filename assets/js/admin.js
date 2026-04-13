@@ -1,11 +1,11 @@
 // Firebase DB Initialization
 const adminFirebaseConfig = {
-    apiKey: "AIzaSyAY7VmMHV333Bi7zTgnJshIRAFWnBWn6BU",
-    authDomain: "dadok-app.firebaseapp.com",
-    projectId: "dadok-app",
-    storageBucket: "dadok-app.firebasestorage.app",
-    messagingSenderId: "702510138781",
-    appId: "1:702510138781:web:fbfcfc29a8de5d3da35b74"
+    apiKey: 'AIzaSyAY7VmMHV333Bi7zTgnJshIRAFWnBWn6BU',
+    authDomain: 'dadok-app.firebaseapp.com',
+    projectId: 'dadok-app',
+    storageBucket: 'dadok-app.firebasestorage.app',
+    messagingSenderId: '702510138781',
+    appId: '1:702510138781:web:fbfcfc29a8de5d3da35b74',
 };
 if (!firebase.apps.length) {
     firebase.initializeApp(adminFirebaseConfig);
@@ -15,7 +15,7 @@ const auth = firebase.auth();
 const provider = new firebase.auth.GoogleAuthProvider();
 
 // ─── Authentication ───
-auth.onAuthStateChanged(user => {
+auth.onAuthStateChanged((user) => {
     const userInfoEl = document.getElementById('admin-user-info');
     const userEmailEl = document.getElementById('admin-user-email');
     const loginBtn = document.getElementById('admin-login-btn');
@@ -24,44 +24,48 @@ auth.onAuthStateChanged(user => {
     const mainApp = document.getElementById('main-app');
 
     if (user) {
-        if(authOverlay) authOverlay.classList.add('hidden');
-        if(mainApp) mainApp.classList.remove('hidden');
-        if(userInfoEl) userInfoEl.classList.remove('hidden');
-        if(userEmailEl) userEmailEl.textContent = user.email;
-        if(loginBtn) loginBtn.classList.add('hidden');
-        if(logoutBtn) logoutBtn.classList.remove('hidden');
+        if (authOverlay) authOverlay.classList.add('hidden');
+        if (mainApp) mainApp.classList.remove('hidden');
+        if (userInfoEl) userInfoEl.classList.remove('hidden');
+        if (userEmailEl) userEmailEl.textContent = user.email;
+        if (loginBtn) loginBtn.classList.add('hidden');
+        if (logoutBtn) logoutBtn.classList.remove('hidden');
     } else {
-        if(authOverlay) authOverlay.classList.remove('hidden');
-        if(mainApp) mainApp.classList.add('hidden');
-        if(userInfoEl) userInfoEl.classList.add('hidden');
-        if(loginBtn) loginBtn.classList.remove('hidden');
-        if(logoutBtn) logoutBtn.classList.add('hidden');
+        if (authOverlay) authOverlay.classList.remove('hidden');
+        if (mainApp) mainApp.classList.add('hidden');
+        if (userInfoEl) userInfoEl.classList.add('hidden');
+        if (loginBtn) loginBtn.classList.remove('hidden');
+        if (logoutBtn) logoutBtn.classList.add('hidden');
     }
 });
 
 function adminLogin() {
     auth.signInWithPopup(provider)
         .then((result) => {
-            console.log("Logged in as:", result.user.email);
+            console.log('Logged in as:', result.user.email);
         })
         .catch((error) => {
-            console.error("Login failed:", error);
+            console.error('Login failed:', error);
             if (error.code === 'auth/unauthorized-domain') {
-                alert("로그인 실패: 현재 접속하신 주소(도메인)가 Firebase에 등록되지 않았습니다.\n\n해결방법: \n1. 브라우저에서 'http://localhost:5500' 또는 'http://127.0.0.1:5500' 으로 접속해주세요.\n2. file:/// 주소나 내부 IP(59.x.x.x 등)에서는 구글 로그인이 차단됩니다.");
+                alert(
+                    "로그인 실패: 현재 접속하신 주소(도메인)가 Firebase에 등록되지 않았습니다.\n\n해결방법: \n1. 브라우저에서 'http://localhost:5500' 또는 'http://127.0.0.1:5500' 으로 접속해주세요.\n2. file:/// 주소나 내부 IP(59.x.x.x 등)에서는 구글 로그인이 차단됩니다.",
+                );
             } else if (error.code === 'auth/network-request-failed') {
-                alert("로그인 실패: 네트워크 상태를 확인해주세요.");
+                alert('로그인 실패: 네트워크 상태를 확인해주세요.');
             } else {
-                alert("로그인 실패: " + error.message + " (Code: " + error.code + ")");
+                alert('로그인 실패: ' + error.message + ' (Code: ' + error.code + ')');
             }
         });
 }
 
 function adminLogout() {
-    auth.signOut().then(() => {
-        console.log("Logged out");
-    }).catch((error) => {
-        console.error("Logout failed:", error.message);
-    });
+    auth.signOut()
+        .then(() => {
+            console.log('Logged out');
+        })
+        .catch((error) => {
+            console.error('Logout failed:', error.message);
+        });
 }
 
 // ─── Global Variables ───
@@ -73,45 +77,67 @@ let categoriesList = [];
 const DEFAULT_FILTERS = {
     massage: {
         title: '선호하는 마사지 종류',
-        options: ['상관없음(전체)', '스웨디시', '스포츠 마사지', '타이 마사지', '커플마사지']
+        options: ['상관없음(전체)', '스웨디시', '스포츠 마사지', '타이 마사지', '커플마사지'],
     },
     place: {
         title: '휴식 공간 형태',
-        options: ['상관없음(전체)', '방문 (홈케어/출장)', '1인샵 (매장 방문)', '다인샵 (일반 매장)']
+        options: [
+            '상관없음(전체)',
+            '방문 (홈케어/출장)',
+            '1인샵 (매장 방문)',
+            '다인샵 (일반 매장)',
+        ],
     },
     age: {
         title: '선호하는 관리사 연령대',
-        options: ['연령 무관 (전체)', '20대 초반', '20대 중후반', '30대 초반', '30대 중후반', '40대 초반', '40대 중후반']
-    }
+        options: [
+            '연령 무관 (전체)',
+            '20대 초반',
+            '20대 중후반',
+            '30대 초반',
+            '30대 중후반',
+            '40대 초반',
+            '40대 중후반',
+        ],
+    },
 };
 
 const FILTER_STYLES = {
-    massage: { badge: 'bg-[#11291D] border-[#2A3731] text-[var(--point-color)]', deleteBtn: 'text-[#A7B2AE] hover:text-white' },
-    place:   { badge: 'bg-[#11291D] border-[#2A3731] text-[var(--point-color)]', deleteBtn: 'text-[#A7B2AE] hover:text-white' },
-    age:     { badge: 'bg-[#11291D] border-[#2A3731] text-[var(--point-color)]', deleteBtn: 'text-[#A7B2AE] hover:text-white' }
+    massage: {
+        badge: 'bg-[#11291D] border-[#2A3731] text-[var(--point-color)]',
+        deleteBtn: 'text-[#A7B2AE] hover:text-white',
+    },
+    place: {
+        badge: 'bg-[#11291D] border-[#2A3731] text-[var(--point-color)]',
+        deleteBtn: 'text-[#A7B2AE] hover:text-white',
+    },
+    age: {
+        badge: 'bg-[#11291D] border-[#2A3731] text-[var(--point-color)]',
+        deleteBtn: 'text-[#A7B2AE] hover:text-white',
+    },
 };
 
 const FILTER_LABELS = {
     massage: '마사지 테마',
     place: '샵 형태',
-    age: '관리사 연령'
+    age: '관리사 연령',
 };
 
 // ─── Tab System ───
 function switchTab(tabId) {
-    document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
-    document.querySelectorAll('.tab-link').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach((el) => el.classList.add('hidden'));
+    document.querySelectorAll('.tab-link').forEach((el) => el.classList.remove('active'));
 
     document.getElementById(`tab-${tabId}`).classList.remove('hidden');
     const activeNav = document.querySelector(`.tab-link[onclick="switchTab('${tabId}')"]`);
-    if(activeNav) activeNav.classList.add('active');
+    if (activeNav) activeNav.classList.add('active');
 
-    if(tabId === 'users') loadUsers();
-    else if(tabId === 'shops') loadShops();
-    else if(tabId === 'approvals') loadApprovals();
-    else if(tabId === 'categories') loadAllFilters();
-    else if(tabId === 'subscriptions') loadSubscriptionUsage();
-    else if(tabId === 'dashboard') updateDashboardStats();
+    if (tabId === 'users') loadUsers();
+    else if (tabId === 'shops') loadShops();
+    else if (tabId === 'approvals') loadApprovals();
+    else if (tabId === 'categories') loadAllFilters();
+    else if (tabId === 'subscriptions') loadSubscriptionUsage();
+    else if (tabId === 'dashboard') updateDashboardStats();
 }
 
 function updateDashboardStats() {
@@ -135,16 +161,16 @@ function closeModal(modalId) {
 
 // ─── Initial Listeners ───
 window.addEventListener('DOMContentLoaded', () => {
-    db.collection('users').onSnapshot(snap => {
+    db.collection('users').onSnapshot((snap) => {
         currentUserCount = snap.size;
         updateDashboardStats();
     });
-    db.collection('partners').onSnapshot(snap => {
+    db.collection('partners').onSnapshot((snap) => {
         currentShopCount = snap.size;
-        
+
         // Update badge for pending partners
         let pendingCount = 0;
-        snap.forEach(doc => {
+        snap.forEach((doc) => {
             if (doc.data().status === 'pending') {
                 pendingCount++;
             }
@@ -158,124 +184,220 @@ window.addEventListener('DOMContentLoaded', () => {
                 badge.classList.add('hidden');
             }
         }
-        
+
         updateDashboardStats();
     });
-    db.collection('categories').orderBy('createdAt', 'asc').onSnapshot(snap => {
-        categoriesList = snap.docs.map(doc => ({ id: doc.id, name: doc.data().name }));
-    });
+    db.collection('categories')
+        .orderBy('createdAt', 'asc')
+        .onSnapshot((snap) => {
+            const list = snap.docs.map((doc) => ({ id: doc.id, name: doc.data().name }));
+            categoriesList = list;
+            categoryData.categories = list;
+            updateCategoryBadge('categories', list.length);
+            if (currentCategoryType === 'categories') renderActiveCategoryList();
+        });
 
     // 앱 필터 실시간 감시
-    ['massage', 'place', 'age'].forEach(key => {
-        db.collection('app_filters').doc(key).onSnapshot(doc => {
-            renderFilterOptions(key, doc.exists ? doc.data() : null);
-        });
+    ['massage', 'place', 'age'].forEach((key) => {
+        db.collection('app_filters')
+            .doc(key)
+            .onSnapshot((doc) => {
+                const data = doc.exists ? doc.data().options || [] : [];
+                categoryData[key] = data;
+                updateCategoryBadge(key, data.length);
+                if (currentCategoryType === key) renderActiveCategoryList();
+            });
     });
 });
 
 // ═══════════════════════════════════════
-// ▶ APP FILTER MANAGEMENT (NEW)
+// ▶ APP CATEGORY & FILTER MANAGEMENT (NEW)
 // ═══════════════════════════════════════
 
+let currentCategoryType = 'massage';
+const CATEGORY_META = {
+    massage: {
+        title: '마사지 테마',
+        desc: '고객 앱 검색창에 노출되는 마사지 카테고리 기동 설정입니다.',
+        isFilter: true,
+    },
+    place: {
+        title: '샵 공간 형태',
+        desc: '고객 앱 검색창에 노출되는 공간 분류 기동 설정입니다.',
+        isFilter: true,
+    },
+    age: {
+        title: '관리사 연령대',
+        desc: '고객 앱 검색창에 노출되는 연령 분류 기동 설정입니다.',
+        isFilter: true,
+    },
+    categories: {
+        title: '제휴점 공용 태그',
+        desc: '모든 제휴점들이 공통으로 사용할 수 있는 일반 정보 태그 풀을 설정합니다.',
+        isFilter: false,
+    },
+};
+
+let categoryData = {
+    massage: [],
+    place: [],
+    age: [],
+    categories: [],
+};
+
+// 최초 로딩 시 데이터 전부 불러오고 첫 탭 선택 (DOMContentLoaded 내 listener들에 의해 데이터는 자동 갱신됨)
 function loadAllFilters() {
-    ['massage', 'place', 'age'].forEach(key => {
-        db.collection('app_filters').doc(key).get().then(doc => {
-            renderFilterOptions(key, doc.exists ? doc.data() : null);
-        });
-    });
-    loadCategories();
+    selectCategoryType('massage');
 }
 
-function renderFilterOptions(key, data) {
-    const container = document.getElementById(`filter-${key}-container`);
-    if (!container) return;
+function selectCategoryType(type) {
+    currentCategoryType = type;
 
-    if (!data || !data.options || data.options.length === 0) {
-        container.innerHTML = `<span class="text-sm text-[#A7B2AE]">등록된 옵션이 없습니다. [기본값 동기화] 버튼을 눌러주세요.</span>`;
+    // Update active styles on the sidebar
+    Object.keys(CATEGORY_META).forEach((key) => {
+        const btn = document.getElementById(`menu-cat-${key}`);
+        if (!btn) return;
+        if (key === type) {
+            btn.className =
+                'flex justify-between items-center px-4 py-4 rounded-xl text-left bg-[#11291D] border border-[var(--point-color)] text-[var(--point-color)] font-bold transition-all';
+        } else {
+            btn.className =
+                'flex justify-between items-center px-4 py-4 rounded-xl text-left bg-[#0A1B13] border border-[#2A3731] text-[#A7B2AE] hover:bg-[#11291D] hover:text-white transition-all';
+        }
+    });
+
+    // Update Header
+    document.getElementById('detail-cat-title').textContent = CATEGORY_META[type].title;
+    document.getElementById('detail-cat-desc').textContent = CATEGORY_META[type].desc;
+
+    // Render list
+    renderActiveCategoryList();
+}
+
+function updateCategoryBadge(type, count) {
+    const badge = document.getElementById(`badge-${type}`);
+    if (badge) badge.textContent = count;
+}
+
+function renderActiveCategoryList() {
+    const listContainer = document.getElementById('detail-cat-list');
+    if (!listContainer) return;
+
+    const items = categoryData[currentCategoryType];
+    const meta = CATEGORY_META[currentCategoryType];
+
+    if (!items || items.length === 0) {
+        listContainer.innerHTML = `<span class="text-sm text-[#A7B2AE]">등록된 항목이 없습니다. (기본값 동기화를 눌러 초기값을 설정할 수 있습니다.)</span>`;
         return;
     }
 
-    const style = FILTER_STYLES[key];
-    container.innerHTML = data.options.map((opt, idx) => {
-        const isDefault = idx === 0; // 첫 번째 아이템은 "전체" 옵션 (삭제 불가)
-        return `
-            <div class="px-4 py-2 ${style.badge} border rounded-full text-sm flex items-center gap-2 group shadow-sm transition-all hover:brightness-110">
-                ${isDefault ? '🔒 ' : ''}${opt}
-                ${!isDefault ? `<button onclick="removeFilterOption('${key}', '${opt.replace(/'/g, "\\'")}')" class="${style.deleteBtn} opacity-0 group-hover:opacity-100 transition-opacity ml-1" title="삭제">✕</button>` : ''}
+    listContainer.innerHTML = items
+        .map((item, idx) => {
+            const isDefault = meta.isFilter && idx === 0; // 전역 필터의 첫번째 요소는 '전체' 등으로 고정 (삭제 불가)
+            const displayName = meta.isFilter ? item : item.name;
+            const itemId = meta.isFilter ? item : item.id;
+
+            return `
+            <div class="px-4 py-2 bg-[#11291D] border border-[#2A3731] rounded-full text-[var(--point-color)] text-sm flex items-center gap-2 group shadow-sm transition-all hover:brightness-110">
+                ${isDefault ? '🔒 ' : ''}${displayName}
+                ${!isDefault ? `<button onclick="removeCategoryItem('${currentCategoryType}', '${itemId.replace(/'/g, "\\'")}')" class="text-[#A7B2AE] opacity-0 group-hover:opacity-100 transition-opacity ml-1 hover:text-white" title="삭제">✕</button>` : ''}
             </div>
         `;
-    }).join('');
+        })
+        .join('');
+}
+
+function handleInlineSubmit(e) {
+    e.preventDefault();
+    const inputEl = document.getElementById('inline-cat-input');
+    const val = inputEl.value.trim();
+    if (!val) return;
+
+    const meta = CATEGORY_META[currentCategoryType];
+
+    if (meta.isFilter) {
+        const ref = db.collection('app_filters').doc(currentCategoryType);
+        ref.get()
+            .then((doc) => {
+                if (doc.exists) {
+                    const current = doc.data().options || [];
+                    if (current.includes(val)) {
+                        alert('이미 존재하는 항목입니다.');
+                        return;
+                    }
+                    return ref.update({
+                        options: firebase.firestore.FieldValue.arrayUnion(val),
+                        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    });
+                } else {
+                    return ref.set({
+                        title: meta.title,
+                        options: ['전체', val],
+                        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    });
+                }
+            })
+            .then(() => {
+                inputEl.value = '';
+            })
+            .catch((err) => alert('추가 오류: ' + err.message));
+    } else {
+        db.collection('categories')
+            .add({
+                name: val,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+            })
+            .then(() => {
+                inputEl.value = '';
+            })
+            .catch((err) => alert('추가 오류: ' + err.message));
+    }
+}
+
+function removeCategoryItem(type, idOrName) {
+    if (!confirm('정말 삭제하시겠습니까? 사용자 및 업체 화면에서 즉시 사라집니다.')) return;
+
+    const meta = CATEGORY_META[type];
+    if (meta.isFilter) {
+        db.collection('app_filters')
+            .doc(type)
+            .update({
+                options: firebase.firestore.FieldValue.arrayRemove(idOrName),
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+            })
+            .catch((err) => alert('삭제 오류: ' + err.message));
+    } else {
+        db.collection('categories')
+            .doc(idOrName)
+            .delete()
+            .catch((err) => alert('삭제 오류: ' + err.message));
+    }
 }
 
 // 기본값 시딩 (소비자 앱의 하드코딩 데이터를 Firestore에 저장)
 function seedDefaultFilters() {
-    if (!confirm('소비자 앱의 기본 필터 데이터를 Firestore에 동기화하시겠습니까?\n기존 데이터가 있으면 덮어씁니다.')) return;
+    if (
+        !confirm(
+            '소비자 앱의 기본 필터 데이터를 Firestore에 동기화하시겠습니까?\n기존 데이터가 있으면 덮어씁니다.',
+        )
+    )
+        return;
 
     const batch = db.batch();
-    Object.keys(DEFAULT_FILTERS).forEach(key => {
+    Object.keys(DEFAULT_FILTERS).forEach((key) => {
         const ref = db.collection('app_filters').doc(key);
         batch.set(ref, {
             title: DEFAULT_FILTERS[key].title,
             options: DEFAULT_FILTERS[key].options,
-            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
         });
     });
 
-    batch.commit()
-        .then(() => alert('✅ 3개 필터 그룹 동기화 완료!\n\n• 마사지 종류: ' + DEFAULT_FILTERS.massage.options.length + '개\n• 공간 형태: ' + DEFAULT_FILTERS.place.options.length + '개\n• 관리사 연령: ' + DEFAULT_FILTERS.age.options.length + '개'))
-        .catch(err => alert('동기화 오류: ' + err.message));
+    batch
+        .commit()
+        .then(() => alert('✅ 3개 필터 그룹 동기화 완료!'))
+        .catch((err) => alert('동기화 오류: ' + err.message));
 }
-
-// 필터 옵션 추가 모달 열기
-function openFilterOptionModal(key) {
-    document.getElementById('filter-option-key').value = key;
-    document.getElementById('filter-option-name').value = '';
-    document.getElementById('filter-modal-title').innerText = `${FILTER_LABELS[key]} 옵션 추가`;
-    document.getElementById('filter-option-name').placeholder = key === 'massage' ? '예: 아로마 마사지' : key === 'place' ? '예: VIP 프라이빗 룸' : '예: 50대 이상';
-    openModal('modal-filter-option');
-}
-
-// 필터 옵션 추가 제출
-function handleFilterOptionSubmit(e) {
-    e.preventDefault();
-    const key = document.getElementById('filter-option-key').value;
-    const name = document.getElementById('filter-option-name').value.trim();
-    if (!name || !key) return;
-
-    const ref = db.collection('app_filters').doc(key);
-    ref.get().then(doc => {
-        if (doc.exists) {
-            const current = doc.data().options || [];
-            if (current.includes(name)) {
-                alert('이미 존재하는 옵션입니다: ' + name);
-                return;
-            }
-            return ref.update({
-                options: firebase.firestore.FieldValue.arrayUnion(name),
-                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-            });
-        } else {
-            return ref.set({
-                title: DEFAULT_FILTERS[key]?.title || key,
-                options: [DEFAULT_FILTERS[key]?.options[0] || '전체', name],
-                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-            });
-        }
-    }).then(() => {
-        closeModal('modal-filter-option');
-    }).catch(err => alert('옵션 추가 오류: ' + err.message));
-}
-
-// 필터 옵션 삭제
-function removeFilterOption(key, optionName) {
-    if (!confirm(`"${optionName}" 옵션을 삭제하시겠습니까?\n소비자 앱에서 즉시 사라집니다.`)) return;
-
-    db.collection('app_filters').doc(key).update({
-        options: firebase.firestore.FieldValue.arrayRemove(optionName),
-        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-    }).catch(err => alert('삭제 오류: ' + err.message));
-}
-
 
 // ═══════════════════════════════════════
 // ▶ USERS
@@ -283,17 +405,28 @@ function removeFilterOption(key, optionName) {
 
 function loadUsers() {
     const tbody = document.getElementById('user-table-body');
-    db.collection('users').orderBy('createdAt', 'desc').onSnapshot((snapshot) => {
-        tbody.innerHTML = '';
-        if (snapshot.empty) {
-            tbody.innerHTML = '<tr><td colspan="7" class="p-4 text-center">조회된 유저가 없습니다.</td></tr>';
-            return;
-        }
-        snapshot.forEach(doc => {
-            const data = doc.data();
-            const dStr = data.createdAt ? (typeof data.createdAt.toMillis === 'function' ? new Date(data.createdAt.toMillis()).toLocaleString('ko-KR') : new Date(data.createdAt).toLocaleString('ko-KR')) : '-';
-            const logStr = data.lastLoginAt ? (typeof data.lastLoginAt.toMillis === 'function' ? new Date(data.lastLoginAt.toMillis()).toLocaleString('ko-KR') : new Date(data.lastLoginAt).toLocaleString('ko-KR')) : '-';
-            tbody.innerHTML += `
+    db.collection('users')
+        .orderBy('createdAt', 'desc')
+        .onSnapshot((snapshot) => {
+            tbody.innerHTML = '';
+            if (snapshot.empty) {
+                tbody.innerHTML =
+                    '<tr><td colspan="7" class="p-4 text-center">조회된 유저가 없습니다.</td></tr>';
+                return;
+            }
+            snapshot.forEach((doc) => {
+                const data = doc.data();
+                const dStr = data.createdAt
+                    ? typeof data.createdAt.toMillis === 'function'
+                        ? new Date(data.createdAt.toMillis()).toLocaleString('ko-KR')
+                        : new Date(data.createdAt).toLocaleString('ko-KR')
+                    : '-';
+                const logStr = data.lastLoginAt
+                    ? typeof data.lastLoginAt.toMillis === 'function'
+                        ? new Date(data.lastLoginAt.toMillis()).toLocaleString('ko-KR')
+                        : new Date(data.lastLoginAt).toLocaleString('ko-KR')
+                    : '-';
+                tbody.innerHTML += `
                 <tr class="hover:bg-white/5 transition-colors">
                     <td class="p-4 font-mono">${data.userId || '알수없음'}</td>
                     <td class="p-4">${data.name || '알수없음'}</td>
@@ -307,23 +440,28 @@ function loadUsers() {
                     </td>
                 </tr>
             `;
+            });
         });
-    });
 }
 
 function deleteUser(userId, userName) {
-    if (confirm(`정말 "${userName}" 회원을 삭제하시겠습니까?\n이 작업은 되돌릴 수 없으며 앱 접속이 즉시 차단됩니다.`)) {
-        db.collection('users').doc(userId).delete()
+    if (
+        confirm(
+            `정말 "${userName}" 회원을 삭제하시겠습니까?\n이 작업은 되돌릴 수 없으며 앱 접속이 즉시 차단됩니다.`,
+        )
+    ) {
+        db.collection('users')
+            .doc(userId)
+            .delete()
             .then(() => {
-                console.log("Deleted user:", userId);
+                console.log('Deleted user:', userId);
             })
-            .catch(err => {
-                console.error("회원 삭제 오류:", err);
+            .catch((err) => {
+                console.error('회원 삭제 오류:', err);
                 alert('회원 삭제에 실패했습니다: ' + err.message);
             });
     }
 }
-
 
 // ═══════════════════════════════════════
 // ▶ LEGACY CATEGORIES (shop tags)
@@ -331,22 +469,25 @@ function deleteUser(userId, userName) {
 
 function loadCategories() {
     const container = document.getElementById('category-list-container');
-    db.collection('categories').orderBy('createdAt', 'asc').onSnapshot(snapshot => {
-        container.innerHTML = '';
-        if (snapshot.empty) {
-            container.innerHTML = '<span class="text-[#A7B2AE]">아직 등록된 태그 카테고리가 없습니다.</span>';
-            return;
-        }
-        snapshot.forEach(doc => {
-            const data = doc.data();
-            container.innerHTML += `
+    db.collection('categories')
+        .orderBy('createdAt', 'asc')
+        .onSnapshot((snapshot) => {
+            container.innerHTML = '';
+            if (snapshot.empty) {
+                container.innerHTML =
+                    '<span class="text-[#A7B2AE]">아직 등록된 태그 카테고리가 없습니다.</span>';
+                return;
+            }
+            snapshot.forEach((doc) => {
+                const data = doc.data();
+                container.innerHTML += `
                 <div class="px-4 py-2 bg-[#11291D] border border-[#2A3731] rounded-full text-[var(--point-color)] text-sm flex items-center gap-2 group shadow-sm transition-all hover:brightness-110">
                     \${data.name}
                     <button onclick="deleteCategory('\${doc.id}')" class="text-[#A7B2AE] opacity-0 group-hover:opacity-100 transition-opacity ml-1 hover:text-white" title="삭제">✕</button>
                 </div>
             `;
+            });
         });
-    });
 }
 
 function openCategoryModal() {
@@ -357,22 +498,24 @@ function openCategoryModal() {
 function handleCategorySubmit(e) {
     e.preventDefault();
     const name = document.getElementById('category-name').value.trim();
-    if(!name) return;
-    
-    db.collection('categories').add({
-        name: name,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp()
-    }).then(() => {
-        closeModal('modal-category');
-    }).catch(err => alert("카테고리 생성 중 오류: " + err.message));
+    if (!name) return;
+
+    db.collection('categories')
+        .add({
+            name: name,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+        })
+        .then(() => {
+            closeModal('modal-category');
+        })
+        .catch((err) => alert('카테고리 생성 중 오류: ' + err.message));
 }
 
 function deleteCategory(id) {
-    if(confirm('정말 삭제하시겠습니까? 소비자 앱 화면에서 해당 메뉴가 즉시 사라지게 됩니다.')) {
+    if (confirm('정말 삭제하시겠습니까? 소비자 앱 화면에서 해당 메뉴가 즉시 사라지게 됩니다.')) {
         db.collection('categories').doc(id).delete();
     }
 }
-
 
 // ═══════════════════════════════════════
 // ▶ APPROVALS
@@ -383,81 +526,113 @@ let windowApprovals = []; // Cache for inbox filtering
 function loadApprovals() {
     const inboxList = document.getElementById('approvals-inbox-list');
     if (!inboxList) return;
-    
-    db.collection('partners').where('status', '==', 'pending').onSnapshot((snapshot) => {
-        windowApprovals = [];
-        
-        // Update KPI
-        const kpiEl = document.getElementById('kpi-approvals-pending');
-        if (kpiEl) kpiEl.textContent = snapshot.size;
 
-        if (snapshot.empty) {
-            inboxList.innerHTML = `
+    db.collection('partners')
+        .where('status', '==', 'pending')
+        .onSnapshot((snapshot) => {
+            windowApprovals = [];
+
+            // Update KPI
+            const kpiEl = document.getElementById('kpi-approvals-pending');
+            if (kpiEl) kpiEl.textContent = snapshot.size;
+
+            if (snapshot.empty) {
+                inboxList.innerHTML = `
                 <div class="py-10 text-center text-[#A7B2AE] flex flex-col items-center">
                     <svg class="w-8 h-8 text-[#2A3731] mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"></path></svg>
                     <span class="text-sm">현재 대기 중인 입점 심사가 없습니다.</span>
                 </div>
             `;
-            resetApprovalDetailView();
-            return;
-        }
-        
-        snapshot.forEach(doc => {
-            const data = doc.data();
-            data.id = doc.id;
-            windowApprovals.push(data);
+                resetApprovalDetailView();
+                return;
+            }
+
+            snapshot.forEach((doc) => {
+                const data = doc.data();
+                data.id = doc.id;
+                windowApprovals.push(data);
+            });
+
+            windowApprovals.sort((a, b) => {
+                let timeA = 0,
+                    timeB = 0;
+                if (a.createdAt)
+                    timeA =
+                        typeof a.createdAt.toMillis === 'function'
+                            ? a.createdAt.toMillis()
+                            : new Date(a.createdAt).getTime();
+                if (b.createdAt)
+                    timeB =
+                        typeof b.createdAt.toMillis === 'function'
+                            ? b.createdAt.toMillis()
+                            : new Date(b.createdAt).getTime();
+                return timeB - timeA;
+            });
+
+            filterApprovalList();
         });
-        
-        windowApprovals.sort((a, b) => {
-            let timeA = 0, timeB = 0;
-            if (a.createdAt) timeA = typeof a.createdAt.toMillis === 'function' ? a.createdAt.toMillis() : new Date(a.createdAt).getTime();
-            if (b.createdAt) timeB = typeof b.createdAt.toMillis === 'function' ? b.createdAt.toMillis() : new Date(b.createdAt).getTime();
-            return timeB - timeA;
-        });
-        
-        filterApprovalList();
-    });
 }
 
 function filterApprovalList() {
     const searchVal = (document.getElementById('approval-search')?.value || '').toLowerCase();
-    
-    const filtered = windowApprovals.filter(shop => {
+
+    const filtered = windowApprovals.filter((shop) => {
         const name = (shop.name || shop.company || '').toLowerCase();
         const contact = (shop.phone || shop.managerPhone || '').toLowerCase();
         const address = (shop.address || shop.location || '').toLowerCase();
-        
-        return name.includes(searchVal) || contact.includes(searchVal) || address.includes(searchVal);
+
+        return (
+            name.includes(searchVal) || contact.includes(searchVal) || address.includes(searchVal)
+        );
     });
-    
+
     renderApprovalInbox(filtered);
 }
 
 function renderApprovalInbox(shops) {
     const inboxList = document.getElementById('approvals-inbox-list');
     if (!shops.length) {
-        inboxList.innerHTML = '<div class="py-10 text-center text-[#A7B2AE] text-sm">검색 결과가 없습니다.</div>';
+        inboxList.innerHTML =
+            '<div class="py-10 text-center text-[#A7B2AE] text-sm">검색 결과가 없습니다.</div>';
         return;
     }
-    
-    inboxList.innerHTML = shops.map(shop => {
-        let dStr = '-';
-        if (shop.createdAt) {
-            dStr = typeof shop.createdAt.toMillis === 'function' 
-                ? new Date(shop.createdAt.toMillis()).toLocaleString('ko-KR', { year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' })
-                : new Date(shop.createdAt).toLocaleString('ko-KR', { year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' });
-        }
-        const displayName = shop.name || shop.company || '샵 이름 없음';
-        const ticketBadge = (shop.ticketType || shop.tier || '').includes('Premium') || (shop.ticketType || shop.tier || '').includes('프리미엄') 
-                             ? '<span class="px-2 py-0.5 rounded text-[10px] bg-gradient-to-r from-yellow-500/20 to-yellow-600/20 text-yellow-400 border border-yellow-500/30">Premium</span>' 
-                             : '<span class="px-2 py-0.5 rounded text-[10px] bg-[#11291D] text-[#A7B2AE] border border-[#2A3731]">기본 입점</span>';
-                             
-        // Check if currently selected
-        const currentSelectedId = document.getElementById('approval-id')?.value;
-        const isActive = currentSelectedId === shop.id;
-        const activeClass = isActive ? 'bg-[#11291D] border-[var(--point-color)] shadow-[0_0_10px_rgba(34,197,94,0.1)]' : 'bg-[#06110D] border-[#2A3731] hover:border-[#11291D] hover:bg-[#081510] cursor-pointer';
 
-        return `
+    inboxList.innerHTML = shops
+        .map((shop) => {
+            let dStr = '-';
+            if (shop.createdAt) {
+                dStr =
+                    typeof shop.createdAt.toMillis === 'function'
+                        ? new Date(shop.createdAt.toMillis()).toLocaleString('ko-KR', {
+                              year: 'numeric',
+                              month: '2-digit',
+                              day: '2-digit',
+                              hour: '2-digit',
+                              minute: '2-digit',
+                          })
+                        : new Date(shop.createdAt).toLocaleString('ko-KR', {
+                              year: 'numeric',
+                              month: '2-digit',
+                              day: '2-digit',
+                              hour: '2-digit',
+                              minute: '2-digit',
+                          });
+            }
+            const displayName = shop.name || shop.company || '샵 이름 없음';
+            const ticketBadge =
+                (shop.ticketType || shop.tier || '').includes('Premium') ||
+                (shop.ticketType || shop.tier || '').includes('프리미엄')
+                    ? '<span class="px-2 py-0.5 rounded text-[10px] bg-gradient-to-r from-yellow-500/20 to-yellow-600/20 text-yellow-400 border border-yellow-500/30">Premium</span>'
+                    : '<span class="px-2 py-0.5 rounded text-[10px] bg-[#11291D] text-[#A7B2AE] border border-[#2A3731]">기본 입점</span>';
+
+            // Check if currently selected
+            const currentSelectedId = document.getElementById('approval-id')?.value;
+            const isActive = currentSelectedId === shop.id;
+            const activeClass = isActive
+                ? 'bg-[#11291D] border-[var(--point-color)] shadow-[0_0_10px_rgba(34,197,94,0.1)]'
+                : 'bg-[#06110D] border-[#2A3731] hover:border-[#11291D] hover:bg-[#081510] cursor-pointer';
+
+            return `
             <div onclick="selectApprovalReview('${shop.id}')" id="inbox-item-${shop.id}" class="p-3 border rounded-xl transition-all ${activeClass}">
                 <div class="flex justify-between items-start mb-2">
                     <h5 class="font-bold text-white text-sm line-clamp-1 flex-1 pr-2">${displayName}</h5>
@@ -469,7 +644,8 @@ function renderApprovalInbox(shops) {
                 </div>
             </div>
         `;
-    }).join('');
+        })
+        .join('');
 }
 
 function resetApprovalDetailView() {
@@ -479,131 +655,172 @@ function resetApprovalDetailView() {
 }
 
 function activatePartner(id) {
-    if (!confirm('해당 파트너의 입점을 승인하시겠습니까?\\n승인 즉시 소비자 앱 지도/목록에 노출됩니다.')) return;
-    
-    db.collection('partners').doc(id).update({
-        status: 'active',
-        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-    }).then(() => {
-        alert('성공적으로 승인되었습니다!');
-    }).catch(err => {
-        alert('승인 처리 중 오류 발생: ' + err.message);
-    });
+    if (
+        !confirm(
+            '해당 파트너의 입점을 승인하시겠습니까?\\n승인 즉시 소비자 앱 지도/목록에 노출됩니다.',
+        )
+    )
+        return;
+
+    db.collection('partners')
+        .doc(id)
+        .update({
+            status: 'active',
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        })
+        .then(() => {
+            alert('성공적으로 승인되었습니다!');
+        })
+        .catch((err) => {
+            alert('승인 처리 중 오류 발생: ' + err.message);
+        });
 }
 
 function rejectPartner(id) {
-    if (!confirm('정말 해당 입점 신청을 반려하시겠습니까?\\n이 작업은 취소할 수 없으며 파트너 데이터가 삭제됩니다.')) return;
-    
-    db.collection('partners').doc(id).delete()
-    .then(() => {
-        alert('입점 신청이 반려(삭제)되었습니다.');
-    }).catch(err => {
-        alert('반려 처리 중 오류 발생: ' + err.message);
-    });
+    if (
+        !confirm(
+            '정말 해당 입점 신청을 반려하시겠습니까?\\n이 작업은 취소할 수 없으며 파트너 데이터가 삭제됩니다.',
+        )
+    )
+        return;
+
+    db.collection('partners')
+        .doc(id)
+        .delete()
+        .then(() => {
+            alert('입점 신청이 반려(삭제)되었습니다.');
+        })
+        .catch((err) => {
+            alert('반려 처리 중 오류 발생: ' + err.message);
+        });
 }
 
 function selectApprovalReview(id) {
-    db.collection('partners').doc(id).get().then(doc => {
-        if (!doc.exists) return;
-        const data = doc.data();
-        
-        // UI Handling: Hide empty state, show form
-        document.getElementById('approval-empty-state').classList.add('hidden');
-        document.getElementById('approval-form').classList.remove('hidden');
-        
-        // Unhighlight previous active item in list
-        const prevActive = document.querySelector('#approvals-inbox-list > div.border-\\[var\\(--point-color\\)\\]');
-        if (prevActive) {
-            prevActive.classList.replace('bg-[#11291D]', 'bg-[#06110D]');
-            prevActive.classList.replace('border-[var(--point-color)]', 'border-[#2A3731]');
-            prevActive.classList.replace('shadow-[0_0_10px_rgba(34,197,94,0.1)]', 'hover:border-[#11291D]');
-            prevActive.classList.add('cursor-pointer');
-        }
-        
-        // Highlight new item
-        const newActive = document.getElementById(`inbox-item-${id}`);
-        if(newActive) {
-            newActive.classList.replace('bg-[#06110D]', 'bg-[#11291D]');
-            newActive.classList.replace('border-[#2A3731]', 'border-[var(--point-color)]');
-            newActive.classList.replace('hover:border-[#11291D]', 'shadow-[0_0_10px_rgba(34,197,94,0.1)]');
-            newActive.classList.remove('cursor-pointer');
-        }
+    db.collection('partners')
+        .doc(id)
+        .get()
+        .then((doc) => {
+            if (!doc.exists) return;
+            const data = doc.data();
 
-        // Setup top header of detail view
-        document.getElementById('approval-view-title').textContent = data.name || data.company || '샵 이름 없음';
-        
-        let dStr = '-';
-        if (data.createdAt) {
-            dStr = typeof data.createdAt.toMillis === 'function' ? new Date(data.createdAt.toMillis()).toLocaleString('ko-KR') : new Date(data.createdAt).toLocaleString('ko-KR');
-        }
-        document.getElementById('approval-view-date').textContent = dStr;
+            // UI Handling: Hide empty state, show form
+            document.getElementById('approval-empty-state').classList.add('hidden');
+            document.getElementById('approval-form').classList.remove('hidden');
 
-        document.getElementById('approval-id').value = id;
-        document.getElementById('approval-userid').textContent = data.userId || '-';
-        document.getElementById('approval-name').textContent = data.name || '-';
-        document.getElementById('approval-owner').textContent = data.ownerName || '-';
-        document.getElementById('approval-phone').textContent = data.phone || '-';
-        document.getElementById('approval-biz-type').textContent = data.bizType || '-';
-        document.getElementById('approval-biz-no').textContent = data.bizNo || '-';
-        
-        const bizImg = document.getElementById('approval-biz-doc');
-        const bizImgFail = document.getElementById('approval-biz-doc-fail');
-        if (data.bizDocUrl) {
-            if (bizImg) {
-                bizImg.src = data.bizDocUrl;
-                bizImg.classList.remove('hidden');
+            // Unhighlight previous active item in list
+            const prevActive = document.querySelector(
+                '#approvals-inbox-list > div.border-\\[var\\(--point-color\\)\\]',
+            );
+            if (prevActive) {
+                prevActive.classList.replace('bg-[#11291D]', 'bg-[#06110D]');
+                prevActive.classList.replace('border-[var(--point-color)]', 'border-[#2A3731]');
+                prevActive.classList.replace(
+                    'shadow-[0_0_10px_rgba(34,197,94,0.1)]',
+                    'hover:border-[#11291D]',
+                );
+                prevActive.classList.add('cursor-pointer');
             }
-            if (bizImgFail) bizImgFail.classList.add('hidden');
-        } else {
-            if (bizImg) bizImg.classList.add('hidden');
-            if (bizImgFail) bizImgFail.classList.remove('hidden');
-        }
-        
-        document.getElementById('approval-tags').textContent = (data.categories || []).join(', ') || '-';
-        
-        const imgPreview = document.getElementById('approval-image-preview');
-        const imgText = document.getElementById('approval-image-text');
-        const imageUrl = data.imageUrl || data.image;
-        if(imageUrl) {
-            imgPreview.src = imageUrl;
-            imgPreview.classList.remove('hidden');
-            if(imgText) imgText.textContent = imageUrl;
-        } else {
-            imgPreview.classList.add('hidden');
-            if(imgText) imgText.textContent = '이미지 없음';
-        }
-        
-        document.getElementById('approval-catchphrase').textContent = data.catchphrase || '-';
-        document.getElementById('approval-min-price').textContent = data.minPrice || data.price || '-';
-        document.getElementById('approval-tier').value = data.ticketType || data.tier || 'Normal';
-        document.getElementById('approval-biz-verified').value = data.bizVerified ? 'true' : 'false';
-        document.getElementById('approval-memo').value = data.adminMemo || '';
-        
-        document.getElementById('approval-cat-massage').textContent = data.catMassage || data.massage || '-';
-        document.getElementById('approval-cat-place').textContent = data.catPlace || data.place || '-';
-        document.getElementById('approval-cat-age').textContent = data.catAge || data.age || '-';
 
-    }).catch(err => {
-        alert('정보를 불러오는 중 오류가 발생했습니다: ' + err.message);
-    });
+            // Highlight new item
+            const newActive = document.getElementById(`inbox-item-${id}`);
+            if (newActive) {
+                newActive.classList.replace('bg-[#06110D]', 'bg-[#11291D]');
+                newActive.classList.replace('border-[#2A3731]', 'border-[var(--point-color)]');
+                newActive.classList.replace(
+                    'hover:border-[#11291D]',
+                    'shadow-[0_0_10px_rgba(34,197,94,0.1)]',
+                );
+                newActive.classList.remove('cursor-pointer');
+            }
+
+            // Setup top header of detail view
+            document.getElementById('approval-view-title').textContent =
+                data.name || data.company || '샵 이름 없음';
+
+            let dStr = '-';
+            if (data.createdAt) {
+                dStr =
+                    typeof data.createdAt.toMillis === 'function'
+                        ? new Date(data.createdAt.toMillis()).toLocaleString('ko-KR')
+                        : new Date(data.createdAt).toLocaleString('ko-KR');
+            }
+            document.getElementById('approval-view-date').textContent = dStr;
+
+            document.getElementById('approval-id').value = id;
+            document.getElementById('approval-userid').textContent = data.userId || '-';
+            document.getElementById('approval-name').textContent = data.name || '-';
+            document.getElementById('approval-owner').textContent = data.ownerName || '-';
+            document.getElementById('approval-phone').textContent = data.phone || '-';
+            document.getElementById('approval-biz-type').textContent = data.bizType || '-';
+            document.getElementById('approval-biz-no').textContent = data.bizNo || '-';
+
+            const bizImg = document.getElementById('approval-biz-doc');
+            const bizImgFail = document.getElementById('approval-biz-doc-fail');
+            if (data.bizDocUrl) {
+                if (bizImg) {
+                    bizImg.src = data.bizDocUrl;
+                    bizImg.classList.remove('hidden');
+                }
+                if (bizImgFail) bizImgFail.classList.add('hidden');
+            } else {
+                if (bizImg) bizImg.classList.add('hidden');
+                if (bizImgFail) bizImgFail.classList.remove('hidden');
+            }
+
+            document.getElementById('approval-tags').textContent =
+                (data.categories || []).join(', ') || '-';
+
+            const imgPreview = document.getElementById('approval-image-preview');
+            const imgText = document.getElementById('approval-image-text');
+            const imageUrl = data.imageUrl || data.image;
+            if (imageUrl) {
+                imgPreview.src = imageUrl;
+                imgPreview.classList.remove('hidden');
+                if (imgText) imgText.textContent = imageUrl;
+            } else {
+                imgPreview.classList.add('hidden');
+                if (imgText) imgText.textContent = '이미지 없음';
+            }
+
+            document.getElementById('approval-catchphrase').textContent = data.catchphrase || '-';
+            document.getElementById('approval-min-price').textContent =
+                data.minPrice || data.price || '-';
+            document.getElementById('approval-tier').value =
+                data.ticketType || data.tier || 'Normal';
+            document.getElementById('approval-biz-verified').value = data.bizVerified
+                ? 'true'
+                : 'false';
+            document.getElementById('approval-memo').value = data.adminMemo || '';
+
+            document.getElementById('approval-cat-massage').textContent =
+                data.catMassage || data.massage || '-';
+            document.getElementById('approval-cat-place').textContent =
+                data.catPlace || data.place || '-';
+            document.getElementById('approval-cat-age').textContent =
+                data.catAge || data.age || '-';
+        })
+        .catch((err) => {
+            alert('정보를 불러오는 중 오류가 발생했습니다: ' + err.message);
+        });
 }
 
 function approvePartnerFromReview(e) {
     e.preventDefault();
     const id = document.getElementById('approval-id').value;
-    
+
     // 사업자 확인 여부가 false면 경고!
     const bizVerified = document.getElementById('approval-biz-verified').value === 'true';
-    if(!bizVerified) {
-        if(!confirm('실명 및 사업자등록증이 아직 확인되지 않았습니다. 그래도 승인하시겠습니까?')) return;
+    if (!bizVerified) {
+        if (!confirm('실명 및 사업자등록증이 아직 확인되지 않았습니다. 그래도 승인하시겠습니까?'))
+            return;
     }
 
     const tierValue = document.getElementById('approval-tier').value;
-    
+
     let ticketType = 'None';
     let ticketPlan = 'none';
     let monthsToAdd = 0;
-    
+
     if (tierValue === '1') {
         ticketType = '1개월 입점권';
         ticketPlan = 'standard';
@@ -621,55 +838,68 @@ function approvePartnerFromReview(e) {
         ticketPlan = 'VIP';
         monthsToAdd = 12;
     }
-    
+
     const updateData = {
         ticketType: ticketType,
         ticketPlan: ticketPlan,
         bizVerified: bizVerified,
         adminMemo: document.getElementById('approval-memo').value.trim(),
         status: 'active',
-        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
     };
-    
+
     if (monthsToAdd > 0) {
         const now = new Date();
         now.setMonth(now.getMonth() + monthsToAdd);
         updateData.ticketExpiryTimestamp = now.getTime();
-        updateData.ticketExpiry = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+        updateData.ticketExpiry = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
     } else {
         updateData.ticketExpiryTimestamp = 0;
         updateData.ticketExpiry = '';
     }
-    
-    db.collection('partners').doc(id).update(updateData).then(() => {
-        // Firebase snapshot will auto trigger list re-render
-        // so we just reset the detail view
-        resetApprovalDetailView();
-        
-        // Let's create an elegant temporary notification
-        const notif = document.createElement('div');
-        notif.className = 'fixed top-4 right-4 bg-green-500/90 text-white px-6 py-3 rounded-xl shadow-lg z-50 transform transition-all translate-y-[-20px] opacity-0 flex items-center gap-3 backdrop-blur-sm';
-        notif.innerHTML = '<i class="fas fa-check-circle"></i> <span class="font-bold">성공적으로 입점 승인 완료되었습니다.</span>';
-        document.body.appendChild(notif);
-        setTimeout(() => { notif.classList.remove('translate-y-[-20px]', 'opacity-0'); }, 10);
-        setTimeout(() => { notif.classList.add('translate-y-[-20px]', 'opacity-0'); setTimeout(()=>notif.remove(), 300); }, 3000);
-        
-    }).catch(err => {
-        alert('승인 처리 중 오류 발생: ' + err.message);
-    });
+
+    db.collection('partners')
+        .doc(id)
+        .update(updateData)
+        .then(() => {
+            // Firebase snapshot will auto trigger list re-render
+            // so we just reset the detail view
+            resetApprovalDetailView();
+
+            // Let's create an elegant temporary notification
+            const notif = document.createElement('div');
+            notif.className =
+                'fixed top-4 right-4 bg-green-500/90 text-white px-6 py-3 rounded-xl shadow-lg z-50 transform transition-all translate-y-[-20px] opacity-0 flex items-center gap-3 backdrop-blur-sm';
+            notif.innerHTML =
+                '<i class="fas fa-check-circle"></i> <span class="font-bold">성공적으로 입점 승인 완료되었습니다.</span>';
+            document.body.appendChild(notif);
+            setTimeout(() => {
+                notif.classList.remove('translate-y-[-20px]', 'opacity-0');
+            }, 10);
+            setTimeout(() => {
+                notif.classList.add('translate-y-[-20px]', 'opacity-0');
+                setTimeout(() => notif.remove(), 300);
+            }, 3000);
+        })
+        .catch((err) => {
+            alert('승인 처리 중 오류 발생: ' + err.message);
+        });
 }
 
 function rejectPartnerFromReview() {
     const id = document.getElementById('approval-id').value;
-    if(!id) return;
-    if(confirm('정말 이 샵을 영구 삭제(반려) 하시겠습니까?')) {
-        db.collection('partners').doc(id).delete().then(() => {
-            alert('입점 신청이 반려되었습니다.');
-            resetApprovalDetailView();
-        }).catch(err => alert('삭제 중 오류 발생: ' + err.message));
+    if (!id) return;
+    if (confirm('정말 이 샵을 영구 삭제(반려) 하시겠습니까?')) {
+        db.collection('partners')
+            .doc(id)
+            .delete()
+            .then(() => {
+                alert('입점 신청이 반려되었습니다.');
+                resetApprovalDetailView();
+            })
+            .catch((err) => alert('삭제 중 오류 발생: ' + err.message));
     }
 }
-
 
 // ═══════════════════════════════════════
 // ▶ SHOPS
@@ -679,41 +909,56 @@ let windowShops = []; // Cache for filtering
 
 function loadShops() {
     const container = document.getElementById('shop-cards-container');
-    db.collection('partners').onSnapshot(snapshot => {
-        windowShops = [];
-        if (snapshot.empty) {
-            container.innerHTML = '<div class="col-span-full py-20 text-center text-[#A7B2AE]">등록된 샵이 없습니다.</div>';
+    db.collection('partners').onSnapshot(
+        (snapshot) => {
+            windowShops = [];
+            if (snapshot.empty) {
+                container.innerHTML =
+                    '<div class="col-span-full py-20 text-center text-[#A7B2AE]">등록된 샵이 없습니다.</div>';
+                updateShopKpis();
+                return;
+            }
+
+            snapshot.forEach((doc) => {
+                const data = doc.data();
+                data.id = doc.id;
+                windowShops.push(data);
+            });
+
+            // 최신순 정렬
+            windowShops.sort((a, b) => {
+                let timeA = 0,
+                    timeB = 0;
+                if (a.createdAt)
+                    timeA =
+                        typeof a.createdAt.toMillis === 'function'
+                            ? a.createdAt.toMillis()
+                            : new Date(a.createdAt).getTime();
+                if (b.createdAt)
+                    timeB =
+                        typeof b.createdAt.toMillis === 'function'
+                            ? b.createdAt.toMillis()
+                            : new Date(b.createdAt).getTime();
+                return timeB - timeA;
+            });
+
             updateShopKpis();
-            return;
-        }
-
-        snapshot.forEach(doc => {
-            const data = doc.data();
-            data.id = doc.id;
-            windowShops.push(data);
-        });
-
-        // 최신순 정렬
-        windowShops.sort((a, b) => {
-            let timeA = 0, timeB = 0;
-            if (a.createdAt) timeA = typeof a.createdAt.toMillis === 'function' ? a.createdAt.toMillis() : new Date(a.createdAt).getTime();
-            if (b.createdAt) timeB = typeof b.createdAt.toMillis === 'function' ? b.createdAt.toMillis() : new Date(b.createdAt).getTime();
-            return timeB - timeA;
-        });
-
-        updateShopKpis();
-        filterShops(); // Render initial state based on current filter
-    }, err => {
-        console.error("loadShops Error: ", err);
-        container.innerHTML = `<div class="col-span-full py-20 text-center text-red-400">오류 발생: ${err.message}</div>`;
-    });
+            filterShops(); // Render initial state based on current filter
+        },
+        (err) => {
+            console.error('loadShops Error: ', err);
+            container.innerHTML = `<div class="col-span-full py-20 text-center text-red-400">오류 발생: ${err.message}</div>`;
+        },
+    );
 }
 
 function updateShopKpis() {
-    let active = 0, expired = 0, pending = 0;
+    let active = 0,
+        expired = 0,
+        pending = 0;
     const now = Date.now();
 
-    windowShops.forEach(s => {
+    windowShops.forEach((s) => {
         if (s.status === 'pending') {
             pending++;
         } else {
@@ -723,7 +968,7 @@ function updateShopKpis() {
                 isExpired = true;
             }
             // Check expiry text strictly manually if needed, but timestamp is better
-            
+
             if (isExpired) {
                 expired++;
             } else {
@@ -751,9 +996,9 @@ function filterShops() {
 
     const now = Date.now();
 
-    let filtered = windowShops.filter(s => {
+    let filtered = windowShops.filter((s) => {
         // 1. Search Query
-        const matchSearch = 
+        const matchSearch =
             (s.name && s.name.toLowerCase().includes(searchVal)) ||
             (s.company && s.company.toLowerCase().includes(searchVal)) ||
             (s.phone && s.phone.includes(searchVal)) ||
@@ -779,7 +1024,13 @@ function filterShops() {
         // 3. Plan check (ticketType matches premium/standard/none roughly)
         const typeStr = (s.ticketType || '').toLowerCase();
         if (planVal === 'premium' && typeStr !== 'premium' && typeStr !== '프리미엄') return false;
-        if (planVal === 'standard' && typeStr !== 'normal' && typeStr !== '스탠다드' && typeStr !== '기본') return false;
+        if (
+            planVal === 'standard' &&
+            typeStr !== 'normal' &&
+            typeStr !== '스탠다드' &&
+            typeStr !== '기본'
+        )
+            return false;
         if (planVal === 'none' && typeStr && typeStr !== 'none') return false;
 
         return true;
@@ -791,18 +1042,24 @@ function filterShops() {
 function renderShopCards(shops) {
     const container = document.getElementById('shop-cards-container');
     if (shops.length === 0) {
-        container.innerHTML = '<div class="col-span-full py-20 text-center text-[#A7B2AE]">조건에 만족하는 샵이 없습니다.</div>';
+        container.innerHTML =
+            '<div class="col-span-full py-20 text-center text-[#A7B2AE]">조건에 만족하는 샵이 없습니다.</div>';
         return;
     }
 
     const now = Date.now();
     let html = '';
 
-    shops.forEach(data => {
+    shops.forEach((data) => {
         const displayName = data.name || data.company || '샵 이름 없음';
-        let imageUrl = data.imageUrl || data.image || 'https://via.placeholder.com/300x200?text=No+Image';
-        const dateStr = data.createdAt ? (typeof data.createdAt.toMillis === 'function' ? new Date(data.createdAt.toMillis()).toLocaleDateString('ko-KR') : new Date(data.createdAt).toLocaleDateString('ko-KR')) : '-';
-        
+        let imageUrl =
+            data.imageUrl || data.image || 'https://via.placeholder.com/300x200?text=No+Image';
+        const dateStr = data.createdAt
+            ? typeof data.createdAt.toMillis === 'function'
+                ? new Date(data.createdAt.toMillis()).toLocaleDateString('ko-KR')
+                : new Date(data.createdAt).toLocaleDateString('ko-KR')
+            : '-';
+
         let isExpired = false;
         if (data.ticketExpiryTimestamp && data.ticketExpiryTimestamp < now) {
             isExpired = true;
@@ -811,19 +1068,24 @@ function renderShopCards(shops) {
         // Determine Badges
         let statusBadge = '';
         if (data.status === 'pending') {
-            statusBadge = '<span class="absolute top-3 left-3 bg-yellow-500/90 text-white text-xs font-bold px-2 py-1 rounded shadow">승인 대기</span>';
+            statusBadge =
+                '<span class="absolute top-3 left-3 bg-yellow-500/90 text-white text-xs font-bold px-2 py-1 rounded shadow">승인 대기</span>';
         } else if (isExpired) {
-            statusBadge = '<span class="absolute top-3 left-3 bg-red-500/90 text-white text-xs font-bold px-2 py-1 rounded shadow">입점권 만료</span>';
+            statusBadge =
+                '<span class="absolute top-3 left-3 bg-red-500/90 text-white text-xs font-bold px-2 py-1 rounded shadow">입점권 만료</span>';
         } else {
-            statusBadge = '<span class="absolute top-3 left-3 bg-green-500/90 text-white text-xs font-bold px-2 py-1 rounded shadow">영업중</span>';
+            statusBadge =
+                '<span class="absolute top-3 left-3 bg-green-500/90 text-white text-xs font-bold px-2 py-1 rounded shadow">영업중</span>';
         }
 
         let planBadge = '';
         const lowerTier = (data.ticketType || data.tier || '').toLowerCase();
         if (lowerTier.includes('premium') || lowerTier.includes('프리미엄')) {
-            planBadge = '<span class="absolute top-3 right-3 bg-[var(--point-color)] text-white text-xs font-bold px-2 py-1 rounded shadow">Premium</span>';
+            planBadge =
+                '<span class="absolute top-3 right-3 bg-[var(--point-color)] text-white text-xs font-bold px-2 py-1 rounded shadow">Premium</span>';
         } else {
-            planBadge = '<span class="absolute top-3 right-3 bg-gray-700/90 text-gray-200 text-xs font-bold px-2 py-1 rounded shadow">Standard</span>';
+            planBadge =
+                '<span class="absolute top-3 right-3 bg-gray-700/90 text-gray-200 text-xs font-bold px-2 py-1 rounded shadow">Standard</span>';
         }
 
         // Action Buttons logic
@@ -869,7 +1131,7 @@ function renderShopCards(shops) {
             </div>
         `;
     });
-    
+
     container.innerHTML = html;
 }
 
@@ -881,12 +1143,17 @@ function goToShopApprovalDetails(id) {
 
 // 퀵 액션으로 '강제 수동 조정'을 여는 함수 (기존 구현 연동)
 function triggerManualSubAdjust(id, name) {
-    const p = windowShops.find(x => x.id === id);
+    const p = windowShops.find((x) => x.id === id);
     let plan = '기본 입점';
     let remainStr = '정보 없음';
 
     if (p) {
-        plan = p.ticketType === 'premium' ? '프리미엄' : (p.ticketType === 'standard' ? '스탠다드' : '입점권 없음');
+        plan =
+            p.ticketType === 'premium'
+                ? '프리미엄'
+                : p.ticketType === 'standard'
+                  ? '스탠다드'
+                  : '입점권 없음';
         let expiry = p.ticketExpiryTimestamp || 0;
         if (expiry > Date.now()) {
             let diff = expiry - Date.now();
@@ -898,16 +1165,16 @@ function triggerManualSubAdjust(id, name) {
         }
     }
 
-    selectedSubTargets = [{id, name, plan, remainStr}];
+    selectedSubTargets = [{ id, name, plan, remainStr }];
     renderSubTargets();
     document.getElementById('manual-sub-search').value = '';
-    
+
     const resultsContainer = document.getElementById('manual-sub-search-results');
     if (resultsContainer) resultsContainer.classList.add('hidden');
-    
+
     const form = document.getElementById('manual-sub-form');
     if (form) form.reset();
-    
+
     toggleManualSubInput('add');
     toggleManualSubMemo('reward_event');
     openModal('modal-manual-sub');
@@ -916,10 +1183,10 @@ function triggerManualSubAdjust(id, name) {
 function openShopModal() {
     document.getElementById('shop-form').reset();
     document.getElementById('shop-id').value = '';
-    
+
     const cbContainer = document.getElementById('shop-category-checkboxes');
     cbContainer.innerHTML = '';
-    categoriesList.forEach(cat => {
+    categoriesList.forEach((cat) => {
         cbContainer.innerHTML += `
             <label class="inline-flex items-center gap-1.5 bg-[#11291D] px-3 py-1.5 rounded-lg border border-[#2A3731] cursor-pointer hover:bg-[#183928] transition-colors">
                 <input type="checkbox" value="\${cat.name}" class="shop-cat-checkbox w-4 h-4 text-[var(--point-color)] bg-[#06110D] border-[#2A3731]">
@@ -940,41 +1207,53 @@ function handleShopSubmit(e) {
     const ticketType = document.getElementById('shop-ticket-type').value;
     const ticketExpiry = document.getElementById('shop-ticket-expiry').value;
     const tagsRaw = document.getElementById('shop-tags').value;
-    
-    const tags = tagsRaw.split(',').map(t => t.trim()).filter(t => t);
-    const checkedCats = Array.from(document.querySelectorAll('.shop-cat-checkbox:checked')).map(cb => cb.value);
+
+    const tags = tagsRaw
+        .split(',')
+        .map((t) => t.trim())
+        .filter((t) => t);
+    const checkedCats = Array.from(document.querySelectorAll('.shop-cat-checkbox:checked')).map(
+        (cb) => cb.value,
+    );
 
     const data = { name, location, image, ticketType, ticketExpiry, tags, categories: checkedCats };
 
     if (id) {
         data.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
-        db.collection('partners').doc(id).update(data)
-          .then(() => closeModal('modal-shop'))
-          .catch(err => alert("기존 매장 수정 오류: "+err.message));
+        db.collection('partners')
+            .doc(id)
+            .update(data)
+            .then(() => closeModal('modal-shop'))
+            .catch((err) => alert('기존 매장 수정 오류: ' + err.message));
     } else {
         data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
         data.status = 'pending'; // Admin adds partner as pending to show in approval list
-        db.collection('partners').add(data)
-          .then(() => closeModal('modal-shop'))
-          .catch(err => alert("신규 매장 추가 오류: "+err.message));
+        db.collection('partners')
+            .add(data)
+            .then(() => closeModal('modal-shop'))
+            .catch((err) => alert('신규 매장 추가 오류: ' + err.message));
     }
 }
 
 function activatePartner(id) {
-    if(confirm('이 파트너의 가입을 승인하여 앱에 노출하시겠습니까?')) {
+    if (confirm('이 파트너의 가입을 승인하여 앱에 노출하시겠습니까?')) {
         db.collection('partners').doc(id).update({ status: 'active' });
     }
 }
 
 function deleteShop(id) {
-    if(confirm('이 샵을 데이터베이스에서 영구 삭제하시겠습니까?\n동기화된 앱에서도 즉시 지도 목록 및 메뉴에서 삭제됩니다.')) {
+    if (
+        confirm(
+            '이 샵을 데이터베이스에서 영구 삭제하시겠습니까?\n동기화된 앱에서도 즉시 지도 목록 및 메뉴에서 삭제됩니다.',
+        )
+    ) {
         db.collection('partners').doc(id).delete();
     }
 }
 
 async function uploadShopImage(event) {
     const file = event.target.files[0];
-    if(!file) return;
+    if (!file) return;
 
     const progressEl = document.getElementById('shop-image-progress');
     progressEl.innerText = '업로드 중... 잠시만 기다려주세요.';
@@ -986,7 +1265,7 @@ async function uploadShopImage(event) {
         const downloadUrl = await snapshot.ref.getDownloadURL();
         document.getElementById('shop-image').value = downloadUrl;
         progressEl.innerText = '✅ 업로드 완료!';
-    } catch(err) {
+    } catch (err) {
         console.error(err);
         progressEl.innerText = '업로드 실패: ' + err.message;
     }
@@ -994,17 +1273,22 @@ async function uploadShopImage(event) {
 
 // ─── Dummy Data Generator ───
 async function deleteAllPartners() {
-    if(!confirm("진짜로 모든 파트너 데이터를 초기화(삭제) 하시겠습니까? 이 작업은 복구할 수 없습니다.")) return;
+    if (
+        !confirm(
+            '진짜로 모든 파트너 데이터를 초기화(삭제) 하시겠습니까? 이 작업은 복구할 수 없습니다.',
+        )
+    )
+        return;
     try {
         // 네트워크 상태와 무관하게 확실한 최신 데이터를 가져옵니다.
         const snapshot = await db.collection('partners').get({ source: 'server' });
         const reviewSnapshot = await db.collection('reviews').get({ source: 'server' });
-        
+
         if (snapshot.empty && reviewSnapshot.empty) {
             alert('삭제할 파트너 또는 리뷰 데이터가 없습니다.');
             return;
         }
-        
+
         // Firestore batch 사용 (한 번에 500개 제한 등 안정적 처리)
         // 만약 500개가 넘는다면 분할이 필요하지만, 여기서는 더미 규모이므로 batch 하나로 처리
         let deletedCount = 0;
@@ -1012,7 +1296,7 @@ async function deleteAllPartners() {
         let batch = db.batch();
         let commitPromises = [];
 
-        snapshot.docs.forEach(doc => {
+        snapshot.docs.forEach((doc) => {
             batch.delete(doc.ref);
             deletedCount++;
             batchIndex++;
@@ -1023,7 +1307,7 @@ async function deleteAllPartners() {
             }
         });
 
-        reviewSnapshot.docs.forEach(doc => {
+        reviewSnapshot.docs.forEach((doc) => {
             batch.delete(doc.ref);
             batchIndex++;
             if (batchIndex === 500) {
@@ -1038,34 +1322,78 @@ async function deleteAllPartners() {
         }
 
         await Promise.all(commitPromises);
-        
+
         alert(`총 ${deletedCount}개의 파트너(및 소속 리뷰들)가 성공적으로 완벽히 삭제되었습니다.`);
     } catch (err) {
-        console.error("삭제 중 오류:", err);
-        alert("삭제 실패: " + err.message);
+        console.error('삭제 중 오류:', err);
+        alert('삭제 실패: ' + err.message);
     }
 }
 
 async function generateDummyPartners() {
-    if(!confirm("이전의 테스트용 50개 임의(Mock) 파트너 데이터를 어드민(Firebase)에 등록하시겠습니까? (기존 데이터는 삭제되지 않으며 랜덤 50개가 추가로 생성됩니다)")) return;
+    if (
+        !confirm(
+            '이전의 테스트용 50개 임의(Mock) 파트너 데이터를 어드민(Firebase)에 등록하시겠습니까? (기존 데이터는 삭제되지 않으며 랜덤 50개가 추가로 생성됩니다)',
+        )
+    )
+        return;
 
     // 지역별 시/구 데이터
     const RegionData = [
-        { prov: '서울', cities: ['강남/서초', '송파/강동', '영등포/구로/금천', '강서/양천', '마포/서대문/은평', '용산/중구/종로', '성동/광진', '동대문/중랑', '노원/도봉/강북'] },
-        { prov: '경기', cities: ['수원', '성남(분당)', '고양(일산)', '용인', '부천', '안산', '안양/과천', '화성(동탄)', '평택', '의정부', '파주', '시흥', '김포', '광명', '광주', '구리/남양주'] },
-        { prov: '인천', cities: ['부평/계양', '남동(구월)', '연수(송도)', '서구(청라)', '중구/동구'] },
+        {
+            prov: '서울',
+            cities: [
+                '강남/서초',
+                '송파/강동',
+                '영등포/구로/금천',
+                '강서/양천',
+                '마포/서대문/은평',
+                '용산/중구/종로',
+                '성동/광진',
+                '동대문/중랑',
+                '노원/도봉/강북',
+            ],
+        },
+        {
+            prov: '경기',
+            cities: [
+                '수원',
+                '성남(분당)',
+                '고양(일산)',
+                '용인',
+                '부천',
+                '안산',
+                '안양/과천',
+                '화성(동탄)',
+                '평택',
+                '의정부',
+                '파주',
+                '시흥',
+                '김포',
+                '광명',
+                '광주',
+                '구리/남양주',
+            ],
+        },
+        {
+            prov: '인천',
+            cities: ['부평/계양', '남동(구월)', '연수(송도)', '서구(청라)', '중구/동구'],
+        },
         { prov: '충청', cities: ['세종', '천안', '아산', '청주', '충주', '서산/당진', '제천'] },
         { prov: '대전', cities: ['둔산/서구', '유성', '중구/동구', '대덕'] },
         { prov: '강원', cities: ['춘천', '원주', '강릉', '속초/동해'] },
         { prov: '전라', cities: ['전주', '익산', '군산', '목포', '여수', '순천'] },
         { prov: '광주', cities: ['상무/서구', '수완/광산', '남구/북구', '동구'] },
         { prov: '경상', cities: ['창원', '김해', '진주', '포항', '구미', '경주'] },
-        { prov: '부산', cities: ['해운대/수영', '서면/진구', '동래/연제', '남구/북구', '사하/사상'] },
-        { prov: '제주', cities: ['제주시', '서귀포시'] }
+        {
+            prov: '부산',
+            cities: ['해운대/수영', '서면/진구', '동래/연제', '남구/북구', '사하/사상'],
+        },
+        { prov: '제주', cities: ['제주시', '서귀포시'] },
     ];
     let validRegions = [];
-    RegionData.forEach(g => {
-        g.cities.forEach(c => {
+    RegionData.forEach((g) => {
+        g.cities.forEach((c) => {
             validRegions.push(g.prov + ' ' + c);
         });
     });
@@ -1079,7 +1407,7 @@ async function generateDummyPartners() {
     const getRandomItem = (arr) => arr[Math.floor(Math.random() * arr.length)];
 
     const dummyPartners = [];
-    
+
     // 조건 배열들을 인덱스(count)에 따라 순차적으로 뽑으면
     // 배열 길이가 4, 3, 5로 서로소이기 때문에 60번까지 완전히 다른 조합이 나옵니다.
     let count = 0;
@@ -1099,20 +1427,20 @@ async function generateDummyPartners() {
             address: rRegion,
             phone: `010-1234-${(1000 + i).toString()}`,
             image: `https://picsum.photos/seed/dadok_choice_${i}/400/400`,
-            status: "active",
-            price: 100000 + (Math.floor(Math.random() * 5) * 10000),
+            status: 'active',
+            price: 100000 + Math.floor(Math.random() * 5) * 10000,
             rating: parseFloat((Math.random() * 0.5 + 4.5).toFixed(1)),
             reviews: Math.floor(Math.random() * 80) + 12,
-            
+
             // script.js 동기화를 위한 추가 필드
             region: rRegion,
             massage: rMassage,
             place: rPlaceShort,
             age: rAge,
-            
-            categories: [rMassage, rPlaceFull, rAge], 
+
+            categories: [rMassage, rPlaceFull, rAge],
             tier: i % 2 === 0 ? 'VIP' : 'Premium',
-            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
         });
         count++;
     }
@@ -1132,29 +1460,29 @@ async function generateDummyPartners() {
             address: rRegion,
             phone: `010-9876-${(1000 + i).toString()}`,
             image: `https://picsum.photos/seed/dadok_rec_${i}/400/400`,
-            status: "active",
-            price: 80000 + (Math.floor(Math.random() * 5) * 10000),
+            status: 'active',
+            price: 80000 + Math.floor(Math.random() * 5) * 10000,
             rating: parseFloat((Math.random() * 0.5 + 4.5).toFixed(1)),
             reviews: Math.floor(Math.random() * 80) + 12,
-            
+
             // script.js 동기화를 위한 추가 필드
             region: rRegion,
             massage: rMassage,
             place: rPlaceShort,
             age: rAge,
-            
-            categories: [rMassage, rPlaceFull, rAge], 
+
+            categories: [rMassage, rPlaceFull, rAge],
             tier: 'Normal',
-            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
         });
         count++;
     }
 
     try {
         let count = 0;
-        const progressEl = document.getElementById('discord-log'); 
-        if(progressEl) {
-            progressEl.innerText = "데이터 50건을 생성 중... (조금만 대기해주세요)";
+        const progressEl = document.getElementById('discord-log');
+        if (progressEl) {
+            progressEl.innerText = '데이터 50건을 생성 중... (조금만 대기해주세요)';
             progressEl.classList.remove('text-gray-500');
             progressEl.classList.add('text-green-400');
         }
@@ -1163,34 +1491,34 @@ async function generateDummyPartners() {
         for (let i = 0; i < dummyPartners.length; i += batchSize) {
             const batch = db.batch();
             const slice = dummyPartners.slice(i, i + batchSize);
-            
-            slice.forEach(p => {
-                const docRef = db.collection("partners").doc();
+
+            slice.forEach((p) => {
+                const docRef = db.collection('partners').doc();
                 batch.set(docRef, p);
-                
-                const reviewRef = db.collection("reviews").doc();
+
+                const reviewRef = db.collection('reviews').doc();
                 batch.set(reviewRef, {
                     partnerId: docRef.id,
                     rating: 5,
-                    text: "정말 친절하고 실력이 뛰어납니다. 강력 추천해요!",
-                    date: "2026.04.10",
-                    author: "jo*****",
-                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    text: '정말 친절하고 실력이 뛰어납니다. 강력 추천해요!',
+                    date: '2026.04.10',
+                    author: 'jo*****',
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
                 });
                 count++;
             });
             await batch.commit();
         }
 
-        if(progressEl) {
-            progressEl.innerText = "대기 중...";
+        if (progressEl) {
+            progressEl.innerText = '대기 중...';
             progressEl.classList.add('text-gray-500');
             progressEl.classList.remove('text-green-400');
         }
         alert(`성공적으로 ${count}개의 더미 파트너와 리뷰가 실제 DB에 생성되었습니다!`);
-    } catch(e) {
+    } catch (e) {
         console.error(e);
-        alert("데이터 생성 중 오류가 발생했습니다: " + e.message);
+        alert('데이터 생성 중 오류가 발생했습니다: ' + e.message);
     }
 }
 
@@ -1207,7 +1535,7 @@ function testDiscordWebhook() {
 
 // 입점권 남은시간 실시간 카운트다운 로직
 setInterval(() => {
-    document.querySelectorAll('.countdown-timer').forEach(el => {
+    document.querySelectorAll('.countdown-timer').forEach((el) => {
         const expiry = parseInt(el.getAttribute('data-expiry'));
         if (!expiry) return;
         const diff = expiry - Date.now();
@@ -1217,10 +1545,12 @@ setInterval(() => {
             const m = String(Math.floor((diff / 1000 / 60) % 60)).padStart(2, '0');
             const s = String(Math.floor((diff / 1000) % 60)).padStart(2, '0');
             el.innerHTML = `남은 시간: <span class="font-bold text-white">${d}</span>일 ${h}:${m}:${s}`;
-            el.className = 'countdown-timer text-[11px] font-mono mt-1 border border-green-500/30 bg-[#06110D] text-green-400 px-2 py-0.5 rounded inline-block';
+            el.className =
+                'countdown-timer text-[11px] font-mono mt-1 border border-green-500/30 bg-[#06110D] text-green-400 px-2 py-0.5 rounded inline-block';
         } else {
             el.innerHTML = '⚠️ 입점권 시간 만료';
-            el.className = 'countdown-timer text-[11px] font-mono mt-1 border border-red-500/30 bg-red-500/10 text-red-400 px-2 py-0.5 rounded inline-block';
+            el.className =
+                'countdown-timer text-[11px] font-mono mt-1 border border-red-500/30 bg-red-500/10 text-red-400 px-2 py-0.5 rounded inline-block';
         }
     });
 }, 1000);
@@ -1230,15 +1560,15 @@ setInterval(() => {
 // ═══════════════════════════════════════
 
 function switchSubTab(tabId) {
-    document.querySelectorAll('.sub-tab-content').forEach(el => el.classList.add('hidden'));
-    document.querySelectorAll('.sub-tab-btn').forEach(el => {
+    document.querySelectorAll('.sub-tab-content').forEach((el) => el.classList.add('hidden'));
+    document.querySelectorAll('.sub-tab-btn').forEach((el) => {
         el.classList.remove('text-[var(--point-color)]', 'border-[var(--point-color)]');
         el.classList.add('text-[#A7B2AE]', 'border-transparent');
     });
 
     document.getElementById(tabId).classList.remove('hidden');
     const btn = document.querySelector(`.sub-tab-btn[onclick="switchSubTab('${tabId}')"]`);
-    if(btn) {
+    if (btn) {
         btn.classList.remove('text-[#A7B2AE]', 'border-transparent');
         btn.classList.add('text-[var(--point-color)]', 'border-[var(--point-color)]');
     }
@@ -1248,15 +1578,25 @@ function switchSubTab(tabId) {
 let currentSubRequestStatus = 'pending';
 let unsubscribeSubRequests = null;
 
-window.switchSubRequestTab = function(status) {
+window.switchSubRequestTab = function (status) {
     currentSubRequestStatus = status;
     const tabPending = document.getElementById('sub-req-tab-pending');
     const tabCompleted = document.getElementById('sub-req-tab-completed');
-    
-    if(tabPending && tabCompleted) {
-        tabPending.classList.remove('text-[var(--point-color)]', 'border-[var(--point-color)]', 'text-[#A7B2AE]', 'border-transparent');
-        tabCompleted.classList.remove('text-[var(--point-color)]', 'border-[var(--point-color)]', 'text-[#A7B2AE]', 'border-transparent');
-        
+
+    if (tabPending && tabCompleted) {
+        tabPending.classList.remove(
+            'text-[var(--point-color)]',
+            'border-[var(--point-color)]',
+            'text-[#A7B2AE]',
+            'border-transparent',
+        );
+        tabCompleted.classList.remove(
+            'text-[var(--point-color)]',
+            'border-[var(--point-color)]',
+            'text-[#A7B2AE]',
+            'border-transparent',
+        );
+
         if (status === 'pending') {
             tabPending.classList.add('text-[var(--point-color)]', 'border-[var(--point-color)]');
             tabCompleted.classList.add('text-[#A7B2AE]', 'border-transparent');
@@ -1265,49 +1605,53 @@ window.switchSubRequestTab = function(status) {
             tabPending.classList.add('text-[#A7B2AE]', 'border-transparent');
         }
     }
-    
+
     window.loadSubscriptionRequests();
 };
 
-window.loadSubscriptionRequests = function() {
+window.loadSubscriptionRequests = function () {
     const tbody = document.getElementById('sub-requests-table-body');
     if (!tbody) return;
-    
+
     if (unsubscribeSubRequests) {
         unsubscribeSubRequests();
     }
-    
-    tbody.innerHTML = '<tr><td colspan="5" class="p-8 text-center text-[#A7B2AE]">로딩 중...</td></tr>';
-    
+
+    tbody.innerHTML =
+        '<tr><td colspan="5" class="p-8 text-center text-[#A7B2AE]">로딩 중...</td></tr>';
+
     // We fetch all records and filter in memory to avoid throwing composite index errors across projects.
-    unsubscribeSubRequests = db.collection('subscription_requests')
+    unsubscribeSubRequests = db
+        .collection('subscription_requests')
         .orderBy('createdAt', 'desc')
         .limit(100)
-        .onSnapshot(snapshot => {
-            let matches = [];
-            snapshot.forEach(doc => {
-                const data = doc.data();
-                if (currentSubRequestStatus === 'pending') {
-                    if (data.status === 'pending') matches.push({...data, id: doc.id});
-                } else {
-                    if (data.status === 'completed' || data.status === 'rejected') matches.push({...data, id: doc.id});
-                }
-            });
+        .onSnapshot(
+            (snapshot) => {
+                let matches = [];
+                snapshot.forEach((doc) => {
+                    const data = doc.data();
+                    if (currentSubRequestStatus === 'pending') {
+                        if (data.status === 'pending') matches.push({ ...data, id: doc.id });
+                    } else {
+                        if (data.status === 'completed' || data.status === 'rejected')
+                            matches.push({ ...data, id: doc.id });
+                    }
+                });
 
-            if(matches.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="5" class="p-8 text-center text-[#A7B2AE]">${currentSubRequestStatus === 'pending' ? '현재 입금 대기 중인 신청 건이 없습니다.' : '처리 완료/반려 내역이 없습니다.'}</td></tr>`;
-                return;
-            }
-            
-            let html = '';
-            matches.forEach(data => {
-                const reqId = data.id;
-                const d = data.createdAt ? new Date(data.createdAt.toMillis()) : new Date();
-                const dStr = `${d.getFullYear().toString().substr(-2)}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
-                
-                let btnHtml = '';
-                if(data.status === 'pending') {
-                    btnHtml = `
+                if (matches.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="5" class="p-8 text-center text-[#A7B2AE]">${currentSubRequestStatus === 'pending' ? '현재 입금 대기 중인 신청 건이 없습니다.' : '처리 완료/반려 내역이 없습니다.'}</td></tr>`;
+                    return;
+                }
+
+                let html = '';
+                matches.forEach((data) => {
+                    const reqId = data.id;
+                    const d = data.createdAt ? new Date(data.createdAt.toMillis()) : new Date();
+                    const dStr = `${d.getFullYear().toString().substr(-2)}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+
+                    let btnHtml = '';
+                    if (data.status === 'pending') {
+                        btnHtml = `
                     <div class="flex flex-col gap-1.5 items-end justify-center h-full">
                         <button onclick="approveSubscriptionRequest('${reqId}', '${data.partnerId}', ${data.months}, '${data.companyName}')" class="px-3 py-1.5 bg-[#11291D] hover:bg-[var(--point-color)] hover:text-black text-[var(--point-color)] border border-[var(--point-color)] rounded-lg text-xs font-bold transition-colors w-[150px] shadow-md relative overflow-hidden group">
                            <span class="relative z-10 flex items-center justify-center gap-1"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>입금확인 • 즉시승인</span>
@@ -1315,13 +1659,13 @@ window.loadSubscriptionRequests = function() {
                         </button>
                         <button onclick="rejectSubscriptionRequest('${reqId}', '${data.companyName}')" class="px-3 py-1 bg-[#0A1B13] hover:bg-black text-[#A7B2AE] hover:text-red-400 border border-[#2A3731] hover:border-red-900 rounded-lg text-[11px] transition-colors w-[150px]">보류 / 반려</button>
                     </div>`;
-                } else if(data.status === 'completed') {
-                    btnHtml = `<span class="bg-[#11291D] text-green-400 border border-green-900/50 px-2.5 py-1 rounded-md text-xs font-bold">🟢 승인 완료</span>`;
-                } else {
-                    btnHtml = `<span class="bg-[#0A1B13] text-red-400 border border-[#2A3731] px-2.5 py-1 rounded-md text-xs">🔴 반려됨<br><span class="text-[9px] text-[#A7B2AE] font-normal tracking-tighter block mt-0.5 max-w-[80px] break-keep truncate" title="${data.rejectReason || ''}">${data.rejectReason || ''}</span></span>`;
-                }
-                
-                html += `
+                    } else if (data.status === 'completed') {
+                        btnHtml = `<span class="bg-[#11291D] text-green-400 border border-green-900/50 px-2.5 py-1 rounded-md text-xs font-bold">🟢 승인 완료</span>`;
+                    } else {
+                        btnHtml = `<span class="bg-[#0A1B13] text-red-400 border border-[#2A3731] px-2.5 py-1 rounded-md text-xs">🔴 반려됨<br><span class="text-[9px] text-[#A7B2AE] font-normal tracking-tighter block mt-0.5 max-w-[80px] break-keep truncate" title="${data.rejectReason || ''}">${data.rejectReason || ''}</span></span>`;
+                    }
+
+                    html += `
                 <tr class="hover:bg-[#11291D]/40 transition-colors">
                     <td class="p-4 align-middle text-[#A7B2AE] font-mono text-xs">${dStr}</td>
                     <td class="p-4 align-middle">
@@ -1339,17 +1683,24 @@ window.loadSubscriptionRequests = function() {
                     </td>
                     <td class="p-3 align-middle text-right">${btnHtml}</td>
                 </tr>`;
-            });
-            tbody.innerHTML = html;
-        }, err => {
-            console.error("Error loading sub requests: ", err);
-        });
+                });
+                tbody.innerHTML = html;
+            },
+            (err) => {
+                console.error('Error loading sub requests: ', err);
+            },
+        );
 };
 
-window.approveSubscriptionRequest = async function(reqId, partnerId, addMonths, companyName) {
+window.approveSubscriptionRequest = async function (reqId, partnerId, addMonths, companyName) {
     try {
-        if (!confirm(`[${companyName}] 업체의 입금(결제) 사실을 확인하셨나요?\n승인 시 자동으로 입점권이 ${addMonths}개월 연장됩니다.`)) return;
-        
+        if (
+            !confirm(
+                `[${companyName}] 업체의 입금(결제) 사실을 확인하셨나요?\n승인 시 자동으로 입점권이 ${addMonths}개월 연장됩니다.`,
+            )
+        )
+            return;
+
         // Fetch partner details
         const partnerRef = db.collection('partners').doc(partnerId);
         const docSnap = await partnerRef.get();
@@ -1357,11 +1708,11 @@ window.approveSubscriptionRequest = async function(reqId, partnerId, addMonths, 
             alert('파트너 정보를 찾을 수 없습니다 (삭제된 업체일 수 있습니다).');
             return;
         }
-        
+
         const currentData = docSnap.data();
         const now = Date.now();
         let baseTime = now;
-        
+
         // If current expiry exists and is in the future, add to it. Otherwise, add from NOW.
         if (currentData.ticketExpiryTimestamp && currentData.ticketExpiryTimestamp > now) {
             baseTime = currentData.ticketExpiryTimestamp;
@@ -1376,34 +1727,37 @@ window.approveSubscriptionRequest = async function(reqId, partnerId, addMonths, 
         await partnerRef.update({
             ticketExpiryTimestamp: newDate.getTime(),
             ticketExpiry: newExpiryStr,
-            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
         });
 
         // 2. Mark request as completed
         await db.collection('subscription_requests').doc(reqId).update({
             status: 'completed',
-            completedAt: firebase.firestore.FieldValue.serverTimestamp()
+            completedAt: firebase.firestore.FieldValue.serverTimestamp(),
         });
 
-        alert(`✅ [${companyName}] 스마트 승인 완료!\n종료 날짜가 ${newExpiryStr} 로 연장되었습니다.`);
-
+        alert(
+            `✅ [${companyName}] 스마트 승인 완료!\n종료 날짜가 ${newExpiryStr} 로 연장되었습니다.`,
+        );
     } catch (err) {
         console.error('Error approving subscription request', err);
         alert('승인 중 오류가 발생했습니다: ' + err.message);
     }
 };
 
-window.rejectSubscriptionRequest = async function(reqId, companyName) {
+window.rejectSubscriptionRequest = async function (reqId, companyName) {
     try {
-        const reason = prompt(`[${companyName}] 업체의 입점권 신청을 보류/반려 처리합니다.\n반려 사유(예: 입금 금액 불일치 등)를 적어주세요.`);
+        const reason = prompt(
+            `[${companyName}] 업체의 입점권 신청을 보류/반려 처리합니다.\n반려 사유(예: 입금 금액 불일치 등)를 적어주세요.`,
+        );
         if (reason === null) return; // User cancelled
-        
+
         await db.collection('subscription_requests').doc(reqId).update({
             status: 'rejected',
             rejectReason: reason,
-            completedAt: firebase.firestore.FieldValue.serverTimestamp()
+            completedAt: firebase.firestore.FieldValue.serverTimestamp(),
         });
-        
+
         alert(`🔴 반려 처리되었습니다.\n사유: ${reason}`);
     } catch (err) {
         console.error('Error rejecting sub request', err);
@@ -1414,30 +1768,37 @@ window.rejectSubscriptionRequest = async function(reqId, companyName) {
 function loadSubscriptionUsage() {
     const tbody = document.getElementById('sub-usage-table-body');
     if (!tbody) return;
-    db.collection('partners').where('status', '==', 'active').onSnapshot(snapshot => {
-        tbody.innerHTML = '';
-        if (snapshot.empty) {
-            tbody.innerHTML = '<tr><td colspan="4" class="p-4 text-center">활성 상태인 파트너가 없습니다.</td></tr>';
-            return;
-        }
-        let docs = [];
-        snapshot.forEach(doc => docs.push(doc));
-        // 남은 시간이 적은 순서대로 정렬 추가
-        docs.sort((a,b) => (a.data().ticketExpiryTimestamp || Infinity) - (b.data().ticketExpiryTimestamp || Infinity));
-
-        docs.forEach(doc => {
-            const data = doc.data();
-            const displayName = data.name || data.company || '이름 없음';
-            const tierStr = data.ticketType || data.tier || '기본 입점';
-            
-            let expiryHtml = '<span class="text-[#A7B2AE]">만료일 미지정</span>';
-            if (data.ticketExpiryTimestamp) {
-                expiryHtml = `<div class="countdown-timer text-[11px] font-mono border border-[#2A3731] bg-[#06110D] text-[#A7B2AE] px-2 py-0.5 rounded inline-block" data-expiry="${data.ticketExpiryTimestamp}">계산중...</div>`;
-            } else if (data.ticketExpiry) {
-                expiryHtml = `<span class="text-white">${data.ticketExpiry} 만료</span>`;
+    db.collection('partners')
+        .where('status', '==', 'active')
+        .onSnapshot((snapshot) => {
+            tbody.innerHTML = '';
+            if (snapshot.empty) {
+                tbody.innerHTML =
+                    '<tr><td colspan="4" class="p-4 text-center">활성 상태인 파트너가 없습니다.</td></tr>';
+                return;
             }
+            let docs = [];
+            snapshot.forEach((doc) => docs.push(doc));
+            // 남은 시간이 적은 순서대로 정렬 추가
+            docs.sort(
+                (a, b) =>
+                    (a.data().ticketExpiryTimestamp || Infinity) -
+                    (b.data().ticketExpiryTimestamp || Infinity),
+            );
 
-            tbody.innerHTML += `
+            docs.forEach((doc) => {
+                const data = doc.data();
+                const displayName = data.name || data.company || '이름 없음';
+                const tierStr = data.ticketType || data.tier || '기본 입점';
+
+                let expiryHtml = '<span class="text-[#A7B2AE]">만료일 미지정</span>';
+                if (data.ticketExpiryTimestamp) {
+                    expiryHtml = `<div class="countdown-timer text-[11px] font-mono border border-[#2A3731] bg-[#06110D] text-[#A7B2AE] px-2 py-0.5 rounded inline-block" data-expiry="${data.ticketExpiryTimestamp}">계산중...</div>`;
+                } else if (data.ticketExpiry) {
+                    expiryHtml = `<span class="text-white">${data.ticketExpiry} 만료</span>`;
+                }
+
+                tbody.innerHTML += `
                 <tr class="hover:bg-[#11291D] transition-colors">
                     <td class="p-4">
                         <div class="font-bold text-white">${displayName}</div>
@@ -1450,8 +1811,8 @@ function loadSubscriptionUsage() {
                     </td>
                 </tr>
             `;
+            });
         });
-    });
 }
 
 let selectedSubTargets = [];
@@ -1480,7 +1841,8 @@ function toggleManualSubSearchList() {
 async function loadManualSubPartners() {
     const resContainer = document.getElementById('manual-sub-search-results');
     if (resContainer) {
-        resContainer.innerHTML = '<div class="px-4 py-3 text-sm text-[#A7B2AE] text-center">업체 목록을 불러오는 중...</div>';
+        resContainer.innerHTML =
+            '<div class="px-4 py-3 text-sm text-[#A7B2AE] text-center">업체 목록을 불러오는 중...</div>';
         resContainer.classList.remove('hidden');
         setManualSubListToggleLabel();
     }
@@ -1489,7 +1851,7 @@ async function loadManualSubPartners() {
         const snapshot = await db.collection('partners').get({ source: 'server' });
         manualSubPartners = [];
 
-        snapshot.forEach(doc => {
+        snapshot.forEach((doc) => {
             const data = doc.data() || {};
             manualSubPartners.push({ id: doc.id, ...data });
         });
@@ -1526,7 +1888,7 @@ function openManualSubscriptionModal() {
 }
 
 function openManualSubscriptionModalWithTarget(id, name) {
-    selectedSubTargets = [{id, name}];
+    selectedSubTargets = [{ id, name }];
     renderSubTargets();
     document.getElementById('manual-sub-search').value = '';
     document.getElementById('manual-sub-search-results').classList.add('hidden');
@@ -1542,16 +1904,21 @@ function openManualSubscriptionModalWithTarget(id, name) {
 
 function searchPartnersForSub(query) {
     const resContainer = document.getElementById('manual-sub-search-results');
-    
+
     // 수동조정 모달은 탭 상태와 무관하게 로드한 전체 파트너 목록을 사용
     const sourcePartners = manualSubPartners.length > 0 ? manualSubPartners : windowShops;
-    
+
     let matches = [];
-    sourcePartners.forEach(data => {
+    sourcePartners.forEach((data) => {
         const n = data.name || data.company || '';
         const p = data.phone || data.managerPhone || '';
-        
-        let plan = data.ticketPlan === 'premium' ? '프리미엄' : (data.ticketPlan === 'standard' ? '스탠다드' : '입점권 없음(무료)');
+
+        let plan =
+            data.ticketPlan === 'premium'
+                ? '프리미엄'
+                : data.ticketPlan === 'standard'
+                  ? '스탠다드'
+                  : '입점권 없음(무료)';
         let expiry = data.ticketExpiryTimestamp || 0;
         let remainStr = '';
         if (expiry > Date.now()) {
@@ -1562,15 +1929,17 @@ function searchPartnersForSub(query) {
         } else {
             remainStr = '만료/미이용';
         }
-        
+
         const q = (query || '').trim().toLowerCase();
         if (!q || n.toLowerCase().includes(q) || p.toLowerCase().includes(q)) {
             matches.push({ id: data.id, name: n, phone: p, plan, remainStr });
         }
     });
-    
+
     if (matches.length > 0) {
-        resContainer.innerHTML = matches.map(m => `
+        resContainer.innerHTML = matches
+            .map(
+                (m) => `
             <div class="px-4 py-3 hover:bg-[var(--point-color)]/20 cursor-pointer border-b border-[#2A3731] last:border-0 transition-colors" onclick="addSubTarget('${m.id}', '${m.name.replace(/'/g, "\\'")}', '${m.plan}', '${m.remainStr}')">
                 <div class="flex justify-between items-center">
                     <span class="font-bold text-white text-sm">${m.name || '상호명 없음'}</span>
@@ -1581,19 +1950,22 @@ function searchPartnersForSub(query) {
                     <span class="opacity-90">${m.remainStr}</span>
                 </div>
             </div>
-        `).join('');
+        `,
+            )
+            .join('');
         resContainer.classList.remove('hidden');
         setManualSubListToggleLabel();
     } else {
-        resContainer.innerHTML = '<div class="px-4 py-3 text-sm text-[#A7B2AE] text-center">검색 결과가 없습니다.</div>';
+        resContainer.innerHTML =
+            '<div class="px-4 py-3 text-sm text-[#A7B2AE] text-center">검색 결과가 없습니다.</div>';
         resContainer.classList.remove('hidden');
         setManualSubListToggleLabel();
     }
 }
 
 function addSubTarget(id, name, plan, remainStr) {
-    if (!selectedSubTargets.find(t => t.id === id)) {
-        selectedSubTargets.push({id, name, plan, remainStr});
+    if (!selectedSubTargets.find((t) => t.id === id)) {
+        selectedSubTargets.push({ id, name, plan, remainStr });
         renderSubTargets();
     }
     document.getElementById('manual-sub-search').value = '';
@@ -1602,23 +1974,24 @@ function addSubTarget(id, name, plan, remainStr) {
 }
 
 function removeSubTarget(id) {
-    selectedSubTargets = selectedSubTargets.filter(t => t.id !== id);
+    selectedSubTargets = selectedSubTargets.filter((t) => t.id !== id);
     renderSubTargets();
 }
 
 function renderSubTargets() {
     const container = document.getElementById('manual-sub-targets-container');
     const emptyMsg = document.getElementById('manual-sub-empty-msg');
-    
-    Array.from(container.querySelectorAll('.sub-chip')).forEach(el => el.remove());
-    
+
+    Array.from(container.querySelectorAll('.sub-chip')).forEach((el) => el.remove());
+
     if (selectedSubTargets.length === 0) {
-        if(emptyMsg) emptyMsg.classList.remove('hidden');
+        if (emptyMsg) emptyMsg.classList.remove('hidden');
     } else {
-        if(emptyMsg) emptyMsg.classList.add('hidden');
-        selectedSubTargets.forEach(t => {
+        if (emptyMsg) emptyMsg.classList.add('hidden');
+        selectedSubTargets.forEach((t) => {
             const chip = document.createElement('div');
-            chip.className = 'sub-chip flex flex-col gap-1 px-3 py-2 bg-[var(--point-color)]/20 border border-[var(--point-color)]/50 rounded-lg text-sm text-white relative pr-8 w-full sm:w-auto shrink-0';
+            chip.className =
+                'sub-chip flex flex-col gap-1 px-3 py-2 bg-[var(--point-color)]/20 border border-[var(--point-color)]/50 rounded-lg text-sm text-white relative pr-8 w-full sm:w-auto shrink-0';
             chip.innerHTML = `
                 <div class="font-bold whitespace-nowrap">${t.name}</div>
                 <div class="text-xs text-[var(--point-color)] opacity-90 whitespace-nowrap">[${t.plan || '정보없음'}] ${t.remainStr || ''}</div>
@@ -1634,7 +2007,7 @@ function toggleManualSubInput(type) {
     const dateContainer = document.getElementById('manual-sub-date-container');
     const label = document.getElementById('manual-sub-days-label');
     const daysInput = document.getElementById('manual-sub-days');
-    
+
     if (['add_1', 'add_3', 'add_6', 'add_12'].includes(type)) {
         valContainer.classList.add('hidden');
         dateContainer.classList.add('hidden');
@@ -1680,33 +2053,39 @@ function handleManualSubscriptionSubmit(e) {
         alert('조치할 대상 업체를 최소 1개 이상 선택해주세요.');
         return;
     }
-    
+
     const type = document.getElementById('manual-sub-type').value;
     const days = parseInt(document.getElementById('manual-sub-days').value) || 0;
     const dateInput = document.getElementById('manual-sub-date').value;
     const reasonCat = document.getElementById('manual-sub-reason-category').value;
     const reasonMemo = document.getElementById('manual-sub-memo').value;
     const notify = document.getElementById('manual-sub-notify').checked;
-    
-    let reasonText = document.querySelector(`#manual-sub-reason-category option[value="${reasonCat}"]`).innerText;
+
+    let reasonText = document.querySelector(
+        `#manual-sub-reason-category option[value="${reasonCat}"]`,
+    ).innerText;
     if (reasonCat === 'custom') reasonText += ` - ${reasonMemo}`;
-    
-    if (!confirm(`선택한 ${selectedSubTargets.length}개 업체에 대해 조치를 실행하시겠습니까?`)) return;
-    
+
+    if (!confirm(`선택한 ${selectedSubTargets.length}개 업체에 대해 조치를 실행하시겠습니까?`))
+        return;
+
     const batch = db.batch();
-    const promises = selectedSubTargets.map(target => {
+    const promises = selectedSubTargets.map((target) => {
         const ref = db.collection('partners').doc(target.id);
-        return ref.get().then(doc => {
+        return ref.get().then((doc) => {
             if (!doc.exists) return;
             const data = doc.data();
             // 신규 발급의 경우, 기존 만료일이 현재보다 과거라면 '오늘 기준'으로, 만료 전이라면 '기존 만료일 기준'으로 연장
-            let baseDate = (data.ticketExpiryTimestamp && data.ticketExpiryTimestamp > Date.now()) ? new Date(data.ticketExpiryTimestamp) : new Date();
+            let baseDate =
+                data.ticketExpiryTimestamp && data.ticketExpiryTimestamp > Date.now()
+                    ? new Date(data.ticketExpiryTimestamp)
+                    : new Date();
             let newExpiry = baseDate.getTime();
-            
+
             let ticketPlan = data.ticketPlan || 'standard';
             let ticketType = data.ticketType || 'None';
             let addedDaysMessage = '';
-            
+
             if (type === 'add_1') {
                 baseDate.setMonth(baseDate.getMonth() + 1);
                 newExpiry = baseDate.getTime();
@@ -1730,10 +2109,10 @@ function handleManualSubscriptionSubmit(e) {
                 ticketPlan = 'VIP';
                 addedDaysMessage = '+12개월(VIP)';
             } else if (type === 'add') {
-                newExpiry += (days * 24 * 60 * 60 * 1000);
+                newExpiry += days * 24 * 60 * 60 * 1000;
                 addedDaysMessage = `+${days}일`;
             } else if (type === 'subtract') {
-                newExpiry -= (days * 24 * 60 * 60 * 1000);
+                newExpiry -= days * 24 * 60 * 60 * 1000;
                 addedDaysMessage = `-${days}일`;
             } else if (type === 'set_date') {
                 newExpiry = new Date(dateInput).getTime();
@@ -1744,18 +2123,18 @@ function handleManualSubscriptionSubmit(e) {
                 ticketType = 'None';
                 ticketPlan = 'none';
             }
-            
+
             const d = new Date(newExpiry);
-            const strDate = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+            const strDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
             batch.update(ref, {
                 ticketExpiryTimestamp: newExpiry,
                 ticketExpiry: strDate,
                 ticketType: ticketType,
                 ticketPlan: ticketPlan,
-                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
             });
-            
+
             const logRef = db.collection('subscription_logs').doc();
             batch.set(logRef, {
                 partnerId: target.id,
@@ -1767,9 +2146,9 @@ function handleManualSubscriptionSubmit(e) {
                 reasonMemo: reasonMemo,
                 reasonText: reasonText,
                 notify: notify,
-                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
             });
-            
+
             // 알림 시스템 연동:
             if (notify) {
                 const notifyRef = db.collection('notifications').doc();
@@ -1780,20 +2159,23 @@ function handleManualSubscriptionSubmit(e) {
                     body: `조치 사유: ${reasonText}\n조치 내용: ${addedDaysMessage}\n\n상세한 변동 내역은 앱 내 샵 관리 메뉴를 통해 확인하실 수 있습니다.`,
                     isRead: false,
                     type: 'SUBSCRIPTION_UPDATE',
-                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
                 });
             }
         });
     });
-    
-    Promise.all(promises).then(() => {
-        return batch.commit();
-    }).then(() => {
-        alert('조치가 성공적으로 반영되었습니다.');
-        closeModal('modal-manual-sub');
-    }).catch(err => {
-        alert('조치 중 오류 발생: ' + err.message);
-    });
+
+    Promise.all(promises)
+        .then(() => {
+            return batch.commit();
+        })
+        .then(() => {
+            alert('조치가 성공적으로 반영되었습니다.');
+            closeModal('modal-manual-sub');
+        })
+        .catch((err) => {
+            alert('조치 중 오류 발생: ' + err.message);
+        });
 }
 
 // ═══════════════════════════════════════
@@ -1802,27 +2184,30 @@ function handleManualSubscriptionSubmit(e) {
 
 function openSubscriptionProductsModal() {
     openModal('modal-subscription-products');
-    
+
     // Load config from Firestore
     const configRef = db.collection('admin_configs').doc('subscription_products');
-    configRef.get().then(doc => {
-        if (doc.exists) {
-            const data = doc.data();
-            applySubProductsData(data);
-        } else {
-            // Apply defaults
+    configRef
+        .get()
+        .then((doc) => {
+            if (doc.exists) {
+                const data = doc.data();
+                applySubProductsData(data);
+            } else {
+                // Apply defaults
+                applyDefaultSubProducts();
+            }
+        })
+        .catch((err) => {
+            console.error('Failed to load subscription config:', err);
             applyDefaultSubProducts();
-        }
-    }).catch(err => {
-        console.error("Failed to load subscription config:", err);
-        applyDefaultSubProducts();
-    });
+        });
 }
 
 function applySubProductsData(data) {
     const trialActive = document.getElementById('sub-promo-trial-active');
     const trialDays = document.getElementById('sub-promo-trial-days');
-    
+
     if (data.promoTrial && data.promoTrial.active) {
         trialActive.checked = true;
         trialDays.value = data.promoTrial.days || 30;
@@ -1831,7 +2216,7 @@ function applySubProductsData(data) {
         trialDays.value = 30; // default 30 but inactive
     }
     togglePromoDays();
-    
+
     if (data.products && data.products.length > 0) {
         renderSubProducts(data.products);
     } else {
@@ -1860,7 +2245,11 @@ function togglePromoDays() {
 }
 
 function resetSubProductsToDefault() {
-    if(confirm('모든 설정을 다독의 기본 상품 양식으로 덮어쓰시겠습니까? 저장 전까지는 실제 적용되지 않습니다.')) {
+    if (
+        confirm(
+            '모든 설정을 다독의 기본 상품 양식으로 덮어쓰시겠습니까? 저장 전까지는 실제 적용되지 않습니다.',
+        )
+    ) {
         applyDefaultSubProducts();
     }
 }
@@ -1877,10 +2266,7 @@ function getDefaultProducts() {
             discountRate: 0,
             color: 'white',
             isActive: true,
-            features: [
-                '지역별 리스트 기본 노출',
-                '파트너 전용 관리자 페이지'
-            ]
+            features: ['지역별 리스트 기본 노출', '파트너 전용 관리자 페이지'],
         },
         {
             id: 'popular_3',
@@ -1895,9 +2281,9 @@ function getDefaultProducts() {
             features: [
                 '지역별 리스트 기본 노출',
                 '검색 노출 순위 소폭 상승',
-                '3개월 결제 시 5% 할인'
+                '3개월 결제 시 5% 할인',
             ],
-            badge: 'Popular'
+            badge: 'Popular',
         },
         {
             id: 'premium_6',
@@ -1913,9 +2299,9 @@ function getDefaultProducts() {
                 '메인 [다독 초이스] 배너 노출 혜택',
                 '추천 리스트 상위 노출 우선권',
                 '파트너 전용 프리미엄 뱃지',
-                '6개월 결제 시 15% 할인'
+                '6개월 결제 시 15% 할인',
             ],
-            badge: 'Best'
+            badge: 'Best',
         },
         {
             id: 'vip_12',
@@ -1931,10 +2317,10 @@ function getDefaultProducts() {
                 '메인 [다독 초이스] 상시 노출 보장',
                 '검색결과 최상단 고정 노출',
                 'VIP 전용 1:1 담당 매니저 배정',
-                '12개월 결제 시 25% 할인'
+                '12개월 결제 시 25% 할인',
             ],
-            badge: 'VIP'
-        }
+            badge: 'VIP',
+        },
     ];
 }
 
@@ -1944,7 +2330,7 @@ function getDefaultProductNameByTier(tier) {
         basic: '1개월 입점권',
         standard: '3개월 입점권',
         premium: '6개월 입점권 (Premium)',
-        vip: '12개월 입점권 (VIP)'
+        vip: '12개월 입점권 (VIP)',
     };
     return nameMap[normalizedTier] || '1개월 입점권';
 }
@@ -1954,7 +2340,7 @@ function getAllDefaultProductNames() {
         getDefaultProductNameByTier('basic'),
         getDefaultProductNameByTier('standard'),
         getDefaultProductNameByTier('premium'),
-        getDefaultProductNameByTier('vip')
+        getDefaultProductNameByTier('vip'),
     ]);
 }
 
@@ -1978,20 +2364,26 @@ function syncProductNameWithTierWhenSafe(productItemEl) {
 function renderSubProducts(products) {
     const container = document.getElementById('sub-products-container');
     container.innerHTML = '';
-    
+
     products.forEach((prod, index) => {
         const id = prod.id || `prod_${Date.now()}_${index}`;
         const normalizedTier = (prod.tier || '').toString().toLowerCase();
         const monthNum = Number(prod.months || 0);
         const selectedTier = ['basic', 'standard', 'premium', 'vip'].includes(normalizedTier)
             ? normalizedTier
-            : (monthNum === 12 ? 'vip' : monthNum === 6 ? 'premium' : monthNum === 3 ? 'standard' : 'basic');
-        
+            : monthNum === 12
+              ? 'vip'
+              : monthNum === 6
+                ? 'premium'
+                : monthNum === 3
+                  ? 'standard'
+                  : 'basic';
+
         let featuresHtml = '';
         if (prod.features && prod.features.length > 0) {
             featuresHtml = prod.features.join('\\n');
         }
-        
+
         container.innerHTML += `
             <div class="sub-product-item border border-[#2A3731] bg-[#11291D]/30 p-5 rounded-xl shadow-sm relative group transition-all" data-id="${id}">
                 <div class="absolute top-4 right-4 flex items-center gap-2">
@@ -2057,7 +2449,7 @@ function renderSubProducts(products) {
             </div>
         `;
     });
-    
+
     // Add product button
     container.innerHTML += `
         <button type="button" onclick="addNewEmptyProduct()" class="col-span-full py-12 text-center text-[#A7B2AE] hover:text-[#06110D] bg-[#06110D] rounded-xl border border-dashed border-[#2A3731] hover:border-[var(--point-color)] hover:bg-[var(--point-color)] transition-all group flex flex-col items-center gap-2">
@@ -2069,7 +2461,7 @@ function renderSubProducts(products) {
 
 function addNewEmptyProduct() {
     const container = document.getElementById('sub-products-container');
-    const products = Array.from(container.querySelectorAll('.sub-product-item')).map(el => {
+    const products = Array.from(container.querySelectorAll('.sub-product-item')).map((el) => {
         return {
             id: el.dataset.id,
             isActive: el.querySelector('.prod-active').checked,
@@ -2078,12 +2470,16 @@ function addNewEmptyProduct() {
             months: parseInt(el.querySelector('.prod-months').value) || 1,
             originalPrice: parseInt(el.querySelector('.prod-original-price').value) || 0,
             price: parseInt(el.querySelector('.prod-price').value) || 0,
-            features: el.querySelector('.prod-features').value.split('\n').map(f => f.trim()).filter(f => f),
+            features: el
+                .querySelector('.prod-features')
+                .value.split('\n')
+                .map((f) => f.trim())
+                .filter((f) => f),
             color: el.querySelector('.prod-color').value,
-            badge: el.querySelector('.prod-badge').value
+            badge: el.querySelector('.prod-badge').value,
         };
     });
-    
+
     products.push({
         id: `prod_${Date.now()}`,
         isActive: true,
@@ -2093,26 +2489,26 @@ function addNewEmptyProduct() {
         originalPrice: 300000,
         price: 300000,
         color: 'white',
-        features: ['기본 혜택']
+        features: ['기본 혜택'],
     });
-    
+
     renderSubProducts(products);
 }
 
 function handleSubProductsSubmit(e) {
-    if(e) e.preventDefault();
-    
+    if (e) e.preventDefault();
+
     const trialActive = document.getElementById('sub-promo-trial-active').checked;
     const trialDays = parseInt(document.getElementById('sub-promo-trial-days').value) || 30;
-    
+
     const productElements = document.querySelectorAll('.sub-product-item');
     const products = [];
-    
-    productElements.forEach(el => {
+
+    productElements.forEach((el) => {
         let discountRate = 0;
         let p = parseInt(el.querySelector('.prod-price').value) || 0;
         let op = parseInt(el.querySelector('.prod-original-price').value) || 0;
-        if(op > 0 && p < op) {
+        if (op > 0 && p < op) {
             discountRate = Math.round(((op - p) / op) * 100);
         }
 
@@ -2125,28 +2521,34 @@ function handleSubProductsSubmit(e) {
             originalPrice: op,
             price: p,
             discountRate: discountRate,
-            features: el.querySelector('.prod-features').value.split('\n').map(f => f.trim()).filter(f => f),
+            features: el
+                .querySelector('.prod-features')
+                .value.split('\n')
+                .map((f) => f.trim())
+                .filter((f) => f),
             color: el.querySelector('.prod-color').value,
-            badge: el.querySelector('.prod-badge').value
+            badge: el.querySelector('.prod-badge').value,
         });
     });
-    
+
     const configData = {
         promoTrial: {
             active: trialActive,
-            days: trialDays
+            days: trialDays,
         },
         products: products,
-        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
     };
-    
-    db.collection('admin_configs').doc('subscription_products').set(configData, {merge: true})
+
+    db.collection('admin_configs')
+        .doc('subscription_products')
+        .set(configData, { merge: true })
         .then(() => {
             alert('입점권 상품 구성 정보가 저장되었습니다.');
             closeModal('modal-subscription-products');
         })
-        .catch(err => {
-            console.error("Error saving config: ", err);
-            alert("정보 저장 중 오류가 발생했습니다: " + err.message);
+        .catch((err) => {
+            console.error('Error saving config: ', err);
+            alert('정보 저장 중 오류가 발생했습니다: ' + err.message);
         });
 }
