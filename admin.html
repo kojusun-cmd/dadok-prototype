@@ -13,6 +13,20 @@
     <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-firestore-compat.js"></script>
+    <script>
+        window.addEventListener('error', function(e) {
+            const errDiv = document.createElement('div');
+            errDiv.style.cssText = 'background:red;color:white;z-index:999999;position:fixed;top:0;left:0;padding:15px;width:100%;font-size:18px;font-weight:bold;';
+            errDiv.innerText = 'JS ERROR: ' + e.message + ' at ' + e.filename + ':' + e.lineno;
+            document.body.appendChild(errDiv);
+        });
+        window.addEventListener('unhandledrejection', function(e) {
+            const errDiv = document.createElement('div');
+            errDiv.style.cssText = 'background:orange;color:black;z-index:999999;position:fixed;top:40px;left:0;padding:15px;width:100%;font-size:18px;font-weight:bold;';
+            errDiv.innerText = 'UNHANDLED REJECTION: ' + (e.reason ? e.reason.stack || e.reason : 'unknown');
+            document.body.appendChild(errDiv);
+        });
+    </script>
 </head>
 <body class="bg-[#050D0A] text-[#A7B2AE] font-sans antialiased min-h-screen">
     
@@ -45,6 +59,7 @@
                 <li><a href="#" onclick="switchTab('shops')" class="tab-link flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-[#11291D] hover:text-white transition-colors">마사지 샵 관리</a></li>
                 <li><a href="#" onclick="switchTab('subscriptions')" class="tab-link flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-[#11291D] hover:text-white transition-colors">입점권 관리</a></li>
                 <li><a href="#" onclick="switchTab('categories')" class="tab-link flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-[#11291D] hover:text-white transition-colors">앱 카테고리 관리</a></li>
+                <li><a href="#" onclick="switchTab('cs')" class="tab-link flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-[#11291D] hover:text-white transition-colors">신고 및 문의 관리 (CS)</a></li>
             </ul>
         </nav>
         
@@ -501,8 +516,138 @@
                     </tbody>
                 </table>
             </div>
-            
         </div>
+            
+        <!-- CS Management Tab -->
+        <div id="tab-cs" class="tab-content hidden h-full">
+            <div class="h-full flex flex-col">
+                <div class="flex justify-between items-center mb-6 mt-6 shrink-0">
+                    <div>
+                        <h2 class="text-3xl font-bold text-white mb-2">신고 및 문의 관리 (CS)</h2>
+                        <p class="text-[#A7B2AE]">고객 및 파트너의 신고와 문의 내역을 확인하고 처리하거나 항목을 관리합니다.</p>
+                    </div>
+                </div>
+
+                <!-- Sub-tabs navigation -->
+                <div class="flex gap-4 border-b border-[#2A3731] mb-6 shrink-0">
+                    <button onclick="switchCSSubTab('cs-dashboard-view')" id="btn-cs-dashboard-view" class="cs-sub-tab-btn pb-2 text-[var(--point-color)] border-b-2 border-[var(--point-color)] font-medium transition-colors">CS 통합 대시보드</button>
+                    <button onclick="switchCSSubTab('cs-settings-view')" id="btn-cs-settings-view" class="cs-sub-tab-btn pb-2 text-[#A7B2AE] hover:text-white border-b-2 border-transparent font-medium transition-colors">CS 항목 및 사유 설정</button>
+                </div>
+
+                <!-- CS Dashboard Sub-view -->
+                <div id="cs-dashboard-view" class="cs-sub-tab-content flex-1 flex flex-col min-h-0 block">
+                    <!-- CS Summary Dashboard -->
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8 shrink-0">
+                        <button onclick="filterCSTickets('customer_report')" class="bg-[#0A1B13] border border-[#2A3731] hover:border-red-500/50 rounded-2xl p-4 flex flex-col items-center justify-center transition-all cursor-pointer cs-filter-btn" data-type="customer_report">
+                            <span class="text-[#A7B2AE] text-sm mb-2 font-bold">🚨 고객 신고</span>
+                            <strong class="text-3xl text-white" id="count-customer-report">0</strong>
+                        </button>
+                        <button onclick="filterCSTickets('partner_report')" class="bg-[#0A1B13] border border-[#2A3731] hover:border-orange-500/50 rounded-2xl p-4 flex flex-col items-center justify-center transition-all cursor-pointer cs-filter-btn" data-type="partner_report">
+                            <span class="text-[#A7B2AE] text-sm mb-2 font-bold">🏬 업체 신고</span>
+                            <strong class="text-3xl text-white" id="count-partner-report">0</strong>
+                        </button>
+                        <button onclick="filterCSTickets('customer_inquiry')" class="bg-[#0A1B13] border border-[#2A3731] hover:border-[var(--point-color)]/50 rounded-2xl p-4 flex flex-col items-center justify-center transition-all cursor-pointer cs-filter-btn" data-type="customer_inquiry">
+                            <span class="text-[#A7B2AE] text-sm mb-2 font-bold">💬 고객 문의</span>
+                            <strong class="text-3xl text-[var(--point-color)]" id="count-customer-inquiry">0</strong>
+                        </button>
+                        <button onclick="filterCSTickets('partner_inquiry')" class="bg-[#0A1B13] border border-[#2A3731] hover:border-blue-500/50 rounded-2xl p-4 flex flex-col items-center justify-center transition-all cursor-pointer cs-filter-btn" data-type="partner_inquiry">
+                            <span class="text-[#A7B2AE] text-sm mb-2 font-bold">🎧 업체 문의</span>
+                            <strong class="text-3xl text-white" id="count-partner-inquiry">0</strong>
+                        </button>
+                    </div>
+
+                    <!-- CS Filter & Search -->
+                    <div class="flex flex-col md:flex-row gap-4 mb-6 shrink-0">
+                        <select id="cs-status-filter" onchange="loadCSTickets()" class="bg-[#0A1B13] border border-[#2A3731] text-white rounded-xl px-4 py-3 focus:outline-none focus:border-[var(--point-color)] min-w-[200px]">
+                            <option value="all">처리 상태 전체 보기</option>
+                            <option value="pending" selected>대기 중 (미처리)</option>
+                            <option value="in_progress">처리 중</option>
+                            <option value="resolved">처리 완료</option>
+                        </select>
+                        <div class="flex-1 relative">
+                            <input type="text" id="cs-search-input" placeholder="작성명, 내용, 제목 검색..." onkeyup="if(event.key==='Enter') loadCSTickets()" class="w-full bg-[#0A1B13] border border-[#2A3731] text-white rounded-xl px-4 py-3 pr-12 focus:outline-none focus:border-[var(--point-color)]">
+                            <button onclick="loadCSTickets()" class="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--point-color)] hover:text-white transition-colors">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                            </button>
+                        </div>
+                        <button onclick="loadCSTickets()" class="bg-[#11291D] hover:bg-[#1A3A2A] border border-[#2A3731] text-white rounded-xl px-6 py-3 transition-colors flex items-center justify-center gap-2">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                            새로고침
+                        </button>
+                    </div>
+
+                    <!-- CS Ticket List Table -->
+                    <div class="bg-[#0A1B13] border border-[#2A3731] rounded-2xl overflow-hidden flex-1 flex flex-col min-h-0">
+                        <div class="overflow-x-auto flex-1 overflow-y-auto hidden-scrollbar">
+                            <table class="w-full text-left border-collapse relative">
+                                <thead class="sticky top-0 bg-[#11291D] z-10 shadow-md">
+                                    <tr class="text-[#A7B2AE] text-sm border-b border-[#2A3731]">
+                                        <th class="p-4 font-medium whitespace-nowrap">분류</th>
+                                        <th class="p-4 font-medium whitespace-nowrap">상태</th>
+                                        <th class="p-4 font-medium w-full min-w-[300px]">제목 / 주요 내용</th>
+                                        <th class="p-4 font-medium whitespace-nowrap">작성자</th>
+                                        <th class="p-4 font-medium whitespace-nowrap">작성일시</th>
+                                        <th class="p-4 font-medium whitespace-nowrap text-center">관리</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="cs-ticket-table-body" class="divide-y divide-[#2A3731] text-sm text-white/80">
+                                    <!-- JS Rendered -->
+                                    <tr><td colspan="6" class="p-8 text-center text-[#A7B2AE]">CS 데이터를 불러오는 중...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CS Settings Sub-view -->
+                <div id="cs-settings-view" class="cs-sub-tab-content flex flex-col md:flex-row gap-6 flex-1 min-h-[500px] hidden">
+                    <!-- Left Menu -->
+                    <div class="w-full md:w-1/3 lg:w-1/4 flex flex-col gap-2">
+                        <div class="text-xs font-bold text-[#A7B2AE] px-2 pb-1">CS (신고/문의) 분류 목록</div>
+                        <button onclick="selectCSCategoryType('customer_report_reason')" id="cs-menu-cat-customer_report_reason" class="flex justify-between items-center px-4 py-3 rounded-xl text-left bg-[#11291D] border border-[var(--point-color)] text-[var(--point-color)] font-bold transition-all">
+                            <span>고객 신고 사유</span>
+                            <span id="cs-badge-customer_report_reason" class="text-xs bg-[#06110D] px-2 py-1 rounded-md text-[#A7B2AE]">-</span>
+                        </button>
+                        <button onclick="selectCSCategoryType('partner_report_reason')" id="cs-menu-cat-partner_report_reason" class="flex justify-between items-center px-4 py-3 rounded-xl text-left bg-[#0A1B13] border border-[#2A3731] text-[#A7B2AE] hover:bg-[#11291D] hover:text-white transition-all">
+                            <span>업체 신고 사유</span>
+                            <span id="cs-badge-partner_report_reason" class="text-xs bg-[#06110D] px-2 py-1 rounded-md text-[#A7B2AE]">-</span>
+                        </button>
+                        <button onclick="selectCSCategoryType('customer_inquiry_type')" id="cs-menu-cat-customer_inquiry_type" class="flex justify-between items-center px-4 py-3 rounded-xl text-left bg-[#0A1B13] border border-[#2A3731] text-[#A7B2AE] hover:bg-[#11291D] hover:text-white transition-all">
+                            <span>고객 문의 유형</span>
+                            <span id="cs-badge-customer_inquiry_type" class="text-xs bg-[#06110D] px-2 py-1 rounded-md text-[#A7B2AE]">-</span>
+                        </button>
+                        <button onclick="selectCSCategoryType('partner_inquiry_type')" id="cs-menu-cat-partner_inquiry_type" class="flex justify-between items-center px-4 py-3 rounded-xl text-left bg-[#0A1B13] border border-[#2A3731] text-[#A7B2AE] hover:bg-[#11291D] hover:text-white transition-all">
+                            <span>업체 문의 유형</span>
+                            <span id="cs-badge-partner_inquiry_type" class="text-xs bg-[#06110D] px-2 py-1 rounded-md text-[#A7B2AE]">-</span>
+                        </button>
+                    </div>
+
+                    <!-- Right Content (Detail) -->
+                    <div class="w-full md:w-2/3 lg:w-3/4 h-full flex flex-col">
+                        <div class="bg-[#0A1B13] border border-[#2A3731] rounded-2xl p-6 shadow-lg h-full flex flex-col">
+                            
+                            <!-- Header -->
+                            <div class="mb-6 pb-4 border-b border-[#2A3731] shrink-0">
+                                <h3 id="cs-detail-cat-title" class="text-xl font-bold text-white mb-2">고객 신고 사유</h3>
+                                <p id="cs-detail-cat-desc" class="text-sm text-[#A7B2AE]">앱 내에서 고객이 제휴점을 신고할 때 제공되는 사유 목록입니다.</p>
+                            </div>
+
+                            <!-- Active List Container -->
+                            <div id="cs-detail-cat-list" class="flex flex-wrap gap-2 mb-6 flex-grow items-start content-start overflow-y-auto">
+                                <span class="text-sm text-[#A7B2AE]">좌측 항목을 선택하거나 데이터 로딩중입니다...</span>
+                            </div>
+
+                            <!-- Instant Input form -->
+                            <form id="cs-inline-category-form" onsubmit="handleCSInlineSubmit(event)" class="mt-auto shrink-0 flex gap-3 bg-[#06110D] p-2 rounded-xl border border-[#2A3731] focus-within:border-[var(--point-color)] transition-colors">
+                                <input type="text" id="cs-inline-cat-input" required class="flex-grow bg-transparent px-3 py-2 text-white placeholder-[#A7B2AE] focus:outline-none text-sm" placeholder="새로운 사유/항목 입력 후 엔터...">
+                                <button type="submit" class="px-5 py-2 bg-[#11291D] text-[var(--point-color)] font-bold rounded-lg hover:bg-[#183928] whitespace-nowrap text-sm">추가하기</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
     </main>
 
     <!-- Modals -->
@@ -732,8 +877,65 @@
                 </button>
             </div>
         </div>
+        </div>
     </div>
+    
+    <!-- CS Slide-over Detail Panel -->
+    <div id="slide-cs-detail" class="fixed inset-y-0 right-0 w-full max-w-2xl bg-[#0A1B13] border-l border-[#2A3731] transform translate-x-full transition-transform duration-300 ease-in-out z-[60] shadow-2xl flex flex-col">
+        <div class="px-6 py-4 border-b border-[#2A3731] flex justify-between items-center bg-[#06110D] sticky top-0 shrink-0">
+            <h3 class="text-xl font-bold text-white flex items-center gap-2">
+                <span id="cs-detail-badge" class="px-2 py-0.5 rounded text-xs font-bold ring-1">미처리</span> 
+                <span>상세 내역</span>
+            </h3>
+            <button onclick="closeCSDetailPanel()" class="text-[#A7B2AE] hover:text-[var(--point-color)] transition-colors bg-[#11291D] hover:bg-[#1A3A2A] p-2 rounded-xl">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+        </div>
+        <div class="p-6 overflow-y-auto flex-1 space-y-6 hidden-scrollbar" id="cs-detail-content">
+            <!-- Details content loaded via JS -->
+            <p class="text-center text-[#A7B2AE] py-8">데이터 로드 중...</p>
+        </div>
+        <div class="p-4 border-t border-[#2A3731] bg-[#06110D] flex items-center gap-3 shrink-0" id="cs-detail-actions">
+            <!-- Action buttons loaded via JS -->
+        </div>
     </div>
+    
+    <!-- Penalty Issue Modal (Triggered inside CS Slide-over) -->
+    <div id="modal-cs-penalty" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[70] hidden flex items-center justify-center p-4">
+        <div class="bg-[#0A1B13] border border-[#2A3731] rounded-2xl w-full max-w-md shadow-2xl flex flex-col overflow-hidden">
+            <div class="p-5 border-b border-[#2A3731] flex justify-between items-center bg-[#06110D] shrink-0">
+                <h3 class="text-lg font-bold text-[var(--point-color)] flex items-center gap-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                    패널티 강력 부여 창
+                </h3>
+                <button type="button" onclick="closeModal('modal-cs-penalty')" class="text-gray-400 hover:text-white p-2">✕</button>
+            </div>
+            <div class="p-6 space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-[#A7B2AE] mb-1">대상</label>
+                    <input type="text" id="penalty-target-name" readonly class="w-full bg-[#11291D] border border-[#2A3731] rounded-xl px-4 py-3 text-white focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-[#A7B2AE] mb-1">패널티 종류</label>
+                    <select id="penalty-type" class="w-full bg-[#06110D] border border-[#2A3731] rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[var(--point-color)]">
+                        <option value="warning">1차 경고 (경고장 발송)</option>
+                        <option value="suspend_7">7일 노출 정지 (이용 제한)</option>
+                        <option value="suspend_30">30일 노출 정지 (이용 제한)</option>
+                        <option value="ban" class="text-red-400 font-bold">영구 퇴출 (강제 탈퇴/계정 정지)</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-[#A7B2AE] mb-1">상세 사유 기록 (대상에게 발송됨)</label>
+                    <textarea id="penalty-reason" rows="3" class="w-full bg-[#06110D] border border-[#2A3731] rounded-xl px-4 py-3 text-white focus:outline-none focus:border-red-500" placeholder="위반 사항에 대해 구체적으로 작성해주세요."></textarea>
+                </div>
+            </div>
+            <div class="p-4 border-t border-[#2A3731] flex gap-3">
+                <button type="button" onclick="closeModal('modal-cs-penalty')" class="flex-1 px-4 py-3 bg-[#11291D] text-white rounded-xl font-bold transition-all hover:bg-[#1A3A2A]">취소</button>
+                <button type="button" onclick="submitCSPenalty()" class="flex-1 px-4 py-3 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-xl font-bold transition-all hover:brightness-110 shadow-[0_0_15px_rgba(220,38,38,0.3)]">부여 및 즉시 처리</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Scripts -->
     <script src="./assets/js/admin.js?v=20260412_9"></script>
     <style>

@@ -3580,6 +3580,48 @@ const filterSheet = document.getElementById('filter-sheet');
             }
 
             // [고객센터] 신고/문의 화면 관련
+            const supportTypeFallbacks = {
+                report: ['불법 성매매 제안/요구', '욕설 및 비매너 행위', '사기 / 금전 요구', '기타 신고'],
+                inquiry: ['이용 방법 문의', '파트너 권한/승인 문의', '앱 오류 / 버그 제보', '기타 문의']
+            };
+
+            function getSupportFilterDocKey(tab) {
+                return tab === 'report' ? 'customer_report_reason' : 'customer_inquiry_type';
+            }
+
+            async function loadSupportTypeOptions(tab) {
+                const select = document.getElementById('support-type');
+                if (!select) return;
+
+                const fallback = supportTypeFallbacks[tab] || [];
+                const renderOptions = (options) => {
+                    select.innerHTML = options
+                        .map(label => `<option value="${label}">${label}</option>`)
+                        .join('');
+                };
+
+                // 네트워크/권한 이슈가 있어도 빈 드롭다운이 되지 않도록 기본값을 즉시 표시
+                renderOptions(fallback);
+
+                if (typeof firebase !== 'undefined') {
+                    try {
+                        const docKey = getSupportFilterDocKey(tab);
+                        const doc = await firebase.firestore().collection('app_filters').doc(docKey).get();
+                        if (doc.exists) {
+                            const dbOptions = Array.isArray(doc.data()?.options) ? doc.data().options : [];
+                            const sanitized = dbOptions
+                                .map(v => (typeof v === 'string' ? v.trim() : ''))
+                                .filter(Boolean);
+                            if (sanitized.length > 0) {
+                                renderOptions(sanitized);
+                            }
+                        }
+                    } catch (e) {
+                        console.error('신고/문의 유형 로드 실패:', e);
+                    }
+                }
+            }
+
             function openSupportScreen() {
                 const supportModal = document.getElementById('support-modal');
                 supportModal.style.display = 'flex';
@@ -3617,13 +3659,6 @@ const filterSheet = document.getElementById('filter-sheet');
                     tabInquiry.classList.add('text-[var(--text-sub)]');
                     tabInquiry.classList.remove('text-[var(--point-color)]');
                     desc.innerHTML = '건강하고 클린한 환경을 위해<br>불법·불쾌 행위 제보를 받습니다.';
-
-                    select.innerHTML = `
-                <option value="illegal">불법 성매매 제안/요구</option>
-                <option value="abuse">욕설 및 비매너 행위</option>
-                <option value="scam">사기 / 금전 요구</option>
-                <option value="other">기타 신고</option>
-            `;
                 } else {
                     tabBg.style.transform = 'translateX(100%)';
                     tabInquiry.classList.add('text-[var(--point-color)]');
@@ -3631,17 +3666,11 @@ const filterSheet = document.getElementById('filter-sheet');
                     tabReport.classList.add('text-[var(--text-sub)]');
                     tabReport.classList.remove('text-[var(--point-color)]');
                     desc.innerHTML = '다독 이용 중 궁금하신 점이나<br>불편 사항을 남겨주시면 답변해 드립니다.';
-
-                    select.innerHTML = `
-                <option value="usage">이용 방법 문의</option>
-                <option value="partner">파트너 권한/승인 문의</option>
-                <option value="error">앱 오류 / 버그 제보</option>
-                <option value="other">기타 문의</option>
-            `;
                 }
+                loadSupportTypeOptions(tab);
             }
 
-            function submitSupportForm() {
+            async function submitSupportForm() {
                 const content = document.getElementById('support-content');
                 if (!content.value.trim()) {
                     showCustomToast("상세 내용을 입력해주세요.");
@@ -3649,10 +3678,42 @@ const filterSheet = document.getElementById('filter-sheet');
                     return;
                 }
 
-                showCustomToast("정상적으로 접수되었습니다. 최대한 빠르게 답변드리겠습니다.");
-                setTimeout(() => {
-                    closeSupportScreen();
-                }, 1500);
+                if (typeof firebase === 'undefined') {
+                    showCustomToast("현재 접수 시스템 연결에 실패했습니다. 잠시 후 다시 시도해주세요.");
+                    return;
+                }
+
+                const isReportTab = document.getElementById('tab-report')?.classList.contains('text-[var(--point-color)]');
+                const type = isReportTab ? 'customer_report' : 'customer_inquiry';
+                const supportTypeSelect = document.getElementById('support-type');
+                const selectedCategory = supportTypeSelect?.value || '';
+                const selectedCategoryText = supportTypeSelect?.selectedOptions?.[0]?.textContent || selectedCategory || '일반';
+                const rawContent = content.value.trim();
+                const title = `[${selectedCategoryText}] ${rawContent.slice(0, 30)}${rawContent.length > 30 ? '...' : ''}`;
+                const userId = localStorage.getItem('dadok_username') || sessionStorage.getItem('dadok_username') || 'anonymous';
+
+                try {
+                    await firebase.firestore().collection('cs_tickets').add({
+                        type: type,
+                        status: 'pending',
+                        title: title,
+                        content: rawContent,
+                        author: userId,
+                        category: selectedCategory,
+                        categoryLabel: selectedCategoryText,
+                        source: 'app_user_support',
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+
+                    showCustomToast("정상적으로 접수되었습니다. 최대한 빠르게 답변드리겠습니다.");
+                    setTimeout(() => {
+                        closeSupportScreen();
+                    }, 1500);
+                } catch (e) {
+                    console.error('신고/문의 접수 실패:', e);
+                    showCustomToast("접수 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
+                }
             }
             // [모바일 뒤로가기 방어 로직 - Stack 기반 구조 개선]
             // 모달을 열 때마다 스택에 추가하고, 기기 뒤로가기 시 최상단 요소부터 순차적으로 하나씩 닫습니다.

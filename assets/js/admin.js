@@ -100,6 +100,46 @@ const DEFAULT_FILTERS = {
             '40대 중후반',
         ],
     },
+    customer_report_reason: {
+        title: '고객 신고 사유',
+        options: [
+            '연락두절 / 노쇼',
+            '불친절 및 욕설',
+            '서비스 불만족',
+            '허위 매물 / 정보 불일치',
+            '기타',
+        ],
+    },
+    partner_report_reason: {
+        title: '업체 신고 사유',
+        options: [
+            '연락두절 / 노쇼 고객',
+            '비정상적인 환불 요구',
+            '욕설 및 폭언',
+            '타업체 광고 목적',
+            '기타',
+        ],
+    },
+    customer_inquiry_type: {
+        title: '고객 문의 유형',
+        options: [
+            '결제/환불 관련',
+            '예약 관련 안내',
+            '서비스 이용 불편',
+            '계정 및 권한 안내',
+            '기타',
+        ],
+    },
+    partner_inquiry_type: {
+        title: '업체 문의 유형',
+        options: [
+            '입점권 결제/연장',
+            '패널티 차감 해제 요청',
+            '광고 및 프로모션 안내',
+            '정산 및 수수료 안내',
+            '기타',
+        ],
+    },
 };
 
 const FILTER_STYLES = {
@@ -121,6 +161,11 @@ const FILTER_LABELS = {
     massage: '마사지 테마',
     place: '샵 형태',
     age: '관리사 연령',
+    categories: '제휴점 공용 태그',
+    customer_report_reason: '고객 신고 사유',
+    partner_report_reason: '업체 신고 사유',
+    customer_inquiry_type: '고객 문의 유형',
+    partner_inquiry_type: '업체 문의 유형',
 };
 
 // ─── Tab System ───
@@ -138,6 +183,7 @@ function switchTab(tabId) {
     else if (tabId === 'categories') loadAllFilters();
     else if (tabId === 'subscriptions') loadSubscriptionUsage();
     else if (tabId === 'dashboard') updateDashboardStats();
+    else if (tabId === 'cs') loadCSTickets();
 }
 
 function updateDashboardStats() {
@@ -198,14 +244,16 @@ window.addEventListener('DOMContentLoaded', () => {
         });
 
     // 앱 필터 실시간 감시
-    ['massage', 'place', 'age'].forEach((key) => {
+    ['massage', 'place', 'age', 'categories', 'customer_report_reason', 'partner_report_reason', 'customer_inquiry_type', 'partner_inquiry_type'].forEach((key) => {
+        if (key === 'categories') return;
         db.collection('app_filters')
             .doc(key)
             .onSnapshot((doc) => {
                 const data = doc.exists ? doc.data().options || [] : [];
                 categoryData[key] = data;
                 updateCategoryBadge(key, data.length);
-                if (currentCategoryType === key) renderActiveCategoryList();
+                if (typeof currentCategoryType !== 'undefined' && currentCategoryType === key) renderActiveCategoryList();
+                if (typeof currentCSCategoryType !== 'undefined' && currentCSCategoryType === key) renderCSActiveCategoryList();
             });
     });
 });
@@ -215,6 +263,7 @@ window.addEventListener('DOMContentLoaded', () => {
 // ═══════════════════════════════════════
 
 let currentCategoryType = 'massage';
+let currentCSCategoryType = 'customer_report_reason';
 const CATEGORY_META = {
     massage: {
         title: '마사지 테마',
@@ -236,6 +285,26 @@ const CATEGORY_META = {
         desc: '모든 제휴점들이 공통으로 사용할 수 있는 일반 정보 태그 풀을 설정합니다.',
         isFilter: false,
     },
+    customer_report_reason: {
+        title: '고객 신고 사유',
+        desc: '고객이 파트너 업체를 신고할 때 선택할 수 있는 사유 목록입니다.',
+        isFilter: true,
+    },
+    partner_report_reason: {
+        title: '업체 신고 사유',
+        desc: '파트너 업체가 고객을 신고할 때 선택할 수 있는 사유 목록입니다.',
+        isFilter: true,
+    },
+    customer_inquiry_type: {
+        title: '고객 문의 유형',
+        desc: '고객이 CS 센터에 문의할 때 선택할 수 있는 유형 목록입니다.',
+        isFilter: true,
+    },
+    partner_inquiry_type: {
+        title: '업체 문의 유형',
+        desc: '파트너 업체가 CS 센터에 문의할 때 선택할 수 있는 유형 목록입니다.',
+        isFilter: true,
+    },
 };
 
 let categoryData = {
@@ -243,6 +312,10 @@ let categoryData = {
     place: [],
     age: [],
     categories: [],
+    customer_report_reason: [],
+    partner_report_reason: [],
+    customer_inquiry_type: [],
+    partner_inquiry_type: [],
 };
 
 // 최초 로딩 시 데이터 전부 불러오고 첫 탭 선택 (DOMContentLoaded 내 listener들에 의해 데이터는 자동 갱신됨)
@@ -261,8 +334,11 @@ function selectCategoryType(type) {
             btn.className =
                 'flex justify-between items-center px-4 py-4 rounded-xl text-left bg-[#11291D] border border-[var(--point-color)] text-[var(--point-color)] font-bold transition-all';
         } else {
+            // Keep styling for CS section smaller padding
+            const isCs = key.includes('report') || key.includes('inquiry');
+            const padding = isCs ? 'py-3' : 'py-4';
             btn.className =
-                'flex justify-between items-center px-4 py-4 rounded-xl text-left bg-[#0A1B13] border border-[#2A3731] text-[#A7B2AE] hover:bg-[#11291D] hover:text-white transition-all';
+                `flex justify-between items-center px-4 ${padding} rounded-xl text-left bg-[#0A1B13] border border-[#2A3731] text-[#A7B2AE] hover:bg-[#11291D] hover:text-white transition-all`;
         }
     });
 
@@ -277,6 +353,8 @@ function selectCategoryType(type) {
 function updateCategoryBadge(type, count) {
     const badge = document.getElementById(`badge-${type}`);
     if (badge) badge.textContent = count;
+    const csBadge = document.getElementById(`cs-badge-${type}`);
+    if (csBadge) csBadge.textContent = count;
 }
 
 function renderActiveCategoryList() {
@@ -371,6 +449,112 @@ function removeCategoryItem(type, idOrName) {
             .doc(idOrName)
             .delete()
             .catch((err) => alert('삭제 오류: ' + err.message));
+    }
+}
+
+// ─── CS Category Logic ───
+function switchCSSubTab(tabId) {
+    document.querySelectorAll('.cs-sub-tab-content').forEach(el => el.classList.add('hidden'));
+    document.querySelectorAll('.cs-sub-tab-btn').forEach(btn => {
+        btn.classList.remove('text-[var(--point-color)]', 'border-[var(--point-color)]');
+        btn.classList.add('text-[#A7B2AE]', 'border-transparent');
+    });
+
+    document.getElementById(tabId).classList.remove('hidden');
+    document.getElementById(`btn-${tabId}`).classList.remove('text-[#A7B2AE]', 'border-transparent');
+    document.getElementById(`btn-${tabId}`).classList.add('text-[var(--point-color)]', 'border-[var(--point-color)]');
+
+    if (tabId === 'cs-settings-view') {
+        selectCSCategoryType(currentCSCategoryType || 'customer_report_reason');
+    }
+}
+
+function selectCSCategoryType(type) {
+    currentCSCategoryType = type;
+
+    // Update active styles on the sidebar
+    ['customer_report_reason', 'partner_report_reason', 'customer_inquiry_type', 'partner_inquiry_type'].forEach((key) => {
+        const btn = document.getElementById(`cs-menu-cat-${key}`);
+        if (!btn) return;
+        if (key === type) {
+            btn.className =
+                'flex justify-between items-center px-4 py-3 rounded-xl text-left bg-[#11291D] border border-[var(--point-color)] text-[var(--point-color)] font-bold transition-all';
+        } else {
+            btn.className =
+                'flex justify-between items-center px-4 py-3 rounded-xl text-left bg-[#0A1B13] border border-[#2A3731] text-[#A7B2AE] hover:bg-[#11291D] hover:text-white transition-all';
+        }
+    });
+
+    // Update Header
+    document.getElementById('cs-detail-cat-title').textContent = CATEGORY_META[type].title;
+    document.getElementById('cs-detail-cat-desc').textContent = CATEGORY_META[type].desc;
+
+    // Render list
+    renderCSActiveCategoryList();
+}
+
+function renderCSActiveCategoryList() {
+    const listContainer = document.getElementById('cs-detail-cat-list');
+    if (!listContainer) return;
+
+    const items = categoryData[currentCSCategoryType];
+    const meta = CATEGORY_META[currentCSCategoryType];
+
+    if (!items || items.length === 0) {
+        listContainer.innerHTML = `<span class="text-sm text-[#A7B2AE]">등록된 항목이 없습니다.</span>`;
+        return;
+    }
+
+    listContainer.innerHTML = items
+        .map((item, idx) => {
+            const isDefault = meta.isFilter && idx === 0;
+            const displayName = meta.isFilter ? item : item.name;
+            const itemId = meta.isFilter ? item : item.id;
+
+            return `
+            <div class="px-4 py-2 bg-[#11291D] border border-[#2A3731] rounded-full text-[var(--point-color)] text-sm flex items-center gap-2 group shadow-sm transition-all hover:brightness-110">
+                ${isDefault ? '🔒 ' : ''}${displayName}
+                ${!isDefault ? `<button onclick="removeCategoryItem('${currentCSCategoryType}', '${itemId.replace(/'/g, "\\'")}')" class="text-[#A7B2AE] opacity-0 group-hover:opacity-100 transition-opacity ml-1 hover:text-white" title="삭제">✕</button>` : ''}
+            </div>
+        `;
+        })
+        .join('');
+}
+
+function handleCSInlineSubmit(e) {
+    e.preventDefault();
+    const inputEl = document.getElementById('cs-inline-cat-input');
+    const val = inputEl.value.trim();
+    if (!val) return;
+
+    const meta = CATEGORY_META[currentCSCategoryType];
+
+    if (meta.isFilter) {
+        const ref = db.collection('app_filters').doc(currentCSCategoryType);
+        ref.get()
+            .then((doc) => {
+                if (doc.exists) {
+                    const current = doc.data().options || [];
+                    if (current.includes(val)) {
+                        alert('이미 존재하는 항목입니다.');
+                        return;
+                    }
+                    return ref.update({
+                        options: firebase.firestore.FieldValue.arrayUnion(val),
+                        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    });
+                } else {
+                    return ref.set({
+                        title: meta.title,
+                        options: ['전체', val],
+                        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    });
+                }
+            })
+            .then(() => {
+                inputEl.value = '';
+            })
+            .catch((err) => alert('추가 오류: ' + err.message));
     }
 }
 
@@ -2552,3 +2736,308 @@ function handleSubProductsSubmit(e) {
             alert('정보 저장 중 오류가 발생했습니다: ' + err.message);
         });
 }
+
+// ==========================================
+// CS Center Logic (고객 센터)
+// ==========================================
+
+let currentCSType = 'customer_report';
+let csTicketsData = [];
+let activeCSTicketId = null;
+
+function initCSTicketsListener() {
+    db.collection('cs_tickets')
+        .orderBy('createdAt', 'desc')
+        .onSnapshot(snapshot => {
+            csTicketsData = snapshot.docs.map(doc => {
+                const data = doc.data();
+                let displayDate = '';
+                if (data.createdAt) {
+                    if (typeof data.createdAt.toMillis === 'function') {
+                        displayDate = new Date(data.createdAt.toMillis()).toLocaleString();
+                    } else if (data.createdAt.seconds) { // Just in case it's a raw object
+                        displayDate = new Date(data.createdAt.seconds * 1000).toLocaleString();
+                    } else if (data.createdAt instanceof Date || typeof data.createdAt === 'number' || typeof data.createdAt === 'string') {
+                        displayDate = new Date(data.createdAt).toLocaleString();
+                    }
+                }
+                return {
+                    id: doc.id,
+                    type: data.type || 'customer_inquiry',
+                    status: data.status || 'pending',
+                    title: data.title || '',
+                    content: data.content || '',
+                    author: data.author || '',
+                    date: displayDate,
+                    targetId: data.targetId || null,
+                    targetName: data.targetName || null,
+                    memo: data.memo || ''
+                };
+            });
+            
+            // Update detail panel if open
+            if (activeCSTicketId && document.getElementById('slide-cs-detail') && !document.getElementById('slide-cs-detail').classList.contains('translate-x-full')) {
+                openCSDetailPanel(activeCSTicketId);
+            }
+            loadCSTickets();
+        }, error => {
+            console.error("Error fetching CS tickets: ", error);
+        });
+}
+
+function filterCSTickets(type) {
+    currentCSType = type;
+    
+    // Update active button styling
+    document.querySelectorAll('.cs-filter-btn').forEach(btn => {
+        if(btn.dataset.type === type) {
+            btn.classList.add('ring-2', 'ring-[var(--point-color)]', 'bg-[#11291D]');
+        } else {
+            btn.classList.remove('ring-2', 'ring-[var(--point-color)]', 'bg-[#11291D]');
+        }
+    });
+
+    loadCSTickets();
+}
+
+function loadCSTickets() {
+    const tbody = document.getElementById('cs-ticket-table-body');
+    if (!tbody) return;
+
+    tbody.innerHTML = '<tr><td colspan="6" class="p-8 text-center text-[#A7B2AE]">데이터 조회 중...</td></tr>';
+
+    const statusFilter = document.getElementById('cs-status-filter').value;
+    const searchQuery = document.getElementById('cs-search-input').value.toLowerCase();
+
+    // Filter tickets
+    const filtered = csTicketsData.filter(t => {
+        if (currentCSType !== 'all' && currentCSType !== t.type) return false;
+        if (statusFilter !== 'all' && t.status !== statusFilter) return false;
+        if (searchQuery) {
+            return t.title.toLowerCase().includes(searchQuery) || t.content.toLowerCase().includes(searchQuery) || t.author.toLowerCase().includes(searchQuery);
+        }
+        return true;
+    });
+
+    // Update Dashboard Counts
+    document.getElementById('count-customer-report').textContent = csTicketsData.filter(t => t.type === 'customer_report' && t.status === 'pending').length;
+    document.getElementById('count-partner-report').textContent = csTicketsData.filter(t => t.type === 'partner_report' && t.status === 'pending').length;
+    document.getElementById('count-customer-inquiry').textContent = csTicketsData.filter(t => t.type === 'customer_inquiry' && t.status === 'pending').length;
+    document.getElementById('count-partner-inquiry').textContent = csTicketsData.filter(t => t.type === 'partner_inquiry' && t.status === 'pending').length;
+
+    if (filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="p-8 text-center text-[#A7B2AE]">해당하는 항목이 없습니다.</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = '';
+    filtered.forEach(ticket => {
+        const tr = document.createElement('tr');
+        tr.className = 'hover:bg-[#11291D]/50 transition-colors cursor-pointer border-b border-[#2A3731]';
+        tr.onclick = (e) => {
+            if(!e.target.closest('button')) openCSDetailPanel(ticket.id);
+        };
+
+        const typeLabels = {
+            'customer_report': '<span class="text-red-400 font-bold">고객 신고</span>',
+            'partner_report': '<span class="text-orange-400 font-bold">업체 신고</span>',
+            'customer_inquiry': '<span class="text-[var(--point-color)] font-bold">고객 문의</span>',
+            'partner_inquiry': '<span class="text-blue-400 font-bold">업체 문의</span>',
+        };
+
+        let statusBadge = '';
+        if (ticket.status === 'pending') statusBadge = '<span class="bg-red-900/50 text-red-400 border border-red-500/30 px-2 py-1 rounded text-xs px-2 min-w-[60px] inline-block text-center shadow-lg">미처리</span>';
+        else if (ticket.status === 'in_progress') statusBadge = '<span class="bg-blue-900/50 text-blue-400 border border-blue-500/30 px-2 py-1 rounded text-xs min-w-[60px] inline-block text-center shadow-lg">처리중</span>';
+        else statusBadge = '<span class="bg-[#11291D] text-[#A7B2AE] border border-[#2A3731] px-2 py-1 rounded text-xs min-w-[60px] inline-block text-center shadow-lg">처리완료</span>';
+
+        tr.innerHTML = `
+            <td class="p-4 whitespace-nowrap">${typeLabels[ticket.type]}</td>
+            <td class="p-4 whitespace-nowrap">${statusBadge}</td>
+            <td class="p-4 max-w-[300px] truncate text-white font-medium">${ticket.title}</td>
+            <td class="p-4 whitespace-nowrap">${ticket.author}</td>
+            <td class="p-4 whitespace-nowrap text-[#A7B2AE]">${ticket.date}</td>
+            <td class="p-4 text-center">
+                <button onclick="event.stopPropagation(); openCSDetailPanel('${ticket.id}')" class="px-4 py-2 bg-[#11291D] hover:bg-gradient-to-r hover:from-[var(--point-color)] hover:to-[#B59530] hover:text-[#0A1B13] border border-[#2A3731] hover:border-transparent rounded-lg text-xs transition-all font-bold shadow-sm">상세 보기</button>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+function openCSDetailPanel(ticketId) {
+    activeCSTicketId = ticketId;
+    const ticket = csTicketsData.find(t => t.id === ticketId);
+    if (!ticket) return;
+
+    const panel = document.getElementById('slide-cs-detail');
+    const content = document.getElementById('cs-detail-content');
+    const actions = document.getElementById('cs-detail-actions');
+    const badge = document.getElementById('cs-detail-badge');
+
+    // Setup Badge
+    if (ticket.status === 'pending') {
+        badge.className = 'px-2 py-0.5 rounded text-xs font-bold ring-1 bg-red-900/50 text-red-400 ring-red-500/30 shadow-lg';
+        badge.innerText = '미처리 대기';
+    } else if (ticket.status === 'resolved') {
+        badge.className = 'px-2 py-0.5 rounded text-xs font-bold ring-1 bg-[#11291D] text-[#A7B2AE] ring-[#2A3731] shadow-lg';
+        badge.innerText = '처리 완료됨';
+    } else {
+        badge.className = 'px-2 py-0.5 rounded text-xs font-bold ring-1 bg-blue-900/50 text-blue-400 ring-blue-500/30 shadow-lg';
+        badge.innerText = '처리 중';
+    }
+
+    const isReport = ticket.type.includes('report');
+
+    content.innerHTML = `
+        <div class="mb-4">
+            <h4 class="text-2xl font-bold text-white mb-2 leading-snug">${ticket.title}</h4>
+            <div class="text-[#A7B2AE] text-sm flex gap-4 mt-3">
+                <span>작성자: <strong class="text-white">${ticket.author}</strong></span>
+                <span>작성일시: ${ticket.date}</span>
+            </div>
+        </div>
+
+        <div class="bg-[#11291D] p-5 rounded-2xl border border-[#2A3731] text-white/90 leading-relaxed min-h-[150px] shadow-inner mb-6 whitespace-pre-wrap">${ticket.content}</div>
+
+        ${isReport && ticket.targetName ? `
+            <div class="bg-gradient-to-r from-red-900/30 to-red-900/10 border border-red-500/30 p-5 rounded-2xl mb-6 shadow-md">
+                <h5 class="text-red-400 font-bold flex items-center gap-2 mb-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                    신고 대상 (피신고자)
+                </h5>
+                <p class="text-white text-lg font-bold ml-7">${ticket.targetName} <span class="text-sm font-normal text-[#A7B2AE]">(${ticket.targetId})</span></p>
+            </div>
+        ` : ''}
+
+        <div class="space-y-3 pt-6 border-t border-[#2A3731]">
+            <h5 class="font-bold text-white mb-2 flex items-center gap-2">
+                <svg class="w-5 h-5 text-[var(--point-color)]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+                관리자 내부 확인용 메모
+            </h5>
+            <textarea id="cs-memo-input" class="w-full bg-[#06110D] border border-[#2A3731] shadow-inner rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[var(--point-color)] transition-colors" rows="3" placeholder="처리 내역이나 특이사항을 이곳에 기록하세요. (사용자에게 보이지 않음)">${ticket.memo || ''}</textarea>
+            <div class="flex justify-end">
+                <button onclick="saveCSTicketMemo('${ticket.id}')" class="px-5 py-2 bg-[#11291D] hover:bg-[#1A3A2A] rounded-xl text-white font-bold transition-colors border border-[#2A3731]">메모 저장</button>
+            </div>
+        </div>
+    `;
+
+    actions.innerHTML = '';
+    
+    // Add Resolve button
+    if (ticket.status !== 'resolved') {
+        actions.innerHTML += `
+            <button onclick="resolveCSTicket('${ticket.id}')" class="flex-[2] py-4 bg-gradient-to-r from-[var(--point-color)] to-[#B59530] text-[#0A1B13] font-bold rounded-xl shadow-[0_5px_15px_rgba(212,175,55,0.2)] hover:shadow-[0_8px_25px_rgba(212,175,55,0.3)] hover:brightness-110 transition-all active:scale-[0.98]">CS 답변 발송 및 완료</button>
+        `;
+    }
+
+    // Add Penalty button for Reports
+    if (isReport && ticket.targetName) {
+        actions.innerHTML += `
+            <button onclick="openCSPenaltyModal('${ticket.targetId}', '${ticket.targetName}')" class="flex-1 py-4 bg-red-600/10 text-red-500 border border-red-500/50 font-bold rounded-xl shadow-lg hover:bg-red-600 hover:text-white transition-all active:scale-[0.98]">강력 패널티 부과</button>
+        `;
+    }
+
+    panel.classList.remove('translate-x-full');
+}
+
+function closeCSDetailPanel() {
+    activeCSTicketId = null;
+    document.getElementById('slide-cs-detail').classList.add('translate-x-full');
+}
+
+function resolveCSTicket(ticketId) {
+    if (confirm('이 티켓을 처리 완료로 변경하시겠습니까? (답변이 발송됩니다)')) {
+        db.collection('cs_tickets').doc(ticketId).update({
+            status: 'resolved',
+            resolvedAt: firebase.firestore.FieldValue.serverTimestamp()
+        })
+        .then(() => {
+            closeCSDetailPanel();
+            alert('처리가 완료되었습니다. 발송 트리거가 실행됩니다.');
+        })
+        .catch(error => {
+            console.error("Error resolving ticket: ", error);
+            alert('처리 중 오류가 발생했습니다.');
+        });
+    }
+}
+
+function saveCSTicketMemo(ticketId) {
+    const memoValue = document.getElementById('cs-memo-input').value;
+    db.collection('cs_tickets').doc(ticketId).update({
+        memo: memoValue
+    })
+    .then(() => {
+        alert('메모가 저장되었습니다.');
+    })
+    .catch(error => {
+        console.error("Error saving memo: ", error);
+        alert('메모 저장 중 오류가 발생했습니다.');
+    });
+}
+
+function openCSPenaltyModal(targetId, targetName) {
+    document.getElementById('penalty-target-name').value = `${targetName} (${targetId})`;
+    document.getElementById('penalty-type').value = 'warning';
+    document.getElementById('penalty-reason').value = '';
+    
+    window.currentPenaltyTargetId = targetId; 
+    document.getElementById('modal-cs-penalty').classList.remove('hidden');
+}
+
+function submitCSPenalty() {
+    const type = document.getElementById('penalty-type').value;
+    const reason = document.getElementById('penalty-reason').value;
+    
+    if(!reason.trim()) {
+        alert('정확한 패널티 부여를 위해 상세 사유를 반드시 작성해주세요.');
+        return;
+    }
+    
+    const targetId = window.currentPenaltyTargetId;
+    if (!targetId) return;
+
+    db.collection('penalties').add({
+        targetId: targetId,
+        type: type,
+        reason: reason,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+        relatedTicketId: activeCSTicketId
+    })
+    .then(() => {
+        alert(`해당 유저/업체에 패널티가 정상적으로 부과되었습니다.\n[적용 조치] ${type}`);
+        closeModal('modal-cs-penalty');
+        
+        if (activeCSTicketId) {
+            resolveCSTicket(activeCSTicketId);
+        }
+    })
+    .catch((error) => {
+        console.error("Error adding penalty: ", error);
+        alert('패널티 부과 중 오류가 발생했습니다.');
+    });
+}
+
+function seedCSTicketsIfNeeded() {
+    db.collection('cs_tickets').limit(1).get().then(snap => {
+        if (snap.empty) {
+            console.log("Seeding mock CS tickets...");
+            const mockData = [
+                { type: 'customer_report', status: 'pending', title: '마사지사가 불친절합니다', content: '예약 시간에 늦고 불친절하게 응대했습니다.', author: '김고객 (user_123)', createdAt: firebase.firestore.FieldValue.serverTimestamp(), targetId: 'shop_001', targetName: '강남 VIP 타이' },
+                { type: 'customer_report', status: 'resolved', title: '노쇼 발생', content: '예약하고 방문했는데 가게 문이 닫혀 있었습니다.', author: '이사용 (user_456)', createdAt: firebase.firestore.FieldValue.serverTimestamp(), targetId: 'shop_002', targetName: '신림 힐링테라피' },
+                { type: 'partner_report', status: 'pending', title: '고객 노쇼 신고', content: '예약 후 잠수탔습니다. 전화도 받지 않습니다.', author: '홍대 마사지 (shop_003)', createdAt: firebase.firestore.FieldValue.serverTimestamp(), targetId: 'user_789', targetName: '박진상' },
+                { type: 'customer_inquiry', status: 'pending', title: '결제 취소 문의', content: '입금했는데 취소하고 싶어요 어떻게 하나요?', author: '최구매 (user_222)', createdAt: firebase.firestore.FieldValue.serverTimestamp(), targetId: null, targetName: null },
+                { type: 'partner_inquiry', status: 'in_progress', title: '입점권 연장 문의', content: 'VIP 입점권으로 업그레이드 하고 싶습니다.', author: '제주 테라피 (shop_004)', createdAt: firebase.firestore.FieldValue.serverTimestamp(), targetId: null, targetName: null },
+            ];
+            mockData.forEach(async (data) => {
+                await db.collection('cs_tickets').add(data);
+            });
+        }
+    }).catch(err => console.error("Seed error: ", err));
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    seedCSTicketsIfNeeded();
+    initCSTicketsListener();
+    filterCSTickets('customer_report');
+});
