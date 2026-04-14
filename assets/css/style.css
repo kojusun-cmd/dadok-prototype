@@ -51,7 +51,7 @@
             background: var(--bg-color);
             overflow-x: hidden;
             overflow-y: auto;
-            padding-bottom: 90px;
+            padding-bottom: 8px;
         }
 
         .text-point {

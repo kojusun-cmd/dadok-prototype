@@ -633,6 +633,42 @@ const filterSheet = document.getElementById('filter-sheet');
                 return { count: totCount, rating: avgRating.toFixed(1) };
             }
 
+            function getPartnerTicketExpiryMs(rawData = {}) {
+                const data = rawData || {};
+
+                if (typeof data.ticketExpiryTimestamp === 'number' && Number.isFinite(data.ticketExpiryTimestamp)) {
+                    return data.ticketExpiryTimestamp;
+                }
+
+                if (data.ticketExpiryTimestamp && typeof data.ticketExpiryTimestamp.toDate === 'function') {
+                    return data.ticketExpiryTimestamp.toDate().getTime();
+                }
+
+                if (data.ticketExpiresAt && typeof data.ticketExpiresAt.toDate === 'function') {
+                    return data.ticketExpiresAt.toDate().getTime();
+                }
+
+                if (typeof data.ticketExpiry === 'string' && data.ticketExpiry.trim()) {
+                    const parsed = Date.parse(data.ticketExpiry);
+                    if (!Number.isNaN(parsed)) return parsed;
+                }
+
+                return 0;
+            }
+
+            function isPartnerApproved(rawData = {}) {
+                return (rawData?.status || '') === 'active';
+            }
+
+            // 앱 배너 노출은 "관리자 승인 + 입점권 부여 + 유효기간 내"를 모두 충족해야 함
+            function canExposePartnerBanner(rawData = {}) {
+                const data = rawData || {};
+                const hasTicketType = !!data.ticketType && data.ticketType !== 'None';
+                const expiryMs = getPartnerTicketExpiryMs(data);
+                const now = Date.now();
+                return isPartnerApproved(data) && hasTicketType && expiryMs > now;
+            }
+
             // Firebase 실시간 연동 (onSnapshot)
             if (typeof db !== 'undefined') {
                 db.collection("partners").onSnapshot((snapshot) => {
@@ -647,6 +683,10 @@ const filterSheet = document.getElementById('filter-sheet');
                         let placeArray = Array.isArray(rawPlaceData) ? rawPlaceData : (typeof rawPlaceData === 'string' ? rawPlaceData.split(',').map(s=>s.trim()) : [rawPlaceData]);
                         let cleanPlaceArray = placeArray.map(p => typeof p === 'string' ? p.replace('프라이빗 방문', '방문').replace('프라이빗 1인샵', '1인샵').replace('스탠다드 다인샵', '다인샵') : p);
                         let cleanPlace = getRandomCondition(cleanPlaceArray, ALL_PLACES);
+
+                        if (!canExposePartnerBanner(data)) {
+                            return;
+                        }
 
                         let appPartner = {
                             id: doc.id,
@@ -666,7 +706,8 @@ const filterSheet = document.getElementById('filter-sheet');
                             image: data.image || `https://picsum.photos/seed/dadok_${index}/400/400`,
                             menus: data.pricing || [],
                             desc: data.description || '여성을 위한 프라이빗 라운지',
-                            tier: data.tier || 'Premium'
+                            tier: data.tier || 'Premium',
+                            ticketExpiryTimestamp: getPartnerTicketExpiryMs(data)
                         };
 
                         // 파티셔닝
@@ -689,6 +730,9 @@ const filterSheet = document.getElementById('filter-sheet');
                         if (savedProfile) {
                             let savedPartner = JSON.parse(savedProfile);
                             currentPartner = savedPartner;
+                            if (!canExposePartnerBanner(savedPartner)) {
+                                return;
+                            }
                             let rawLocalPlaceData = savedPartner.place || ALL_PLACES;
                             let placeLocalArray = Array.isArray(rawLocalPlaceData) ? rawLocalPlaceData : (typeof rawLocalPlaceData === 'string' ? rawLocalPlaceData.split(',').map(s=>s.trim()) : [rawLocalPlaceData]);
                             let cleanLocalPlaceArray = placeLocalArray.map(p => typeof p === 'string' ? p.replace('프라이빗 방문', '방문').replace('프라이빗 1인샵', '1인샵').replace('스탠다드 다인샵', '다인샵') : p);
@@ -710,6 +754,7 @@ const filterSheet = document.getElementById('filter-sheet');
                                 ticketExpiry: savedPartner.ticketExpiry || '',
                                 reviews: savedPartner.reviews || 0,
                                 tier: 'Premium',
+                                ticketExpiryTimestamp: getPartnerTicketExpiryMs(savedPartner),
                                 image: savedPartner.image || 'https://images.unsplash.com/photo-1544161515-4ab6ce6db874?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80',
                                 menus: savedPartner.pricing || [],
                                 desc: savedPartner.description || '새로 둥록된 파트너'
@@ -1802,14 +1847,7 @@ const filterSheet = document.getElementById('filter-sheet');
             function openSignupModal() {
                 console.log("openSignupModal trigger");
                 try {
-                    document.getElementById('signup-id').value = '';
-                    document.getElementById('signup-pw').value = '';
-                    document.getElementById('signup-pw-confirm').value = '';
-                    document.getElementById('signup-name').value = '';
-                    document.getElementById('signup-phone').value = '';
-                    document.getElementById('signup-agree-terms').checked = false;
-                    document.getElementById('signup-agree').checked = false;
-                    checkSignupValidity(); // 버튼 초기화
+                    resetSignupForm();
                 } catch (e) {
                     console.error("Input clearing failed", e);
                 }
@@ -1840,6 +1878,187 @@ const filterSheet = document.getElementById('filter-sheet');
                 }, 300);
             }
 
+            const SIGNUP_ID_MIN_LENGTH = 4;
+            let signupIdCheckTimer = null;
+            let partnerSignupIdCheckTimer = null;
+            let signupIdCheckToken = 0;
+            let partnerSignupIdCheckToken = 0;
+            let signupIdStatus = 'idle'; // idle | invalid | checking | duplicate | available | error
+            let partnerSignupIdStatus = 'idle'; // idle | invalid | checking | duplicate | available | error
+
+            function resetSignupForm() {
+                const fields = ['signup-id', 'signup-pw', 'signup-pw-confirm', 'signup-name', 'signup-phone'];
+                fields.forEach((fieldId) => {
+                    const el = document.getElementById(fieldId);
+                    if (el) el.value = '';
+                });
+
+                const agreeTerms = document.getElementById('signup-agree-terms');
+                const agree = document.getElementById('signup-agree');
+                if (agreeTerms) agreeTerms.checked = false;
+                if (agree) agree.checked = false;
+
+                const checkIconTerms = document.getElementById('signup-agree-terms-check');
+                const checkIcon = document.getElementById('signup-agree-check');
+                if (checkIconTerms) {
+                    checkIconTerms.classList.add('opacity-0');
+                    checkIconTerms.classList.remove('opacity-100');
+                }
+                if (checkIcon) {
+                    checkIcon.classList.add('opacity-0');
+                    checkIcon.classList.remove('opacity-100');
+                }
+
+                signupIdStatus = 'idle';
+                setIdStatusMessage(document.getElementById('signup-id-status-msg'), 'idle', '');
+                setIdStatusMessage(document.getElementById('signup-pw-status-msg'), 'idle', '');
+                setIdStatusMessage(document.getElementById('signup-pw-confirm-status-msg'), 'idle', '');
+                setIdStatusMessage(document.getElementById('signup-phone-status-msg'), 'idle', '');
+                checkSignupValidity();
+            }
+
+            function setIdStatusMessage(el, status, message) {
+                if (!el) return;
+                if (!message) {
+                    el.classList.add('hidden');
+                    el.innerText = '';
+                    return;
+                }
+
+                let cls = 'text-[#A7B2AE] text-[13px] font-bold ml-1';
+                if (status === 'invalid' || status === 'duplicate' || status === 'error') {
+                    cls = 'text-[#EF4444] text-[13px] font-bold ml-1';
+                } else if (status === 'available') {
+                    cls = 'text-[#22c55e] text-[13px] font-bold ml-1';
+                }
+
+                el.className = cls;
+                el.innerText = message;
+            }
+
+            async function checkIdDuplicateAcrossUsersAndPartners(id) {
+                const firestoreDb = firebase.firestore();
+                const [userSnap, partnerSnap] = await Promise.all([
+                    firestoreDb.collection('users').where('userId', '==', id).limit(1).get(),
+                    firestoreDb.collection('partners').where('userId', '==', id).limit(1).get()
+                ]);
+                return !userSnap.empty || !partnerSnap.empty;
+            }
+
+            function scheduleSignupIdValidation() {
+                const idInput = document.getElementById('signup-id');
+                const msgEl = document.getElementById('signup-id-status-msg');
+                if (!idInput) return;
+
+                const id = idInput.value.trim();
+                if (signupIdCheckTimer) {
+                    clearTimeout(signupIdCheckTimer);
+                    signupIdCheckTimer = null;
+                }
+
+                if (!id) {
+                    signupIdStatus = 'idle';
+                    setIdStatusMessage(msgEl, 'idle', '');
+                    checkSignupValidity();
+                    return;
+                }
+
+                if (id.length < SIGNUP_ID_MIN_LENGTH) {
+                    signupIdStatus = 'invalid';
+                    setIdStatusMessage(msgEl, 'invalid', '※ 아이디는 4자리 이상 입력해주세요.');
+                    checkSignupValidity();
+                    return;
+                }
+
+                signupIdStatus = 'checking';
+                setIdStatusMessage(msgEl, 'checking', '※ 아이디 중복을 확인하고 있습니다...');
+                checkSignupValidity();
+
+                const token = ++signupIdCheckToken;
+                signupIdCheckTimer = setTimeout(async () => {
+                    if (typeof firebase === 'undefined') {
+                        if (token !== signupIdCheckToken) return;
+                        signupIdStatus = 'error';
+                        setIdStatusMessage(msgEl, 'error', '※ 아이디 확인 중 오류가 발생했습니다.');
+                        checkSignupValidity();
+                        return;
+                    }
+
+                    try {
+                        const isDuplicate = await checkIdDuplicateAcrossUsersAndPartners(id);
+                        if (token !== signupIdCheckToken) return;
+                        signupIdStatus = isDuplicate ? 'duplicate' : 'available';
+                        setIdStatusMessage(
+                            msgEl,
+                            signupIdStatus,
+                            isDuplicate ? '※ 이미 사용 중인 아이디입니다.' : '※ 사용 가능한 아이디입니다.'
+                        );
+                    } catch (e) {
+                        if (token !== signupIdCheckToken) return;
+                        signupIdStatus = 'error';
+                        setIdStatusMessage(msgEl, 'error', '※ 아이디 확인 중 오류가 발생했습니다.');
+                    }
+                    checkSignupValidity();
+                }, 400);
+            }
+
+            function schedulePartnerSignupIdValidation() {
+                const idInput = document.getElementById('partner-signup-id');
+                const msgEl = document.getElementById('partner-signup-id-status-msg');
+                if (!idInput) return;
+
+                const id = idInput.value.trim();
+                if (partnerSignupIdCheckTimer) {
+                    clearTimeout(partnerSignupIdCheckTimer);
+                    partnerSignupIdCheckTimer = null;
+                }
+
+                if (!id) {
+                    partnerSignupIdStatus = 'idle';
+                    setIdStatusMessage(msgEl, 'idle', '');
+                    checkPartnerSignupForm();
+                    return;
+                }
+
+                if (id.length < SIGNUP_ID_MIN_LENGTH) {
+                    partnerSignupIdStatus = 'invalid';
+                    setIdStatusMessage(msgEl, 'invalid', '※ 아이디는 4자리 이상 입력해주세요.');
+                    checkPartnerSignupForm();
+                    return;
+                }
+
+                partnerSignupIdStatus = 'checking';
+                setIdStatusMessage(msgEl, 'checking', '※ 아이디 중복을 확인하고 있습니다...');
+                checkPartnerSignupForm();
+
+                const token = ++partnerSignupIdCheckToken;
+                partnerSignupIdCheckTimer = setTimeout(async () => {
+                    if (typeof firebase === 'undefined') {
+                        if (token !== partnerSignupIdCheckToken) return;
+                        partnerSignupIdStatus = 'error';
+                        setIdStatusMessage(msgEl, 'error', '※ 아이디 확인 중 오류가 발생했습니다.');
+                        checkPartnerSignupForm();
+                        return;
+                    }
+
+                    try {
+                        const isDuplicate = await checkIdDuplicateAcrossUsersAndPartners(id);
+                        if (token !== partnerSignupIdCheckToken) return;
+                        partnerSignupIdStatus = isDuplicate ? 'duplicate' : 'available';
+                        setIdStatusMessage(
+                            msgEl,
+                            partnerSignupIdStatus,
+                            isDuplicate ? '※ 이미 사용 중인 아이디입니다.' : '※ 사용 가능한 아이디입니다.'
+                        );
+                    } catch (e) {
+                        if (token !== partnerSignupIdCheckToken) return;
+                        partnerSignupIdStatus = 'error';
+                        setIdStatusMessage(msgEl, 'error', '※ 아이디 확인 중 오류가 발생했습니다.');
+                    }
+                    checkPartnerSignupForm();
+                }, 400);
+            }
+
             function checkSignupValidity() {
                 const id = document.getElementById('signup-id').value.trim();
                 const pw = document.getElementById('signup-pw').value.trim();
@@ -1850,6 +2069,48 @@ const filterSheet = document.getElementById('filter-sheet');
                 const checkIconTerms = document.getElementById('signup-agree-terms-check');
                 const agree = document.getElementById('signup-agree').checked;
                 const checkIcon = document.getElementById('signup-agree-check');
+                const isPasswordValid = isValidPartnerSignupPassword(pw || '');
+                const isIdAvailable = signupIdStatus === 'available';
+                const isPhoneValid = isValidKoreanMobilePhone(phone || '');
+
+                const pwStatusEl = document.getElementById('signup-pw-status-msg');
+                if (pwStatusEl) {
+                    if (!pw) {
+                        pwStatusEl.classList.add('hidden');
+                    } else if (isPasswordValid) {
+                        pwStatusEl.className = 'text-[#22c55e] text-[13px] font-bold ml-1';
+                        pwStatusEl.innerText = '※ 사용 가능한 비밀번호입니다.';
+                    } else {
+                        pwStatusEl.className = 'text-[#EF4444] text-[13px] font-bold ml-1';
+                        pwStatusEl.innerText = '※ 비밀번호는 8자리 이상이며 영문/숫자/특수문자를 모두 포함해야 합니다.';
+                    }
+                }
+
+                const pwConfirmStatusEl = document.getElementById('signup-pw-confirm-status-msg');
+                if (pwConfirmStatusEl) {
+                    if (!pwConfirm) {
+                        pwConfirmStatusEl.classList.add('hidden');
+                    } else if (pw !== pwConfirm) {
+                        pwConfirmStatusEl.className = 'text-[#EF4444] text-[13px] font-bold ml-1';
+                        pwConfirmStatusEl.innerText = '※ 비밀번호가 일치하지 않습니다.';
+                    } else {
+                        pwConfirmStatusEl.className = 'text-[#22c55e] text-[13px] font-bold ml-1';
+                        pwConfirmStatusEl.innerText = '※ 비밀번호가 일치합니다.';
+                    }
+                }
+
+                const phoneStatusEl = document.getElementById('signup-phone-status-msg');
+                if (phoneStatusEl) {
+                    if (!phone) {
+                        phoneStatusEl.classList.add('hidden');
+                    } else if (isPhoneValid) {
+                        phoneStatusEl.className = 'text-[#22c55e] text-[13px] font-bold ml-1';
+                        phoneStatusEl.innerText = '※ 사용 가능한 휴대폰번호입니다.';
+                    } else {
+                        phoneStatusEl.className = 'text-[#EF4444] text-[13px] font-bold ml-1';
+                        phoneStatusEl.innerText = '※ 휴대폰번호 양식이 맞지 않습니다. (010으로 시작하는 11자리)';
+                    }
+                }
 
                 // 체크박스 아이콘 토글 1
                 if (agreeTerms) {
@@ -1872,7 +2133,7 @@ const filterSheet = document.getElementById('filter-sheet');
                 const btn = document.getElementById('signup-submit-btn');
 
                 // 모든 값 존재 여부 검증
-                if (id && pw && pwConfirm && name && phone && agree && agreeTerms) {
+                if (id && isIdAvailable && pw && isPasswordValid && pwConfirm && pw === pwConfirm && name && phone && isPhoneValid && agree && agreeTerms) {
                     btn.disabled = false;
                     btn.classList.remove('bg-[#0A1B13]', 'text-[#A7B2AE]', 'border-[#2A3731]', 'opacity-70');
                     btn.classList.add('bg-gradient-to-r', 'from-[var(--point-color)]', 'to-[#B59530]', 'text-[#06110D]', 'shadow-[0_8px_20px_rgba(212,175,55,0.25)]', 'border-[#D4AF37]', 'hover:brightness-110', 'active:scale-[0.98]');
@@ -1900,6 +2161,21 @@ const filterSheet = document.getElementById('filter-sheet');
                     return;
                 }
 
+                if (id.length < SIGNUP_ID_MIN_LENGTH) {
+                    alert('아이디는 4자리 이상 입력해주세요.');
+                    return;
+                }
+
+                if (!isValidPartnerSignupPassword(pw)) {
+                    alert('비밀번호는 8자리 이상이며 영문/숫자/특수문자를 모두 포함해야 합니다.');
+                    return;
+                }
+
+                if (!isValidKoreanMobilePhone(phone)) {
+                    alert('휴대폰번호 양식이 맞지 않습니다. (010으로 시작하는 11자리)');
+                    return;
+                }
+
                 if (pw !== pwConfirm) {
                     alert('비밀번호가 일치하지 않습니다.');
                     return;
@@ -1915,8 +2191,17 @@ const filterSheet = document.getElementById('filter-sheet');
 
                 const firestoreDb = firebase.firestore();
                 const now = firebase.firestore.FieldValue.serverTimestamp();
-                let docRef = firestoreDb.collection('users').doc(id);
-                docRef.set({
+                checkIdDuplicateAcrossUsersAndPartners(id).then((isDuplicate) => {
+                    if (isDuplicate) {
+                        alert('이미 사용 중인 아이디입니다.');
+                        signupIdStatus = 'duplicate';
+                        setIdStatusMessage(document.getElementById('signup-id-status-msg'), 'duplicate', '※ 이미 사용 중인 아이디입니다.');
+                        checkSignupValidity();
+                        return;
+                    }
+
+                    let docRef = firestoreDb.collection('users').doc(id);
+                    docRef.set({
                     userId: id,
                     password: pw, // UI상 관리자 페이지에서는 제거되지만, 추후 진짜 auth 연동 전까지 데이터 유지
                     name: name,
@@ -1924,16 +2209,21 @@ const filterSheet = document.getElementById('filter-sheet');
                     gender: gender,
                     createdAt: now,
                     lastLoginAt: now
-                }).then(() => {
-                    completeSignup(name, id);
+                    }).then(() => {
+                        completeSignup(name, id);
+                    }).catch((error) => {
+                        console.error('Firestore Error:', error);
+                        alert('가입 처리 중 데이터베이스 오류가 발생했습니다: ' + error.message);
+                    });
                 }).catch((error) => {
-                    console.error('Firestore Error:', error);
-                    alert('가입 처리 중 데이터베이스 오류가 발생했습니다: ' + error.message);
+                    console.error('ID duplicate check error:', error);
+                    alert('아이디 중복 확인 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
                 });
             }
 
             function completeSignup(name, id) {
                 alert(name + '님, 다독 회원이 되신 것을 환영합니다!');
+                resetSignupForm();
                 closeSignupModal();
 
                 // 자동 로그인 처리
@@ -2070,6 +2360,287 @@ const filterSheet = document.getElementById('filter-sheet');
                 }, 300);
             }
 
+            let partnerRecoveryResetPartnerDocId = '';
+            let partnerRecoveryResetUserId = '';
+
+            function resetPartnerRecoveryModal() {
+                const fields = [
+                    'partner-find-id-company',
+                    'partner-find-id-phone',
+                    'partner-find-pw-id',
+                    'partner-find-pw-company',
+                    'partner-recovery-new-pw',
+                    'partner-recovery-new-pw-confirm'
+                ];
+                fields.forEach((id) => {
+                    const el = document.getElementById(id);
+                    if (el) el.value = '';
+                });
+
+                partnerRecoveryResetPartnerDocId = '';
+                partnerRecoveryResetUserId = '';
+
+                const resultEl = document.getElementById('partner-recovery-result');
+                if (resultEl) {
+                    resultEl.classList.add('hidden');
+                    resultEl.innerText = '';
+                }
+
+                const resetForm = document.getElementById('partner-recovery-reset-form');
+                if (resetForm) resetForm.classList.add('hidden');
+
+                const newPwMsg = document.getElementById('partner-recovery-new-pw-msg');
+                const confirmMsg = document.getElementById('partner-recovery-new-pw-confirm-msg');
+                if (newPwMsg) newPwMsg.classList.add('hidden');
+                if (confirmMsg) confirmMsg.classList.add('hidden');
+
+                const submitBtn = document.getElementById('partner-recovery-reset-submit-btn');
+                if (submitBtn) {
+                    submitBtn.disabled = true;
+                    submitBtn.className = 'w-full py-[14px] mt-1 rounded-xl bg-[#1A2521] text-[#A7B2AE] border border-[#2A3731] font-bold text-[15px] tracking-wide transition-all duration-300 pointer-events-none';
+                }
+
+                switchPartnerRecoveryTab('id');
+            }
+
+            function openPartnerRecoveryModal(defaultTab = 'id') {
+                const modal = document.getElementById('partner-recovery-modal');
+                if (!modal) return;
+                resetPartnerRecoveryModal();
+                switchPartnerRecoveryTab(defaultTab);
+                modal.style.display = 'flex';
+                setTimeout(() => {
+                    modal.classList.remove('translate-x-full');
+                }, 10);
+            }
+
+            function closePartnerRecoveryModal() {
+                const modal = document.getElementById('partner-recovery-modal');
+                if (!modal) return;
+                modal.classList.add('translate-x-full');
+                setTimeout(() => {
+                    modal.style.display = 'none';
+                }, 300);
+            }
+
+            function switchPartnerRecoveryTab(tab) {
+                const idBtn = document.getElementById('partner-recovery-tab-id-btn');
+                const pwBtn = document.getElementById('partner-recovery-tab-pw-btn');
+                const idForm = document.getElementById('partner-recovery-id-form');
+                const pwForm = document.getElementById('partner-recovery-pw-form');
+                const resetForm = document.getElementById('partner-recovery-reset-form');
+                if (!idBtn || !pwBtn || !idForm || !pwForm) return;
+
+                if (tab === 'pw') {
+                    pwBtn.className = 'flex-1 py-3 text-center font-bold text-[var(--point-color)] border-b-2 border-[var(--point-color)] tracking-widest transition-colors';
+                    idBtn.className = 'flex-1 py-3 text-center font-medium text-[var(--text-sub)] border-b-2 border-transparent tracking-widest transition-colors hover:text-[var(--text-main)]';
+                    pwForm.classList.remove('hidden');
+                    idForm.classList.add('hidden');
+                } else {
+                    idBtn.className = 'flex-1 py-3 text-center font-bold text-[var(--point-color)] border-b-2 border-[var(--point-color)] tracking-widest transition-colors';
+                    pwBtn.className = 'flex-1 py-3 text-center font-medium text-[var(--text-sub)] border-b-2 border-transparent tracking-widest transition-colors hover:text-[var(--text-main)]';
+                    idForm.classList.remove('hidden');
+                    pwForm.classList.add('hidden');
+                    partnerRecoveryResetPartnerDocId = '';
+                    partnerRecoveryResetUserId = '';
+                    if (resetForm) resetForm.classList.add('hidden');
+                }
+            }
+
+            function setPartnerRecoveryResult(message, type = 'info') {
+                const resultEl = document.getElementById('partner-recovery-result');
+                if (!resultEl) return;
+                const base = 'mt-5 p-4 rounded-2xl border text-[14px] leading-relaxed';
+                if (type === 'success') {
+                    resultEl.className = `${base} text-[#d9f99d] border-lime-500/40 bg-lime-900/15`;
+                } else if (type === 'error') {
+                    resultEl.className = `${base} text-[#fecaca] border-red-500/40 bg-red-900/15`;
+                } else {
+                    resultEl.className = `${base} text-[#A7B2AE] border-[#2A3731] bg-[#0A1B13]`;
+                }
+                resultEl.innerText = message;
+                resultEl.classList.remove('hidden');
+            }
+
+            function validatePartnerRecoveryPasswordForm() {
+                const pw = document.getElementById('partner-recovery-new-pw')?.value || '';
+                const pwConfirm = document.getElementById('partner-recovery-new-pw-confirm')?.value || '';
+                const pwMsg = document.getElementById('partner-recovery-new-pw-msg');
+                const confirmMsg = document.getElementById('partner-recovery-new-pw-confirm-msg');
+                const submitBtn = document.getElementById('partner-recovery-reset-submit-btn');
+
+                const pwValid = isValidPartnerSignupPassword(pw);
+                const confirmValid = !!pwConfirm && pw === pwConfirm;
+
+                if (pwMsg) {
+                    if (!pw) {
+                        pwMsg.classList.add('hidden');
+                    } else if (pwValid) {
+                        pwMsg.className = 'text-[#22c55e] text-[12px] font-bold ml-1';
+                        pwMsg.innerText = '※ 사용 가능한 비밀번호입니다.';
+                    } else {
+                        pwMsg.className = 'text-[#EF4444] text-[12px] font-bold ml-1';
+                        pwMsg.innerText = '※ 8자리 이상 영문/숫자/특수문자 조합으로 입력해주세요.';
+                    }
+                }
+
+                if (confirmMsg) {
+                    if (!pwConfirm) {
+                        confirmMsg.classList.add('hidden');
+                    } else if (confirmValid) {
+                        confirmMsg.className = 'text-[#22c55e] text-[12px] font-bold ml-1';
+                        confirmMsg.innerText = '※ 비밀번호가 일치합니다.';
+                    } else {
+                        confirmMsg.className = 'text-[#EF4444] text-[12px] font-bold ml-1';
+                        confirmMsg.innerText = '※ 비밀번호가 일치하지 않습니다.';
+                    }
+                }
+
+                if (submitBtn) {
+                    if (pwValid && confirmValid && partnerRecoveryResetPartnerDocId) {
+                        submitBtn.disabled = false;
+                        submitBtn.className = 'w-full py-[14px] mt-1 rounded-xl bg-gradient-to-r from-[var(--point-color)] to-[#B59530] text-[#06110D] border border-[#D4AF37] font-bold text-[15px] tracking-wide transition-all duration-300 hover:brightness-110 active:scale-[0.98]';
+                    } else {
+                        submitBtn.disabled = true;
+                        submitBtn.className = 'w-full py-[14px] mt-1 rounded-xl bg-[#1A2521] text-[#A7B2AE] border border-[#2A3731] font-bold text-[15px] tracking-wide transition-all duration-300 pointer-events-none';
+                    }
+                }
+            }
+
+            async function submitPartnerPasswordReset() {
+                if (!partnerRecoveryResetPartnerDocId) {
+                    setPartnerRecoveryResult('먼저 비밀번호 찾기를 통해 본인확인을 진행해주세요.', 'error');
+                    return;
+                }
+
+                const pw = document.getElementById('partner-recovery-new-pw')?.value || '';
+                const pwConfirm = document.getElementById('partner-recovery-new-pw-confirm')?.value || '';
+                if (!isValidPartnerSignupPassword(pw)) {
+                    setPartnerRecoveryResult('비밀번호 형식이 올바르지 않습니다.', 'error');
+                    return;
+                }
+                if (pw !== pwConfirm) {
+                    setPartnerRecoveryResult('새 비밀번호와 확인 값이 일치하지 않습니다.', 'error');
+                    return;
+                }
+                if (typeof firebase === 'undefined') {
+                    setPartnerRecoveryResult('데이터베이스 연결에 실패했습니다. 잠시 후 다시 시도해주세요.', 'error');
+                    return;
+                }
+
+                try {
+                    await firebase.firestore().collection('partners').doc(partnerRecoveryResetPartnerDocId).update({
+                        password: pw,
+                        passwordResetStatus: 'completed',
+                        passwordResetCompletedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                        passwordResetCode: firebase.firestore.FieldValue.delete(),
+                        passwordResetExpiresAt: firebase.firestore.FieldValue.delete(),
+                        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+
+                    setPartnerRecoveryResult('비밀번호가 재설정되었습니다. 로그인 화면으로 이동합니다.', 'success');
+                    setTimeout(() => {
+                        closePartnerRecoveryModal();
+                        openPartnerLoginScreen();
+                        const idInput = document.getElementById('partner-login-id-input');
+                        if (idInput && partnerRecoveryResetUserId) {
+                            idInput.value = partnerRecoveryResetUserId;
+                        }
+                        const pwInput = document.getElementById('partner-login-password-input');
+                        if (pwInput) pwInput.focus();
+                    }, 600);
+                } catch (e) {
+                    console.error('파트너 비밀번호 재설정 오류:', e);
+                    setPartnerRecoveryResult('비밀번호 재설정 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.', 'error');
+                }
+            }
+
+            async function handlePartnerFindId() {
+                const company = document.getElementById('partner-find-id-company')?.value?.trim();
+                const phone = document.getElementById('partner-find-id-phone')?.value?.trim();
+
+                if (!company || !phone) {
+                    setPartnerRecoveryResult('업체명과 휴대폰 번호를 모두 입력해주세요.', 'error');
+                    return;
+                }
+                if (!isValidKoreanMobilePhone(phone)) {
+                    setPartnerRecoveryResult('휴대폰번호 양식이 맞지 않습니다. (010으로 시작하는 11자리)', 'error');
+                    return;
+                }
+                if (typeof firebase === 'undefined') {
+                    setPartnerRecoveryResult('데이터베이스 연결에 실패했습니다. 잠시 후 다시 시도해주세요.', 'error');
+                    return;
+                }
+
+                try {
+                    const phoneDigits = normalizePhoneDigits(phone);
+                    const snap = await firebase.firestore().collection('partners').where('name', '==', company).get();
+                    if (snap.empty) {
+                        setPartnerRecoveryResult('일치하는 파트너 계정을 찾을 수 없습니다.', 'error');
+                        return;
+                    }
+
+                    let matchedUserId = '';
+                    snap.forEach((doc) => {
+                        if (matchedUserId) return;
+                        const data = doc.data() || {};
+                        const candidatePhone = normalizePhoneDigits(String(data.phone || data.phoneNumber || ''));
+                        if (candidatePhone === phoneDigits && data.userId) {
+                            matchedUserId = String(data.userId);
+                        }
+                    });
+
+                    if (!matchedUserId) {
+                        setPartnerRecoveryResult('일치하는 파트너 계정을 찾을 수 없습니다.', 'error');
+                        return;
+                    }
+
+                    setPartnerRecoveryResult(`확인된 파트너 아이디는 ${matchedUserId} 입니다.`, 'success');
+                } catch (e) {
+                    console.error('파트너 아이디 찾기 오류:', e);
+                    setPartnerRecoveryResult('아이디 조회 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.', 'error');
+                }
+            }
+
+            async function handlePartnerPasswordResetRequest() {
+                const userId = document.getElementById('partner-find-pw-id')?.value?.trim();
+                const company = document.getElementById('partner-find-pw-company')?.value?.trim();
+
+                if (!userId || !company) {
+                    setPartnerRecoveryResult('아이디와 업체명을 모두 입력해주세요.', 'error');
+                    return;
+                }
+                if (typeof firebase === 'undefined') {
+                    setPartnerRecoveryResult('데이터베이스 연결에 실패했습니다. 잠시 후 다시 시도해주세요.', 'error');
+                    return;
+                }
+
+                try {
+                    const snap = await firebase.firestore().collection('partners').where('userId', '==', userId).limit(1).get();
+                    if (snap.empty) {
+                        setPartnerRecoveryResult('입력하신 정보와 일치하는 계정을 찾을 수 없습니다.', 'error');
+                        return;
+                    }
+
+                    const doc = snap.docs[0];
+                    const data = doc.data() || {};
+                    if ((data.name || '').trim() !== company) {
+                        setPartnerRecoveryResult('입력하신 정보와 일치하는 계정을 찾을 수 없습니다.', 'error');
+                        return;
+                    }
+
+                    partnerRecoveryResetPartnerDocId = doc.id;
+                    partnerRecoveryResetUserId = userId;
+                    const resetForm = document.getElementById('partner-recovery-reset-form');
+                    if (resetForm) resetForm.classList.remove('hidden');
+                    validatePartnerRecoveryPasswordForm();
+                    setPartnerRecoveryResult('본인확인이 완료되었습니다. 새 비밀번호를 입력한 뒤 재설정을 완료해주세요.', 'success');
+                } catch (e) {
+                    console.error('파트너 비밀번호 찾기 오류:', e);
+                    setPartnerRecoveryResult('비밀번호 찾기 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.', 'error');
+                }
+            }
+
             let partnerActivePasses = [
                 {
                     name: "[12개월 입점권] 다독 프리미엄 파트너스",
@@ -2115,7 +2686,7 @@ const filterSheet = document.getElementById('filter-sheet');
                     }
                     const data = doc.data();
                     
-                    if (data.status !== 'active' || !data.ticketType || data.ticketType === 'None') {
+                    if (!canExposePartnerBanner(data)) {
                         renderEmptyBanner();
                         return;
                     }
@@ -2129,8 +2700,12 @@ const filterSheet = document.getElementById('filter-sheet');
                         ? data.ticketCreatedAt.toDate() 
                         : (data.createdAt && typeof data.createdAt.toDate === 'function' ? data.createdAt.toDate() : new Date());
 
-                    // If they have ticketType but no expiration stored, maybe simulate 30 days
-                    let finalExpirationDate = new Date(purchaseDateObj.getTime() + 30 * 24 * 60 * 60 * 1000);
+                    const expiryMs = getPartnerTicketExpiryMs(data);
+                    if (!expiryMs) {
+                        renderEmptyBanner();
+                        return;
+                    }
+                    let finalExpirationDate = new Date(expiryMs);
 
                     let badgeHtml = '';
                     if (isVIP) {
@@ -2171,8 +2746,11 @@ const filterSheet = document.getElementById('filter-sheet');
 
                         if (daysEl && timeEl) {
                             if (diffTime <= 0) {
-                                daysEl.innerText = "만료됨";
-                                timeEl.innerText = "";
+                                if (window.partnerCountdownInterval) {
+                                    clearInterval(window.partnerCountdownInterval);
+                                    window.partnerCountdownInterval = null;
+                                }
+                                renderEmptyBanner();
                             } else {
                                 const d = Math.floor(diffTime / (1000 * 60 * 60 * 24));
                                 const h = Math.floor((diffTime % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
@@ -2363,10 +2941,27 @@ const filterSheet = document.getElementById('filter-sheet');
 
             function openPartnerSignupModal() {
                 const modal = document.getElementById('partner-signup-modal');
+                if (modal) forcePartnerSignupTop();
                 modal.style.display = 'flex';
                 setTimeout(() => {
                     modal.classList.remove('translate-x-full');
+                    forcePartnerSignupTop();
                 }, 10);
+            }
+
+            function forcePartnerSignupTop() {
+                const modal = document.getElementById('partner-signup-modal');
+                if (!modal) return;
+                const scrollable = modal.querySelector('.overflow-y-auto');
+
+                modal.scrollTop = 0;
+                if (scrollable) scrollable.scrollTop = 0;
+
+                // 렌더/애니메이션 직후에도 상단 고정 유지
+                requestAnimationFrame(() => {
+                    modal.scrollTop = 0;
+                    if (scrollable) scrollable.scrollTop = 0;
+                });
             }
 
             function closePartnerSignupModal() {
@@ -2404,6 +2999,86 @@ const filterSheet = document.getElementById('filter-sheet');
                 }, 300);
             }
 
+            function isValidPartnerSignupPassword(password = '') {
+                const pwRule = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
+                return pwRule.test(password);
+            }
+
+            function normalizePhoneDigits(value = '') {
+                return value.replace(/\D/g, '');
+            }
+
+            function isValidKoreanMobilePhone(value = '') {
+                const digits = normalizePhoneDigits(value);
+                return /^010\d{8}$/.test(digits);
+            }
+
+            function setPartnerAgreeCheckboxState(checkbox, checked) {
+                if (!checkbox) return;
+                checkbox.checked = checked;
+                const icon = checkbox.nextElementSibling;
+                if (icon) {
+                    icon.classList.toggle('opacity-0', !checked);
+                    icon.classList.toggle('opacity-100', checked);
+                }
+            }
+
+            function syncPartnerSignupAgreeAll() {
+                const allCheckbox = document.getElementById('partner-signup-agree-all');
+                const reqBoxes = document.querySelectorAll('#partner-signup-modal .req-agree');
+                if (!allCheckbox || reqBoxes.length === 0) return;
+
+                const allChecked = Array.from(reqBoxes).every(box => box.checked);
+                setPartnerAgreeCheckboxState(allCheckbox, allChecked);
+                checkPartnerSignupForm();
+            }
+
+            function togglePartnerSignupAgreeAll(allCheckbox) {
+                const reqBoxes = document.querySelectorAll('#partner-signup-modal .req-agree');
+                reqBoxes.forEach(box => setPartnerAgreeCheckboxState(box, allCheckbox.checked));
+                setPartnerAgreeCheckboxState(allCheckbox, allCheckbox.checked);
+                checkPartnerSignupForm();
+            }
+
+            function resetPartnerSignupForm() {
+                const fields = [
+                    'partner-signup-id',
+                    'partner-signup-pw',
+                    'partner-signup-pw-confirm',
+                    'partner-signup-company',
+                    'partner-signup-name',
+                    'partner-signup-phone',
+                    'partner-signup-biz-no'
+                ];
+                fields.forEach((fieldId) => {
+                    const el = document.getElementById(fieldId);
+                    if (el) el.value = '';
+                });
+
+                const defaultBizType = document.querySelector('input[name="business_type"][value="개인사업자"]');
+                if (defaultBizType) defaultBizType.checked = true;
+
+                const fileInput = document.getElementById('partner-signup-file');
+                if (fileInput) fileInput.value = '';
+                const fileLabel = document.getElementById('partner-signup-file-label');
+                if (fileLabel) fileLabel.innerHTML = '사업자등록증 또는 신분증 업로드';
+
+                const reqBoxes = document.querySelectorAll('#partner-signup-modal .req-agree');
+                reqBoxes.forEach((box) => setPartnerAgreeCheckboxState(box, false));
+                setPartnerAgreeCheckboxState(document.getElementById('partner-signup-agree-all'), false);
+
+                partnerSignupIdStatus = 'idle';
+                setIdStatusMessage(document.getElementById('partner-signup-id-status-msg'), 'idle', '');
+                setIdStatusMessage(document.getElementById('partner-signup-pw-status-msg'), 'idle', '');
+                setIdStatusMessage(document.getElementById('partner-signup-pw-confirm-status-msg'), 'idle', '');
+                setIdStatusMessage(document.getElementById('partner-signup-phone-status-msg'), 'idle', '');
+
+                const btn = document.getElementById('partner-signup-submit-btn');
+                if (btn) btn.innerText = '파트너 가입 제출하기';
+
+                checkPartnerSignupForm();
+            }
+
 
             function checkPartnerSignupForm() {
                 const id = document.getElementById('partner-signup-id')?.value?.trim();
@@ -2412,19 +3087,51 @@ const filterSheet = document.getElementById('filter-sheet');
                 const company = document.getElementById('partner-signup-company')?.value?.trim();
                 const name = document.getElementById('partner-signup-name')?.value?.trim();
                 const phone = document.getElementById('partner-signup-phone')?.value?.trim();
+                const isPartnerIdAvailable = partnerSignupIdStatus === 'available';
 
                 let valid = true;
+                const isPasswordValid = isValidPartnerSignupPassword(pw || '');
 
-                const msgEl = document.getElementById('pw-mismatch-msg');
-                if (msgEl) {
-                    if (pwConfirm && pwConfirm.length > 0 && pw !== pwConfirm) {
-                        msgEl.classList.remove('hidden');
+                const pwStatusEl = document.getElementById('partner-signup-pw-status-msg');
+                if (pwStatusEl) {
+                    if (!pw) {
+                        pwStatusEl.classList.add('hidden');
+                    } else if (isPasswordValid) {
+                        pwStatusEl.className = 'text-[#22c55e] text-[13px] font-bold ml-1';
+                        pwStatusEl.innerText = '※ 사용 가능한 비밀번호입니다.';
                     } else {
-                        msgEl.classList.add('hidden');
+                        pwStatusEl.className = 'text-[#EF4444] text-[13px] font-bold ml-1';
+                        pwStatusEl.innerText = '※ 비밀번호는 8자리 이상이며 영문/숫자/특수문자를 모두 포함해야 합니다.';
                     }
                 }
 
-                if (!id || !pw || !pwConfirm || pw !== pwConfirm || !company || !name || !phone) {
+                const pwConfirmStatusEl = document.getElementById('partner-signup-pw-confirm-status-msg');
+                if (pwConfirmStatusEl) {
+                    if (!pwConfirm) {
+                        pwConfirmStatusEl.classList.add('hidden');
+                    } else if (pw !== pwConfirm) {
+                        pwConfirmStatusEl.className = 'text-[#EF4444] text-[13px] font-bold ml-1';
+                        pwConfirmStatusEl.innerText = '※ 비밀번호가 일치하지 않습니다.';
+                    } else {
+                        pwConfirmStatusEl.className = 'text-[#22c55e] text-[13px] font-bold ml-1';
+                        pwConfirmStatusEl.innerText = '※ 비밀번호가 일치합니다.';
+                    }
+                }
+
+                const phoneStatusEl = document.getElementById('partner-signup-phone-status-msg');
+                if (phoneStatusEl) {
+                    if (!phone) {
+                        phoneStatusEl.classList.add('hidden');
+                    } else if (isValidKoreanMobilePhone(phone)) {
+                        phoneStatusEl.className = 'text-[#22c55e] text-[13px] font-bold ml-1';
+                        phoneStatusEl.innerText = '※ 사용 가능한 휴대폰번호입니다.';
+                    } else {
+                        phoneStatusEl.className = 'text-[#EF4444] text-[13px] font-bold ml-1';
+                        phoneStatusEl.innerText = '※ 휴대폰번호 양식이 맞지 않습니다. (010으로 시작하는 11자리)';
+                    }
+                }
+
+                if (!id || !isPartnerIdAvailable || !pw || !isPasswordValid || !pwConfirm || pw !== pwConfirm || !company || !name || !phone || !isValidKoreanMobilePhone(phone)) {
                     valid = false;
                 }
 
@@ -2473,7 +3180,20 @@ const filterSheet = document.getElementById('filter-sheet');
                 const checkedRadio = document.querySelector('input[name="business_type"]:checked');
                 let bizType = checkedRadio ? checkedRadio.value : '개인사업자';
                 
-                alert('[시스템 테스트] 입력된 사업자 구분: ' + bizType + '\\n(이 메시지가 안 보이면 새로고침을 안 하신 겁니다!)');
+                if (id.length < SIGNUP_ID_MIN_LENGTH) {
+                    alert('아이디는 4자리 이상 입력해주세요.');
+                    return;
+                }
+
+                if (!isValidPartnerSignupPassword(pw)) {
+                    alert('비밀번호는 8자리 이상이며 영문/숫자/특수문자를 모두 포함해야 합니다.');
+                    return;
+                }
+
+                if (!isValidKoreanMobilePhone(phone)) {
+                    alert('휴대폰번호 양식이 맞지 않습니다. (010으로 시작하는 11자리)');
+                    return;
+                }
 
                 if (pw && pw !== pwConfirm) {
                     alert('입력하신 두 비밀번호가 일치하지 않습니다.');
@@ -2496,9 +3216,12 @@ const filterSheet = document.getElementById('filter-sheet');
                 const firestoreDb = firebase.firestore();
                 
                 try {
-                    const existingPartner = await firestoreDb.collection('partners').where('userId', '==', id).get();
-                    if (!existingPartner.empty) {
+                    const isDuplicate = await checkIdDuplicateAcrossUsersAndPartners(id);
+                    if (isDuplicate) {
                         alert('이미 사용중인 파트너 아이디입니다.');
+                        partnerSignupIdStatus = 'duplicate';
+                        setIdStatusMessage(document.getElementById('partner-signup-id-status-msg'), 'duplicate', '※ 이미 사용 중인 아이디입니다.');
+                        checkPartnerSignupForm();
                         return;
                     }
 
@@ -2549,6 +3272,7 @@ const filterSheet = document.getElementById('filter-sheet');
                 }
 
                 // 모달 전환 로직
+                resetPartnerSignupForm();
                 closePartnerSignupModal();
                 const successModal = document.getElementById('partner-signup-success-modal');
                 successModal.style.display = 'flex';
@@ -2609,15 +3333,19 @@ const filterSheet = document.getElementById('filter-sheet');
                 }, 300);
             }
 
-            function submitPartnerApplication() {
+            async function submitPartnerApplication() {
                 const companyInput = document.getElementById('app-company-name');
                 const depositorInput = document.getElementById('app-depositor-name');
                 const contactInput = document.getElementById('app-contact');
+                const submitBtn = document.querySelector('#partner-application-modal button[onclick="submitPartnerApplication()"]');
 
                 const company = companyInput.value.trim();
                 const depositor = depositorInput.value.trim();
                 const contact = contactInput.value.trim();
                 const title = document.getElementById('app-package-title').innerText;
+                const months = Number(document.getElementById('app-months')?.value || 0);
+                const amountText = document.getElementById('app-package-price')?.innerText || '';
+                const amount = Number(String(amountText).replace(/[^0-9]/g, '')) || 0;
 
                 let isValid = true;
 
@@ -2652,25 +3380,92 @@ const filterSheet = document.getElementById('filter-sheet');
                     return;
                 }
 
+                if (!isValidKoreanMobilePhone(contact)) {
+                    alert('연락처 양식이 맞지 않습니다. (010으로 시작하는 11자리)');
+                    return;
+                }
+
+                if (typeof firebase === 'undefined') {
+                    alert('데이터베이스 연결에 실패했습니다. 잠시 후 다시 시도해주세요.');
+                    return;
+                }
+
+                const partnerDocId = localStorage.getItem('dadok_loggedInPartnerDocId') || sessionStorage.getItem('dadok_loggedInPartnerDocId');
+                if (!partnerDocId) {
+                    alert('로그인 정보가 만료되었습니다. 다시 로그인 후 신청해주세요.');
+                    openPartnerLoginScreen();
+                    return;
+                }
+
+                try {
+                    if (submitBtn) {
+                        submitBtn.disabled = true;
+                        submitBtn.innerText = '신청 접수 중...';
+                    }
+                    await firebase.firestore().collection('subscription_requests').add({
+                        partnerId: partnerDocId,
+                        companyName: company,
+                        depositorName: depositor,
+                        contact: normalizePhoneDigits(contact),
+                        months: months || 0,
+                        amount: amount || 0,
+                        ticketTitle: title || '',
+                        status: 'pending',
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                } catch (e) {
+                    console.error('입점권 신청 저장 실패:', e);
+                    alert('입점권 신청 접수 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
+                    if (submitBtn) {
+                        submitBtn.disabled = false;
+                        submitBtn.innerText = '신청서 제출하기';
+                    }
+                    return;
+                } finally {
+                    if (submitBtn) {
+                        submitBtn.disabled = false;
+                        submitBtn.innerText = '신청서 제출하기';
+                    }
+                }
+
                 // alert 대신 성공 모달 표시 (디자인 고도화)
                 const successHTML = `
-            <div class="mb-5">
-                <span class="text-[var(--point-color)] font-extrabold text-[19px] tracking-wide inline-block mb-1.5">[${company}]</span>
-                <span class="text-white font-bold text-[17px]"> 원장님,</span><br>
-                <span class="text-[#D4AF37] font-bold text-[17px] tracking-wide">[${title}]</span>
-                <span class="text-white/90 font-medium text-[16px]"> 신청이 접수되었습니다.</span>
+            <div class="mb-4 text-center">
+                <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[var(--point-color)]/15 border border-[var(--point-color)]/35 mb-3">
+                    <span class="text-[var(--point-color)] text-[12px] font-bold tracking-widest">입점 신청 접수 완료</span>
+                </div>
+                <div class="leading-relaxed">
+                    <span class="text-[var(--point-color)] font-extrabold text-[22px] tracking-wide">[${company}]</span>
+                    <span class="text-white font-bold text-[20px]"> 대표님</span>
+                    <span class="text-white/80 font-medium text-[18px]">,</span><br>
+                    <span class="text-[#F6DC7A] font-extrabold text-[19px] tracking-wide">[${title}]</span>
+                    <span class="text-white font-semibold text-[18px]"> 신청이 접수되었습니다.</span>
+                </div>
             </div>
-            
-            <div class="bg-[#030906] rounded-xl py-4 border border-[#2A3731] mb-5">
-                <p class="text-[var(--text-sub)] text-[15px] leading-relaxed tracking-wide">
-                    안내해드린 계좌로 입금해 주시면<br>
-                    확인 후 <strong class="text-white font-bold">즉시 파트너 권한이 부여</strong>됩니다.
+
+            <div class="bg-gradient-to-br from-[#111F18] to-[#070E0B] rounded-2xl p-4 border-2 border-[var(--point-color)]/70 mb-4 shadow-[0_14px_30px_rgba(212,175,55,0.22),0_10px_28px_rgba(0,0,0,0.35)]">
+                <div class="flex items-center gap-2 mb-3">
+                    <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-[var(--point-color)] text-[#06110D] font-black text-[13px]">!</span>
+                    <span class="text-[#F5E7AA] text-[13px] font-bold tracking-wide">입금 정보 안내</span>
+                </div>
+                <div class="bg-[#F4C63D] rounded-xl px-4 py-3 border border-[#C99F27]">
+                    <div class="grid grid-cols-[72px_1fr] gap-y-1.5 items-start text-[15px] leading-[1.7] tracking-wide text-left">
+                        <span class="text-[#121212]/80 font-semibold">입금 계좌</span>
+                        <span class="text-[#06110D] font-extrabold">카카오뱅크 3333-37-0613731</span>
+                        <span class="text-[#121212]/80 font-semibold">예금주</span>
+                        <span class="text-[#06110D] font-extrabold">다독(DA:DOK)</span>
+                        <span class="text-[#121212]/80 font-semibold">확인 안내</span>
+                        <span class="text-[#06110D] font-bold">입금 확인 후 즉시 파트너 권한 부여</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="text-center bg-[#0A1310] border border-[#22312B] rounded-xl px-4 py-3">
+                <p class="text-[#9EA9A5] text-[13px] leading-relaxed tracking-wide">
+                    승인 관련 문의는 <strong class="text-white font-semibold">다독 신고센터 / 문의</strong>로<br>연락주시기 바랍니다.
                 </p>
             </div>
-            
-            <p class="text-gray-500 text-[13px] leading-relaxed tracking-wide">
-                승인 관련 문의는 <strong class="text-gray-300 font-medium">다독 신고센터 / 문의</strong>로<br>연락주시기 바랍니다.
-            </p>
         `;
                 document.getElementById('app-success-message').innerHTML = successHTML;
 
@@ -2686,6 +3481,7 @@ const filterSheet = document.getElementById('filter-sheet');
                 const appModal = document.getElementById('partner-application-modal');
                 const entryModal = document.getElementById('partner-entry-modal');
                 const loginModal = document.getElementById('partner-login-modal');
+                const dashboardModal = document.getElementById('partner-dashboard-modal');
 
                 // 중간 화면들 즉시 숨김 처리하여 번쩍임 방지
                 if (appModal) {
@@ -2697,12 +3493,14 @@ const filterSheet = document.getElementById('filter-sheet');
                     entryModal.classList.add('translate-x-full');
                 }
 
-                // 로그인 모달 슬라이드 인 시작
+                // 메인화면 이동: 로그인 모달이 떠 있다면 닫아둠
                 if (loginModal) {
-                    loginModal.style.display = 'flex';
-                    setTimeout(() => {
-                        loginModal.classList.remove('translate-x-full');
-                    }, 10);
+                    loginModal.classList.add('translate-x-full');
+                    loginModal.style.display = 'none';
+                }
+                if (dashboardModal) {
+                    dashboardModal.classList.add('translate-x-full');
+                    dashboardModal.style.display = 'none';
                 }
 
                 // 성공 모달 슬라이드 아웃
@@ -2721,6 +3519,12 @@ const filterSheet = document.getElementById('filter-sheet');
                     document.getElementById('app-company-name').classList.remove('!border-[#ef4444]');
                     document.getElementById('app-depositor-name').classList.remove('!border-[#ef4444]');
                     document.getElementById('app-contact').classList.remove('!border-[#ef4444]');
+
+                    if (typeof goHome === 'function') {
+                        goHome();
+                    } else {
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }
                 }, 300);
             }
 
@@ -3021,8 +3825,12 @@ const filterSheet = document.getElementById('filter-sheet');
                 if (typeof resetAllFiltersFast === 'function') resetAllFiltersFast();
                 document.getElementById('filter-options-container').classList.add('hidden');
 
-                // 메인 화면 최상단으로 이동
-                window.scrollTo({ top: 0, behavior: 'smooth' });
+                // 메인 화면 최상단 고정
+                window.scrollTo({ top: 0, behavior: 'auto' });
+                document.documentElement.scrollTop = 0;
+                document.body.scrollTop = 0;
+                const appContainer = document.getElementById('app-container');
+                if (appContainer) appContainer.scrollTop = 0;
             }
 
             // 페이지 로드 시 로그인 상태 복원
@@ -3483,8 +4291,8 @@ const filterSheet = document.getElementById('filter-sheet');
                     }
                     const data = doc.data();
                     
-                    if (data.status !== 'active' || !data.ticketType || data.ticketType === 'None') {
-                        alert('입점권이 구매되어 관리자 승인이 완료된 상태에서만 설정 수정이 가능합니다.');
+                    if (!isPartnerApproved(data)) {
+                        alert('관리자 승인 완료된 파트너만 업체정보를 수정할 수 있습니다.');
                         return;
                     }
 
@@ -3541,24 +4349,30 @@ const filterSheet = document.getElementById('filter-sheet');
                     });
 
                     // 메인 화면 배너 리스트(DB_CHOICE)에도 실시간 연동 (Mock 반영용)
-                    let existingIndex = DB_CHOICE.findIndex(p => p.id === partnerDocId);
-                    let myPartnerMock = {
-                        id: partnerDocId,
-                        name: currentPartner.name,
-                        region: currentPartner.region,
-                        massage: currentPartner.massage,
-                        place: currentPartner.place,
-                        age: currentPartner.age,
-                        rating: currentPartner.rating || 5.0,
-                        reviews: currentPartner.reviews || 0,
-                        tier: data.ticketType || 'Premium',
-                        image: currentPartner.image || 'https://images.unsplash.com/photo-1544161515-4ab6ce6db874?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80'
-                    };
+                    // 앱 공개 배너 배열은 조건 충족 업체만 유지
+                    if (canExposePartnerBanner(data)) {
+                        let existingIndex = DB_CHOICE.findIndex(p => p.id === partnerDocId);
+                        let myPartnerMock = {
+                            id: partnerDocId,
+                            name: currentPartner.name,
+                            region: currentPartner.region,
+                            massage: currentPartner.massage,
+                            place: currentPartner.place,
+                            age: currentPartner.age,
+                            rating: currentPartner.rating || 5.0,
+                            reviews: currentPartner.reviews || 0,
+                            tier: data.ticketType || 'Premium',
+                            image: currentPartner.image || 'https://images.unsplash.com/photo-1544161515-4ab6ce6db874?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80'
+                        };
 
-                    if (existingIndex > -1) {
-                        DB_CHOICE[existingIndex] = myPartnerMock;
+                        if (existingIndex > -1) {
+                            DB_CHOICE[existingIndex] = myPartnerMock;
+                        } else {
+                            DB_CHOICE.unshift(myPartnerMock);
+                        }
                     } else {
-                        DB_CHOICE.unshift(myPartnerMock);
+                        DB_CHOICE = DB_CHOICE.filter(p => p.id !== partnerDocId);
+                        DB_RECOMMEND = DB_RECOMMEND.filter(p => p.id !== partnerDocId);
                     }
 
                     // 필터 및 메인 뷰 재렌더링
@@ -3734,6 +4548,7 @@ const filterSheet = document.getElementById('filter-sheet');
                     'openLoginFormModal': 'closeLoginFormModal',
                     'openSignupModal': 'closeSignupModal',
                     'openPartnerLoginScreen': 'closePartnerLoginScreen',
+                    'openPartnerRecoveryModal': 'closePartnerRecoveryModal',
                     'openPartnerDashboard': 'closePartnerDashboardToMain',
                     'openPartnerSignupModal': 'closePartnerSignupModal',
                     'openLegalModal': 'closeLegalModal',

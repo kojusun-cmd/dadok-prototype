@@ -1,3 +1,11 @@
+// Redirect local IPs to localhost for Firebase Auth compatibility
+if (window.location.protocol === 'file:') {
+    alert("보안 정책상 file:/// 에서는 구글 로그인이 불가능합니다. 관리자 코드를 실행한 로컬 서버(예: http://localhost:5500)로 접속해주세요.");
+} else if (window.location.hostname !== 'localhost' && /^[0-9\.]+$/.test(window.location.hostname)) {
+    console.warn("Redirecting IP " + window.location.hostname + " to localhost for Firebase Auth");
+    window.location.hostname = 'localhost';
+}
+
 // Firebase DB Initialization
 const adminFirebaseConfig = {
     apiKey: 'AIzaSyAY7VmMHV333Bi7zTgnJshIRAFWnBWn6BU',
@@ -181,7 +189,12 @@ function switchTab(tabId) {
     else if (tabId === 'shops') loadShops();
     else if (tabId === 'approvals') loadApprovals();
     else if (tabId === 'categories') loadAllFilters();
-    else if (tabId === 'subscriptions') loadSubscriptionUsage();
+    else if (tabId === 'subscriptions') {
+        loadSubscriptionUsage();
+        if (typeof window.loadSubscriptionRequests === 'function') {
+            window.loadSubscriptionRequests();
+        }
+    }
     else if (tabId === 'dashboard') updateDashboardStats();
     else if (tabId === 'cs') loadCSTickets();
 }
@@ -193,16 +206,48 @@ function updateDashboardStats() {
 
 // ─── Modal handling ───
 function openModal(modalId) {
-    document.getElementById('admin-modal-overlay').classList.remove('hidden');
-    document.getElementById('modal-shop').classList.add('hidden');
-    document.getElementById('modal-category').classList.add('hidden');
-    document.getElementById('modal-filter-option').classList.add('hidden');
-    document.getElementById(modalId).classList.remove('hidden');
+    // If it's a standalone modal with its own overlay (like modal-cs-penalty), just toggle it directly.
+    const standaloneModals = ['modal-cs-penalty'];
+    if (standaloneModals.includes(modalId)) {
+        const el = document.getElementById(modalId);
+        if (el) el.classList.remove('hidden');
+        return;
+    }
+
+    // For nested modals inside admin-modal-overlay
+    const overlay = document.getElementById('admin-modal-overlay');
+    if (overlay) overlay.classList.remove('hidden');
+
+    const nestedModals = [
+        'modal-manual-sub',
+        'modal-shop',
+        'modal-category',
+        'modal-filter-option',
+        'modal-subscription-products'
+    ];
+
+    nestedModals.forEach(id => {
+        const el = document.getElementById(id);
+        if (el && id !== modalId) el.classList.add('hidden');
+    });
+
+    const targetModal = document.getElementById(modalId);
+    if (targetModal) targetModal.classList.remove('hidden');
 }
 
 function closeModal(modalId) {
-    document.getElementById('admin-modal-overlay').classList.add('hidden');
-    document.getElementById(modalId).classList.add('hidden');
+    const standaloneModals = ['modal-cs-penalty'];
+    if (standaloneModals.includes(modalId)) {
+        const el = document.getElementById(modalId);
+        if (el) el.classList.add('hidden');
+        return;
+    }
+
+    const overlay = document.getElementById('admin-modal-overlay');
+    if (overlay) overlay.classList.add('hidden');
+
+    const targetModal = document.getElementById(modalId);
+    if (targetModal) targetModal.classList.add('hidden');
 }
 
 // ─── Initial Listeners ───
@@ -1091,6 +1136,41 @@ function rejectPartnerFromReview() {
 
 let windowShops = []; // Cache for filtering
 
+function getShopOperationalStatus(shop, now = Date.now()) {
+    const status = (shop?.status || '').toLowerCase();
+    const expiryTs = Number(shop?.ticketExpiryTimestamp || 0);
+    const isExpiredByTicket = !!expiryTs && expiryTs < now;
+
+    if (status === 'pending') return 'pending';
+    if (status === 'active' && !isExpiredByTicket) return 'active';
+    return 'expired'; // includes ticket expired and sanction/inactive states
+}
+
+function refreshShopCategoryButtons(activeStatus = 'all') {
+    const targets = [
+        ['kpi-filter-total', 'all'],
+        ['kpi-filter-active', 'active'],
+        ['kpi-filter-expired', 'expired'],
+        ['kpi-filter-pending', 'pending'],
+    ];
+
+    targets.forEach(([id, status]) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        const selected = activeStatus === status;
+        el.classList.toggle('ring-2', selected);
+        el.classList.toggle('ring-[var(--point-color)]', selected);
+        el.classList.toggle('shadow-[0_0_0_1px_rgba(212,175,55,0.25)]', selected);
+    });
+}
+
+function setShopStatusFilter(status = 'all') {
+    const statusSelect = document.getElementById('shop-filter-status');
+    if (statusSelect) statusSelect.value = status;
+    filterShops();
+}
+window.setShopStatusFilter = setShopStatusFilter;
+
 function loadShops() {
     const container = document.getElementById('shop-cards-container');
     db.collection('partners').onSnapshot(
@@ -1126,6 +1206,13 @@ function loadShops() {
                 return timeB - timeA;
             });
 
+            if (windowShops.length === 0) {
+                container.innerHTML =
+                    '<div class="col-span-full py-20 text-center text-[#A7B2AE]">등록된 샵이 없습니다.</div>';
+                updateShopKpis();
+                return;
+            }
+
             updateShopKpis();
             filterShops(); // Render initial state based on current filter
         },
@@ -1140,25 +1227,12 @@ function updateShopKpis() {
     let active = 0,
         expired = 0,
         pending = 0;
-    const now = Date.now();
 
     windowShops.forEach((s) => {
-        if (s.status === 'pending') {
-            pending++;
-        } else {
-            let isExpired = false;
-            // Check expiry
-            if (s.ticketExpiryTimestamp && s.ticketExpiryTimestamp < now) {
-                isExpired = true;
-            }
-            // Check expiry text strictly manually if needed, but timestamp is better
-
-            if (isExpired) {
-                expired++;
-            } else {
-                active++;
-            }
-        }
+        const opStatus = getShopOperationalStatus(s);
+        if (opStatus === 'pending') pending++;
+        else if (opStatus === 'active') active++;
+        else expired++;
     });
 
     const elTotal = document.getElementById('kpi-total-shops');
@@ -1178,8 +1252,6 @@ function filterShops() {
     const planVal = document.getElementById('shop-filter-plan')?.value || 'all';
     const container = document.getElementById('shop-cards-container');
 
-    const now = Date.now();
-
     let filtered = windowShops.filter((s) => {
         // 1. Search Query
         const matchSearch =
@@ -1191,19 +1263,8 @@ function filterShops() {
         if (searchVal && !matchSearch) return false;
 
         // 2. Status check
-        // active: status === 'active' AND not expired
-        // pending: status === 'pending'
-        // expired: status === 'active' AND expired
-        let isExpired = false;
-        if (s.ticketExpiryTimestamp && s.ticketExpiryTimestamp < now) isExpired = true;
-
-        if (statusVal === 'active') {
-            if (s.status !== 'active' || isExpired) return false;
-        } else if (statusVal === 'pending') {
-            if (s.status !== 'pending') return false;
-        } else if (statusVal === 'expired') {
-            if (s.status !== 'active' || !isExpired) return false;
-        }
+        const opStatus = getShopOperationalStatus(s);
+        if (statusVal !== 'all' && opStatus !== statusVal) return false;
 
         // 3. Plan check (ticketType matches premium/standard/none roughly)
         const typeStr = (s.ticketType || '').toLowerCase();
@@ -1220,6 +1281,7 @@ function filterShops() {
         return true;
     });
 
+    refreshShopCategoryButtons(statusVal);
     renderShopCards(filtered);
 }
 
@@ -1244,19 +1306,17 @@ function renderShopCards(shops) {
                 : new Date(data.createdAt).toLocaleDateString('ko-KR')
             : '-';
 
-        let isExpired = false;
-        if (data.ticketExpiryTimestamp && data.ticketExpiryTimestamp < now) {
-            isExpired = true;
-        }
+        const opStatus = getShopOperationalStatus(data, now);
+        const isExpired = opStatus === 'expired';
 
         // Determine Badges
         let statusBadge = '';
-        if (data.status === 'pending') {
+        if (opStatus === 'pending') {
             statusBadge =
                 '<span class="absolute top-3 left-3 bg-yellow-500/90 text-white text-xs font-bold px-2 py-1 rounded shadow">승인 대기</span>';
-        } else if (isExpired) {
+        } else if (opStatus === 'expired') {
             statusBadge =
-                '<span class="absolute top-3 left-3 bg-red-500/90 text-white text-xs font-bold px-2 py-1 rounded shadow">입점권 만료</span>';
+                '<span class="absolute top-3 left-3 bg-red-500/90 text-white text-xs font-bold px-2 py-1 rounded shadow">입점권 만료/제재</span>';
         } else {
             statusBadge =
                 '<span class="absolute top-3 left-3 bg-green-500/90 text-white text-xs font-bold px-2 py-1 rounded shadow">영업중</span>';
@@ -1762,8 +1822,71 @@ function switchSubTab(tabId) {
 let currentSubRequestStatus = 'pending';
 let unsubscribeSubRequests = null;
 
+function refreshSubRequestFilterButtons(active = 'pending') {
+    const targets = [
+        ['sub-req-filter-total', 'all'],
+        ['sub-req-filter-pending', 'pending'],
+        ['sub-req-filter-completed', 'completed'],
+        ['sub-req-filter-rejected', 'rejected'],
+    ];
+    targets.forEach(([id, key]) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        const selected = key === active;
+        el.classList.toggle('ring-2', selected);
+        el.classList.toggle('ring-[var(--point-color)]', selected);
+        el.classList.toggle('shadow-[0_0_0_1px_rgba(212,175,55,0.2)]', selected);
+    });
+}
+
+function normalizeSubRequestStatus(rawStatus) {
+    const s = String(rawStatus || '').trim().toLowerCase();
+    if (!s || s === 'pending' || s === 'requested' || s === 'request' || s === 'waiting') {
+        return 'pending';
+    }
+    if (s === 'completed' || s === 'approved' || s === 'done' || s === 'success') {
+        return 'completed';
+    }
+    if (s === 'rejected' || s === 'denied' || s === 'hold' || s === 'cancelled') {
+        return 'rejected';
+    }
+    return 'completed';
+}
+
+function updateSubscriptionRequestCounters(rows = []) {
+    let pending = 0;
+    let completed = 0;
+    let rejected = 0;
+    rows.forEach((r) => {
+        const status = normalizeSubRequestStatus(r.status);
+        if (status === 'pending') pending++;
+        else if (status === 'completed') completed++;
+        else if (status === 'rejected') rejected++;
+    });
+    const total = rows.length;
+
+    const elTotal = document.getElementById('sub-req-count-total');
+    const elPending = document.getElementById('sub-req-count-pending');
+    const elCompleted = document.getElementById('sub-req-count-completed');
+    const elRejected = document.getElementById('sub-req-count-rejected');
+    if (elTotal) elTotal.innerText = String(total);
+    if (elPending) elPending.innerText = String(pending);
+    if (elCompleted) elCompleted.innerText = String(completed);
+    if (elRejected) elRejected.innerText = String(rejected);
+}
+
+function formatSubDateTime(value) {
+    if (!value) return '-';
+    let dateObj = null;
+    if (typeof value.toDate === 'function') dateObj = value.toDate();
+    else if (typeof value.toMillis === 'function') dateObj = new Date(value.toMillis());
+    else if (typeof value === 'number') dateObj = new Date(value);
+    else dateObj = new Date(value);
+    if (!dateObj || Number.isNaN(dateObj.getTime())) return '-';
+    return `${dateObj.getFullYear().toString().slice(-2)}.${String(dateObj.getMonth() + 1).padStart(2, '0')}.${String(dateObj.getDate()).padStart(2, '0')} ${String(dateObj.getHours()).padStart(2, '0')}:${String(dateObj.getMinutes()).padStart(2, '0')}`;
+}
+
 window.switchSubRequestTab = function (status) {
-    currentSubRequestStatus = status;
     const tabPending = document.getElementById('sub-req-tab-pending');
     const tabCompleted = document.getElementById('sub-req-tab-completed');
 
@@ -1790,12 +1913,37 @@ window.switchSubRequestTab = function (status) {
         }
     }
 
+    currentSubRequestStatus = status === 'pending' ? 'pending' : 'all_done';
+    refreshSubRequestFilterButtons(currentSubRequestStatus);
+    window.loadSubscriptionRequests();
+};
+
+window.setSubRequestFilter = function (status) {
+    currentSubRequestStatus = status;
+    const tabPending = document.getElementById('sub-req-tab-pending');
+    const tabCompleted = document.getElementById('sub-req-tab-completed');
+    if (tabPending && tabCompleted) {
+        tabPending.classList.remove('text-[var(--point-color)]', 'border-[var(--point-color)]');
+        tabPending.classList.add('text-[#A7B2AE]', 'border-transparent');
+        tabCompleted.classList.remove('text-[var(--point-color)]', 'border-[var(--point-color)]');
+        tabCompleted.classList.add('text-[#A7B2AE]', 'border-transparent');
+
+        if (status === 'pending') {
+            tabPending.classList.add('text-[var(--point-color)]', 'border-[var(--point-color)]');
+            tabPending.classList.remove('text-[#A7B2AE]', 'border-transparent');
+        } else {
+            tabCompleted.classList.add('text-[var(--point-color)]', 'border-[var(--point-color)]');
+            tabCompleted.classList.remove('text-[#A7B2AE]', 'border-transparent');
+        }
+    }
+    refreshSubRequestFilterButtons(status);
     window.loadSubscriptionRequests();
 };
 
 window.loadSubscriptionRequests = function () {
     const tbody = document.getElementById('sub-requests-table-body');
     if (!tbody) return;
+    refreshSubRequestFilterButtons(currentSubRequestStatus);
 
     if (unsubscribeSubRequests) {
         unsubscribeSubRequests();
@@ -1804,37 +1952,67 @@ window.loadSubscriptionRequests = function () {
     tbody.innerHTML =
         '<tr><td colspan="5" class="p-8 text-center text-[#A7B2AE]">로딩 중...</td></tr>';
 
-    // We fetch all records and filter in memory to avoid throwing composite index errors across projects.
+    // createdAt 누락/지연으로 인해 orderBy 쿼리에서 빠지는 케이스를 방지하기 위해
+    // 전체를 받아 메모리에서 정렬/필터링한다.
     unsubscribeSubRequests = db
         .collection('subscription_requests')
-        .orderBy('createdAt', 'desc')
-        .limit(100)
         .onSnapshot(
             (snapshot) => {
-                let matches = [];
+                let allRows = [];
                 snapshot.forEach((doc) => {
-                    const data = doc.data();
+                    const data = { ...doc.data(), id: doc.id };
+                    allRows.push(data);
+                });
+
+                updateSubscriptionRequestCounters(allRows);
+
+                let matches = [];
+                allRows.forEach((data) => {
+                    const normalizedStatus = normalizeSubRequestStatus(data.status);
+                    const row = { ...data, normalizedStatus };
                     if (currentSubRequestStatus === 'pending') {
-                        if (data.status === 'pending') matches.push({ ...data, id: doc.id });
+                        if (normalizedStatus === 'pending') matches.push(row);
+                    } else if (currentSubRequestStatus === 'completed') {
+                        if (normalizedStatus === 'completed') matches.push(row);
+                    } else if (currentSubRequestStatus === 'rejected') {
+                        if (normalizedStatus === 'rejected') matches.push(row);
+                    } else if (currentSubRequestStatus === 'all') {
+                        matches.push(row);
                     } else {
-                        if (data.status === 'completed' || data.status === 'rejected')
-                            matches.push({ ...data, id: doc.id });
+                        if (normalizedStatus !== 'pending') matches.push(row);
                     }
                 });
 
+                matches.sort((a, b) => {
+                    const getTs = (x) => {
+                        if (x?.createdAt && typeof x.createdAt.toMillis === 'function') return x.createdAt.toMillis();
+                        if (x?.updatedAt && typeof x.updatedAt.toMillis === 'function') return x.updatedAt.toMillis();
+                        if (x?.completedAt && typeof x.completedAt.toMillis === 'function') return x.completedAt.toMillis();
+                        return 0;
+                    };
+                    return getTs(b) - getTs(a);
+                });
+
                 if (matches.length === 0) {
-                    tbody.innerHTML = `<tr><td colspan="5" class="p-8 text-center text-[#A7B2AE]">${currentSubRequestStatus === 'pending' ? '현재 입금 대기 중인 신청 건이 없습니다.' : '처리 완료/반려 내역이 없습니다.'}</td></tr>`;
+                    const emptyMsgMap = {
+                        pending: '현재 입금 대기 중인 신청 건이 없습니다.',
+                        completed: '처리 완료 내역이 없습니다.',
+                        rejected: '반려 내역이 없습니다.',
+                        all: '신청 내역이 없습니다.',
+                        all_done: '처리 완료/반려 내역이 없습니다.'
+                    };
+                    tbody.innerHTML = `<tr><td colspan="5" class="p-8 text-center text-[#A7B2AE]">${emptyMsgMap[currentSubRequestStatus] || '신청 내역이 없습니다.'}</td></tr>`;
                     return;
                 }
 
                 let html = '';
                 matches.forEach((data) => {
                     const reqId = data.id;
-                    const d = data.createdAt ? new Date(data.createdAt.toMillis()) : new Date();
-                    const dStr = `${d.getFullYear().toString().substr(-2)}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+                    const dStr = formatSubDateTime(data.createdAt);
+                    const completedStr = formatSubDateTime(data.completedAt || data.updatedAt);
 
                     let btnHtml = '';
-                    if (data.status === 'pending') {
+                    if (data.normalizedStatus === 'pending') {
                         btnHtml = `
                     <div class="flex flex-col gap-1.5 items-end justify-center h-full">
                         <button onclick="approveSubscriptionRequest('${reqId}', '${data.partnerId}', ${data.months}, '${data.companyName}')" class="px-3 py-1.5 bg-[#11291D] hover:bg-[var(--point-color)] hover:text-black text-[var(--point-color)] border border-[var(--point-color)] rounded-lg text-xs font-bold transition-colors w-[150px] shadow-md relative overflow-hidden group">
@@ -1843,10 +2021,16 @@ window.loadSubscriptionRequests = function () {
                         </button>
                         <button onclick="rejectSubscriptionRequest('${reqId}', '${data.companyName}')" class="px-3 py-1 bg-[#0A1B13] hover:bg-black text-[#A7B2AE] hover:text-red-400 border border-[#2A3731] hover:border-red-900 rounded-lg text-[11px] transition-colors w-[150px]">보류 / 반려</button>
                     </div>`;
-                    } else if (data.status === 'completed') {
-                        btnHtml = `<span class="bg-[#11291D] text-green-400 border border-green-900/50 px-2.5 py-1 rounded-md text-xs font-bold">🟢 승인 완료</span>`;
+                    } else if (data.normalizedStatus === 'completed') {
+                        btnHtml = `<div class="inline-flex flex-col items-end gap-1">
+                            <span class="bg-[#11291D] text-green-400 border border-green-900/50 px-2.5 py-1 rounded-md text-xs font-bold">🟢 승인 완료</span>
+                            <span class="text-[10px] text-[#A7B2AE]">처리: ${completedStr}</span>
+                        </div>`;
                     } else {
-                        btnHtml = `<span class="bg-[#0A1B13] text-red-400 border border-[#2A3731] px-2.5 py-1 rounded-md text-xs">🔴 반려됨<br><span class="text-[9px] text-[#A7B2AE] font-normal tracking-tighter block mt-0.5 max-w-[80px] break-keep truncate" title="${data.rejectReason || ''}">${data.rejectReason || ''}</span></span>`;
+                        btnHtml = `<div class="inline-flex flex-col items-end gap-1">
+                            <span class="bg-[#0A1B13] text-red-400 border border-[#2A3731] px-2.5 py-1 rounded-md text-xs">🔴 반려됨<br><span class="text-[9px] text-[#A7B2AE] font-normal tracking-tighter block mt-0.5 max-w-[80px] break-keep truncate" title="${data.rejectReason || ''}">${data.rejectReason || ''}</span></span>
+                            <span class="text-[10px] text-[#A7B2AE]">처리: ${completedStr}</span>
+                        </div>`;
                     }
 
                     html += `
@@ -1872,6 +2056,8 @@ window.loadSubscriptionRequests = function () {
             },
             (err) => {
                 console.error('Error loading sub requests: ', err);
+                updateSubscriptionRequestCounters([]);
+                tbody.innerHTML = `<tr><td colspan="5" class="p-8 text-center text-red-400">신청 현황 로드 실패: ${err.message}</td></tr>`;
             },
         );
 };
@@ -1918,6 +2104,11 @@ window.approveSubscriptionRequest = async function (reqId, partnerId, addMonths,
         await db.collection('subscription_requests').doc(reqId).update({
             status: 'completed',
             completedAt: firebase.firestore.FieldValue.serverTimestamp(),
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+            approvedBy: auth.currentUser?.email || 'admin',
+            approvedMonths: Number(addMonths) || 0,
+            approvedExpiryTimestamp: newDate.getTime(),
+            approvedExpiryDate: newExpiryStr
         });
 
         alert(
@@ -1940,6 +2131,8 @@ window.rejectSubscriptionRequest = async function (reqId, companyName) {
             status: 'rejected',
             rejectReason: reason,
             completedAt: firebase.firestore.FieldValue.serverTimestamp(),
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+            rejectedBy: auth.currentUser?.email || 'admin'
         });
 
         alert(`🔴 반려 처리되었습니다.\n사유: ${reason}`);
@@ -1977,7 +2170,14 @@ function loadSubscriptionUsage() {
 
                 let expiryHtml = '<span class="text-[#A7B2AE]">만료일 미지정</span>';
                 if (data.ticketExpiryTimestamp) {
-                    expiryHtml = `<div class="countdown-timer text-[11px] font-mono border border-[#2A3731] bg-[#06110D] text-[#A7B2AE] px-2 py-0.5 rounded inline-block" data-expiry="${data.ticketExpiryTimestamp}">계산중...</div>`;
+                    const expiryDate = new Date(data.ticketExpiryTimestamp);
+                    const expiryLabel = `${String(expiryDate.getMonth() + 1).padStart(2, '0')}/${String(expiryDate.getDate()).padStart(2, '0')} ${String(expiryDate.getHours()).padStart(2, '0')}:${String(expiryDate.getMinutes()).padStart(2, '0')}`;
+                    expiryHtml = `
+                        <div class="flex flex-col gap-1">
+                            <div class="countdown-timer text-[11px] font-mono border border-[#2A3731] bg-[#06110D] text-[#A7B2AE] px-2 py-0.5 rounded inline-block" data-expiry="${data.ticketExpiryTimestamp}">계산중...</div>
+                            <span class="text-[11px] text-[#A7B2AE]">만료 예정: ${expiryLabel}</span>
+                        </div>
+                    `;
                 } else if (data.ticketExpiry) {
                     expiryHtml = `<span class="text-white">${data.ticketExpiry} 만료</span>`;
                 }

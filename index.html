@@ -178,22 +178,22 @@
 
                 <!-- Footer Area (업체 입점 & 관리자) -->
                 <div
-                    class="px-5 py-8 mt-10 border-t border-[var(--border-color)] flex flex-col items-center justify-center gap-3 bg-[var(--surface-color)]/30">
+                    class="px-5 pt-5 pb-4 mt-2 border-t border-[var(--border-color)] flex flex-col items-center justify-center gap-3 bg-[var(--surface-color)]/30">
                     <h3 class="font-bold text-lg" style="color: var(--point-color);">다독 파트너스</h3>
-                    <p class="text-[var(--text-sub)] text-sm mb-3 text-center">하이엔드 프라이빗 라운지 토탈 서비스</p>
+                    <p class="text-[var(--text-sub)] text-sm text-center leading-relaxed">하이엔드 프라이빗 라운지 토탈 서비스</p>
                     <div class="flex gap-3 w-full justify-center">
                         <button onclick="openPartnerLoginScreen()"
-                            class="flex-1 max-w-[160px] px-3 py-3.5 rounded-xl bg-[var(--surface-color)] border border-[var(--point-color)] text-[var(--point-color)] text-base font-bold hover:bg-[var(--point-color)] hover:text-[#06110D] transition-colors shadow-sm">
+                            class="flex-1 max-w-[160px] px-3 py-2 rounded-xl bg-[var(--surface-color)] border border-[var(--point-color)] text-[var(--point-color)] text-base font-bold hover:bg-[var(--point-color)] hover:text-[#06110D] transition-colors shadow-sm">
                             업체 전용
                         </button>
                         <button onclick="openSupportScreen()"
-                            class="flex-1 max-w-[160px] px-3 py-3.5 rounded-xl bg-transparent border border-[var(--text-sub)] text-[var(--text-sub)] text-base font-bold hover:border-[var(--text-main)] hover:text-[var(--text-main)] transition-colors shadow-sm">
+                            class="flex-1 max-w-[160px] px-3 py-2 rounded-xl bg-transparent border border-[var(--text-sub)] text-[var(--text-sub)] text-base font-bold hover:border-[var(--text-main)] hover:text-[var(--text-main)] transition-colors shadow-sm">
                             신고 센터 / 문의
                         </button>
                     </div>
                     <div
-                        class="mt-8 text-[11px] text-[var(--text-sub)] opacity-60 text-center tracking-widest leading-relaxed">
-                        © 2026 DA:DOK PREMIER.<br>ALL RIGHTS RESERVED.
+                        class="mt-5 text-[10px] text-[var(--text-sub)] opacity-60 text-center tracking-widest leading-relaxed">
+                        © 2026 DA:DOK PREMIER. ALL RIGHTS RESERVED.
                     </div>
                 </div>
             </div>
@@ -389,26 +389,29 @@
                     <!-- 아이디 입력 -->
                     <div class="flex flex-col gap-2">
                         <label class="text-[var(--text-sub)] text-[13px] font-bold tracking-widest ml-1">아이디</label>
-                        <input id="signup-id" type="text" placeholder="아이디를 입력해주세요" oninput="checkSignupValidity()"
+                        <input id="signup-id" type="text" placeholder="아이디를 입력해주세요" oninput="checkSignupValidity(); scheduleSignupIdValidation();"
                             class="w-full bg-[#0A1B13] border border-[var(--point-color)]/30 rounded-2xl px-5 py-4 text-[var(--text-main)] placeholder-[var(--text-sub)]/50 font-medium text-[15px] focus:outline-none focus:border-[var(--point-color)] focus:ring-1 focus:ring-[var(--point-color)] transition-all shadow-sm"
                             autocomplete="off">
+                        <span id="signup-id-status-msg" class="text-[13px] font-bold ml-1 hidden"></span>
                     </div>
 
                     <!-- 비밀번호 입력 -->
                     <div class="flex flex-col gap-2">
                         <label class="text-[var(--text-sub)] text-[13px] font-bold tracking-widest ml-1">비밀번호</label>
-                        <input id="signup-pw" type="password" placeholder="비밀번호(8자 이상 영문/숫자/특수문자)"
+                        <input id="signup-pw" type="password" placeholder="비밀번호(8자리이상 영문/숫자/특수문자 조합)"
                             oninput="checkSignupValidity()"
                             class="w-full bg-[#0A1B13] border border-[var(--point-color)]/30 rounded-2xl px-5 py-4 text-[var(--text-main)] placeholder-[var(--text-sub)]/50 font-medium text-[15px] focus:outline-none focus:border-[var(--point-color)] focus:ring-1 focus:ring-[var(--point-color)] transition-all shadow-sm"
                             autocomplete="new-password">
+                        <span id="signup-pw-status-msg" class="text-[13px] font-bold ml-1 hidden"></span>
                     </div>
 
                     <!-- 비밀번호 확인 입력 -->
                     <div class="flex flex-col gap-2">
                         <label class="text-[var(--text-sub)] text-[13px] font-bold tracking-widest ml-1">비밀번호 확인</label>
-                        <input id="signup-pw-confirm" type="password" placeholder="비밀번호를 다시 한 번 입력해주세요"
+                        <input id="signup-pw-confirm" type="password" placeholder="비밀번호(8자리이상 영문/숫자/특수문자 조합)"
                             oninput="checkSignupValidity()"
                             class="w-full bg-[#0A1B13] border border-[var(--point-color)]/30 rounded-2xl px-5 py-4 text-[var(--text-main)] placeholder-[var(--text-sub)]/50 font-medium text-[15px] focus:outline-none focus:border-[var(--point-color)] focus:ring-1 focus:ring-[var(--point-color)] transition-all shadow-sm">
+                        <span id="signup-pw-confirm-status-msg" class="text-[13px] font-bold ml-1 hidden"></span>
                     </div>
 
                     <!-- 이름 및 성별 입력 -->
@@ -438,6 +441,7 @@
                         <input id="signup-phone" type="tel" placeholder="'-' 제외하고 입력해주세요"
                             oninput="checkSignupValidity()"
                             class="w-full bg-[#0A1B13] border border-[var(--point-color)]/30 rounded-2xl px-5 py-4 text-[var(--text-main)] placeholder-[var(--text-sub)]/50 font-medium text-[15px] focus:outline-none focus:border-[var(--point-color)] focus:ring-1 focus:ring-[var(--point-color)] transition-all shadow-sm">
+                        <span id="signup-phone-status-msg" class="text-[13px] font-bold ml-1 hidden"></span>
                     </div>
 
                     <!-- 서비스 이용약관 (면책 조항) -->
@@ -685,6 +689,9 @@
                                 class="text-[13px] font-medium text-[var(--text-sub)] group-hover:text-[var(--text-main)] transition-colors tracking-wide">로그인
                                 유지</span>
                         </label>
+                        <button
+                            class="text-[13px] font-medium text-[var(--text-sub)] hover:text-[var(--point-color)] transition-colors opacity-90 z-10 cursor-pointer p-2 -mr-2 tracking-wide"
+                            onclick="openPartnerRecoveryModal('id')">아이디 / 비밀번호 찾기</button>
                     </div>
 
                     <!-- 버튼 영역 (파트너 로그인 & 파트너 가입) -->
@@ -753,6 +760,93 @@
             </div>
         </div>
 
+        <!-- 0-1-p-r. 파트너 계정 복구 뷰 -->
+        <div id="partner-recovery-modal" style="display: none;"
+            class="absolute inset-x-0 inset-y-0 z-[238] bg-[var(--bg-color)] flex-col transition-transform duration-300 translate-x-full overflow-hidden h-full">
+            <div
+                class="px-5 py-4 flex items-center justify-between border-b border-[var(--border-color)] bg-[#06110D]/95 backdrop-blur-md">
+                <button
+                    class="w-10 h-10 flex items-center justify-center text-[var(--point-color)] hover:text-white transition-colors"
+                    onclick="closePartnerRecoveryModal()">
+                    <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7">
+                        </path>
+                    </svg>
+                </button>
+                <span class="text-lg font-bold text-[var(--text-main)] tracking-widest">파트너 계정 찾기</span>
+                <div class="w-10"></div>
+            </div>
+
+            <div class="flex-1 flex flex-col px-7 pt-6 pb-24 overflow-y-auto w-full mx-auto">
+                <div class="w-full max-w-sm mx-auto">
+                    <div class="flex border-b border-[var(--border-color)] mb-6">
+                        <button id="partner-recovery-tab-id-btn"
+                            class="flex-1 py-3 text-center font-bold text-[var(--point-color)] border-b-2 border-[var(--point-color)] tracking-widest transition-colors"
+                            onclick="switchPartnerRecoveryTab('id')">아이디 찾기</button>
+                        <button id="partner-recovery-tab-pw-btn"
+                            class="flex-1 py-3 text-center font-medium text-[var(--text-sub)] border-b-2 border-transparent tracking-widest transition-colors hover:text-[var(--text-main)]"
+                            onclick="switchPartnerRecoveryTab('pw')">비밀번호 찾기</button>
+                    </div>
+
+                    <div id="partner-recovery-id-form" class="flex flex-col gap-4">
+                        <div class="flex flex-col gap-2">
+                            <label class="text-[var(--text-sub)] text-[13px] font-bold tracking-widest ml-1">업체명</label>
+                            <input id="partner-find-id-company" type="text" placeholder="등록된 업체명을 입력해주세요"
+                                class="w-full bg-[#0A1B13] border border-[var(--point-color)]/30 rounded-2xl px-5 py-4 text-[var(--text-main)] placeholder-[var(--text-sub)]/50 font-medium text-[15px] focus:outline-none focus:border-[var(--point-color)] focus:ring-1 focus:ring-[var(--point-color)] transition-all shadow-sm">
+                        </div>
+                        <div class="flex flex-col gap-2">
+                            <label class="text-[var(--text-sub)] text-[13px] font-bold tracking-widest ml-1">휴대폰 번호</label>
+                            <input id="partner-find-id-phone" type="tel" placeholder="010으로 시작하는 11자리"
+                                class="w-full bg-[#0A1B13] border border-[var(--point-color)]/30 rounded-2xl px-5 py-4 text-[var(--text-main)] placeholder-[var(--text-sub)]/50 font-medium text-[15px] focus:outline-none focus:border-[var(--point-color)] focus:ring-1 focus:ring-[var(--point-color)] transition-all shadow-sm">
+                        </div>
+                        <button
+                            class="w-full py-[16px] mt-2 rounded-2xl bg-gradient-to-r from-[var(--point-color)] to-[#B59530] text-[#06110D] font-bold text-[16px] tracking-[0.08em] shadow-[0_8px_20px_rgba(212,175,55,0.25)] hover:brightness-110 transition-all duration-300 active:scale-[0.98]"
+                            onclick="handlePartnerFindId()">아이디 찾기</button>
+                    </div>
+
+                    <div id="partner-recovery-pw-form" class="hidden flex flex-col gap-4">
+                        <div class="flex flex-col gap-2">
+                            <label class="text-[var(--text-sub)] text-[13px] font-bold tracking-widest ml-1">파트너 아이디</label>
+                            <input id="partner-find-pw-id" type="text" placeholder="아이디를 입력해주세요"
+                                class="w-full bg-[#0A1B13] border border-[var(--point-color)]/30 rounded-2xl px-5 py-4 text-[var(--text-main)] placeholder-[var(--text-sub)]/50 font-medium text-[15px] focus:outline-none focus:border-[var(--point-color)] focus:ring-1 focus:ring-[var(--point-color)] transition-all shadow-sm">
+                        </div>
+                        <div class="flex flex-col gap-2">
+                            <label class="text-[var(--text-sub)] text-[13px] font-bold tracking-widest ml-1">업체명</label>
+                            <input id="partner-find-pw-company" type="text" placeholder="등록된 업체명을 입력해주세요"
+                                class="w-full bg-[#0A1B13] border border-[var(--point-color)]/30 rounded-2xl px-5 py-4 text-[var(--text-main)] placeholder-[var(--text-sub)]/50 font-medium text-[15px] focus:outline-none focus:border-[var(--point-color)] focus:ring-1 focus:ring-[var(--point-color)] transition-all shadow-sm">
+                        </div>
+                        <button
+                            class="w-full py-[16px] mt-2 rounded-2xl bg-gradient-to-r from-[var(--point-color)] to-[#B59530] text-[#06110D] font-bold text-[16px] tracking-[0.08em] shadow-[0_8px_20px_rgba(212,175,55,0.25)] hover:brightness-110 transition-all duration-300 active:scale-[0.98]"
+                            onclick="handlePartnerPasswordResetRequest()">비밀번호 찾기</button>
+
+                        <div id="partner-recovery-reset-form" class="hidden mt-2 border border-[#2A3731] rounded-2xl p-4 bg-[#0A1B13]/60 flex flex-col gap-3">
+                            <p class="text-[13px] text-[var(--text-sub)] leading-relaxed">본인확인이 완료되었습니다. 새 비밀번호를 입력해 바로 재설정할 수 있습니다.</p>
+                            <div class="flex flex-col gap-2">
+                                <label class="text-[var(--text-sub)] text-[12px] font-bold tracking-widest ml-1">새 비밀번호</label>
+                                <input id="partner-recovery-new-pw" type="password" placeholder="8자리이상 영문/숫자/특수문자 조합"
+                                    oninput="validatePartnerRecoveryPasswordForm()"
+                                    class="w-full bg-[#06110D] border border-[#2A3731] rounded-xl px-4 py-3 text-[var(--text-main)] placeholder-[var(--text-sub)]/50 font-medium text-[14px] focus:outline-none focus:border-[var(--point-color)] transition-all">
+                                <span id="partner-recovery-new-pw-msg" class="text-[12px] font-bold ml-1 hidden"></span>
+                            </div>
+                            <div class="flex flex-col gap-2">
+                                <label class="text-[var(--text-sub)] text-[12px] font-bold tracking-widest ml-1">새 비밀번호 확인</label>
+                                <input id="partner-recovery-new-pw-confirm" type="password" placeholder="비밀번호를 다시 입력해주세요"
+                                    oninput="validatePartnerRecoveryPasswordForm()"
+                                    class="w-full bg-[#06110D] border border-[#2A3731] rounded-xl px-4 py-3 text-[var(--text-main)] placeholder-[var(--text-sub)]/50 font-medium text-[14px] focus:outline-none focus:border-[var(--point-color)] transition-all">
+                                <span id="partner-recovery-new-pw-confirm-msg" class="text-[12px] font-bold ml-1 hidden"></span>
+                            </div>
+                            <button id="partner-recovery-reset-submit-btn"
+                                class="w-full py-[14px] mt-1 rounded-xl bg-[#1A2521] text-[#A7B2AE] border border-[#2A3731] font-bold text-[15px] tracking-wide transition-all duration-300 pointer-events-none"
+                                onclick="submitPartnerPasswordReset()" disabled>비밀번호 재설정 완료</button>
+                        </div>
+                    </div>
+
+                    <div id="partner-recovery-result"
+                        class="hidden mt-5 p-4 rounded-2xl border text-[14px] leading-relaxed"></div>
+                </div>
+            </div>
+        </div>
+
         <!-- 0-1-p1. 파트너 회원가입 뷰 -->
         <div id="partner-signup-modal" style="display: none;"
             class="absolute inset-x-0 inset-y-0 z-[245] bg-[var(--bg-color)] flex-col transition-transform duration-300 translate-x-full overflow-hidden h-full">
@@ -790,26 +884,27 @@
 
                         <div class="flex flex-col gap-2">
                             <label class="text-[var(--text-sub)] text-[14px] font-bold tracking-widest ml-1">아이디</label>
-                            <input id="partner-signup-id" type="text" placeholder="사용하실 아이디를 입력해주세요"
+                            <input id="partner-signup-id" type="text" placeholder="사용하실 아이디를 입력해주세요" oninput="checkPartnerSignupForm(); schedulePartnerSignupIdValidation();"
                                 class="w-full bg-[#0A1B13] border border-[#2A3731] rounded-xl px-4 py-4 text-[var(--text-main)] placeholder-[var(--text-sub)]/50 font-medium text-[16px] focus:outline-none focus:border-[var(--point-color)] transition-all">
+                            <span id="partner-signup-id-status-msg" class="text-[13px] font-bold ml-1 hidden"></span>
                         </div>
 
                         <div class="flex flex-col gap-2">
                             <label
                                 class="text-[var(--text-sub)] text-[14px] font-bold tracking-widest ml-1">비밀번호</label>
                             <input id="partner-signup-pw" oninput="checkPartnerSignupForm()" type="password"
-                                placeholder="비밀번호(영문/숫자/특수문자 조합)"
+                                placeholder="비밀번호(8자리이상 영문/숫자/특수문자 조합)"
                                 class="w-full bg-[#0A1B13] border border-[#2A3731] rounded-xl px-4 py-4 text-[var(--text-main)] placeholder-[var(--text-sub)]/50 font-medium text-[16px] focus:outline-none focus:border-[var(--point-color)] transition-all">
+                            <span id="partner-signup-pw-status-msg" class="text-[13px] font-bold ml-1 hidden"></span>
                         </div>
 
                         <div class="flex flex-col gap-2">
                             <label class="text-[var(--text-sub)] text-[14px] font-bold tracking-widest ml-1">비밀번호
                                 확인</label>
                             <input id="partner-signup-pw-confirm" oninput="checkPartnerSignupForm()" type="password"
-                                placeholder="비밀번호를 한번 더 입력해주세요"
+                                placeholder="비밀번호(8자리이상 영문/숫자/특수문자 조합)"
                                 class="w-full bg-[#0A1B13] border border-[#2A3731] rounded-xl px-4 py-4 text-[var(--text-main)] placeholder-[var(--text-sub)]/50 font-medium text-[16px] focus:outline-none focus:border-[var(--point-color)] transition-all">
-                            <span id="pw-mismatch-msg" class="text-[#EF4444] text-[13px] font-bold ml-1 hidden">※ 비밀번호가
-                                일치하지 않습니다.</span>
+                            <span id="partner-signup-pw-confirm-status-msg" class="text-[13px] font-bold ml-1 hidden"></span>
                         </div>
 
                         <div class="flex flex-col gap-2">
@@ -840,8 +935,9 @@
                         <div class="flex flex-col gap-2">
                             <label class="text-[var(--text-sub)] text-[14px] font-bold tracking-widest ml-1">휴대폰
                                 번호</label>
-                            <input id="partner-signup-phone" type="tel" placeholder="010-0000-0000"
+                            <input id="partner-signup-phone" oninput="checkPartnerSignupForm()" type="tel" placeholder="010-0000-0000"
                                 class="w-full bg-[#0A1B13] border border-[#2A3731] rounded-xl px-4 py-4 text-[var(--text-main)] placeholder-[var(--text-sub)]/50 font-medium text-[16px] focus:outline-none focus:border-[var(--point-color)] transition-all">
+                            <span id="partner-signup-phone-status-msg" class="text-[13px] font-bold ml-1 hidden"></span>
                         </div>
 
                         <div class="flex flex-col gap-3 mt-1">
@@ -922,21 +1018,38 @@
                         </h3>
 
                         <div class="flex flex-col gap-5">
+                            <label class="flex items-center gap-4 cursor-pointer group pb-3 border-b border-[#2A3731]">
+                                <div
+                                    class="relative flex items-center justify-center w-6 h-6 border-2 border-[#2A3731] rounded bg-[#030906] group-hover:border-[var(--point-color)] transition-colors flex-shrink-0">
+                                    <input type="checkbox" id="partner-signup-agree-all"
+                                        class="absolute w-full h-full opacity-0 cursor-pointer"
+                                        onchange="togglePartnerSignupAgreeAll(this)">
+                                    <svg class="w-4 h-4 text-[var(--point-color)] opacity-0 transition-opacity"
+                                        fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3"
+                                            d="M5 13l4 4L19 7"></path>
+                                    </svg>
+                                </div>
+                                <span class="text-[var(--point-color)] font-bold text-[15px] leading-snug pt-[1px]">전체 동의
+                                    (필수 항목 포함)</span>
+                            </label>
+
                             <div class="flex items-center justify-between">
                                 <label class="flex items-start gap-4 cursor-pointer group flex-1">
                                     <div
                                         class="relative flex items-center justify-center w-6 h-6 border-2 border-[#2A3731] rounded bg-[#030906] group-hover:border-[var(--point-color)] transition-colors flex-shrink-0">
                                         <input type="checkbox"
                                             class="req-agree absolute w-full h-full opacity-0 cursor-pointer"
-                                            onclick="this.nextElementSibling.classList.toggle('opacity-0'); this.nextElementSibling.classList.toggle('opacity-100');">
+                                            onclick="this.nextElementSibling.classList.toggle('opacity-0'); this.nextElementSibling.classList.toggle('opacity-100');"
+                                            onchange="syncPartnerSignupAgreeAll()">
                                         <svg class="w-4 h-4 text-[var(--point-color)] opacity-0 transition-opacity"
                                             fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3"
                                                 d="M5 13l4 4L19 7"></path>
                                         </svg>
                                     </div>
-                                    <span class="text-[var(--text-main)] text-[15px] leading-snug pt-[2.5px]">[필수] 서비스
-                                        이용약관 동의</span>
+                                    <span class="text-[var(--text-main)] text-[15px] leading-snug pt-[2.5px]"><span
+                                            class="text-[var(--point-color)]">[필수]</span> 서비스 이용약관 동의</span>
                                 </label>
                                 <button
                                     class="text-[13px] text-[var(--text-sub)] underline underline-offset-2 hover:text-[var(--text-main)] px-2 py-1"
@@ -949,15 +1062,16 @@
                                         class="relative flex items-center justify-center w-6 h-6 border-2 border-[#2A3731] rounded bg-[#030906] group-hover:border-[var(--point-color)] transition-colors flex-shrink-0">
                                         <input type="checkbox"
                                             class="req-agree absolute w-full h-full opacity-0 cursor-pointer"
-                                            onclick="this.nextElementSibling.classList.toggle('opacity-0'); this.nextElementSibling.classList.toggle('opacity-100');">
+                                            onclick="this.nextElementSibling.classList.toggle('opacity-0'); this.nextElementSibling.classList.toggle('opacity-100');"
+                                            onchange="syncPartnerSignupAgreeAll()">
                                         <svg class="w-4 h-4 text-[var(--point-color)] opacity-0 transition-opacity"
                                             fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3"
                                                 d="M5 13l4 4L19 7"></path>
                                         </svg>
                                     </div>
-                                    <span class="text-[var(--text-main)] text-[15px] leading-snug pt-[2.5px]">[필수] 개인정보
-                                        수집 및 이용 동의</span>
+                                    <span class="text-[var(--text-main)] text-[15px] leading-snug pt-[2.5px]"><span
+                                            class="text-[var(--point-color)]">[필수]</span> 개인정보 수집 및 이용 동의</span>
                                 </label>
                                 <button
                                     class="text-[13px] text-[var(--text-sub)] underline underline-offset-2 hover:text-[var(--text-main)] px-2 py-1"
@@ -970,7 +1084,8 @@
                                     class="relative flex items-center justify-center w-6 h-6 border-2 border-[#2A3731] rounded bg-[#030906] group-hover:border-[var(--point-color)] transition-colors flex-shrink-0">
                                     <input type="checkbox"
                                         class="req-agree absolute w-full h-full opacity-0 cursor-pointer"
-                                        onclick="this.nextElementSibling.classList.toggle('opacity-0'); this.nextElementSibling.classList.toggle('opacity-100');">
+                                        onclick="this.nextElementSibling.classList.toggle('opacity-0'); this.nextElementSibling.classList.toggle('opacity-100');"
+                                        onchange="syncPartnerSignupAgreeAll()">
                                     <svg class="w-4 h-4 text-[var(--point-color)] opacity-0 transition-opacity"
                                         fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3"
@@ -979,7 +1094,7 @@
                                 </div>
                                 <div class="flex flex-col gap-2">
                                     <span
-                                        class="text-[var(--text-main)] font-bold text-[15px] leading-snug pt-[1px]"><span
+                                        class="text-[var(--text-main)] text-[15px] leading-snug pt-[1px]"><span
                                             class="text-[var(--point-color)]">[필수]</span> 클린 서비스 운영 확약</span>
                                     <span class="text-[var(--text-sub)] text-[14px] font-medium leading-relaxed">본 업체는
                                         성매매 등 모든 불법 행위를 일절 금하며, 적발 시 모든 법적 책임을 지겠습니다.</span>
@@ -991,7 +1106,8 @@
                                     class="relative flex items-center justify-center w-6 h-6 border-2 border-[#2A3731] rounded bg-[#030906] group-hover:border-[var(--point-color)] transition-colors flex-shrink-0">
                                     <input type="checkbox"
                                         class="req-agree absolute w-full h-full opacity-0 cursor-pointer"
-                                        onclick="this.nextElementSibling.classList.toggle('opacity-0'); this.nextElementSibling.classList.toggle('opacity-100');">
+                                        onclick="this.nextElementSibling.classList.toggle('opacity-0'); this.nextElementSibling.classList.toggle('opacity-100');"
+                                        onchange="syncPartnerSignupAgreeAll()">
                                     <svg class="w-4 h-4 text-[var(--point-color)] opacity-0 transition-opacity"
                                         fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3"
@@ -1000,7 +1116,7 @@
                                 </div>
                                 <div class="flex flex-col gap-2">
                                     <span
-                                        class="text-[var(--text-main)] font-bold text-[15px] leading-snug pt-[1px]"><span
+                                        class="text-[var(--text-main)] text-[15px] leading-snug pt-[1px]"><span
                                             class="text-[var(--point-color)]">[필수]</span> 플랫폼 면책 고지 동의</span>
                                     <span class="text-[var(--text-sub)] text-[14px] font-medium leading-relaxed">이용자 간의
                                         거래 및 기타 부당한 사건 발생 시 운영사에 관련 책임을 묻지 않음을 인지합니다.</span>
@@ -1766,10 +1882,10 @@
                 </div>
 
                 <div
-                    class="bg-gradient-to-br from-[#102a1e] to-[#0A1B13] border border-[var(--point-color)]/30 p-5 rounded-2xl mb-8 text-center shadow-sm">
-                    <p class="text-[var(--text-sub)] text-[13px] mb-2 font-medium">입금 계좌 안내</p>
-                    <p class="text-[#f5f5dc] text-[18px] font-bold tracking-wide">카카오뱅크 3333-37-0613731</p>
-                    <p class="text-[var(--point-color)] text-[14px] mt-1 font-bold">예금주: 다독(DA:DOK)</p>
+                    class="bg-[#F4C63D] border border-[#C99F27] p-5 rounded-2xl mb-8 text-center shadow-sm">
+                    <p class="text-[#121212]/80 text-[13px] mb-2 font-medium">입금 계좌 안내</p>
+                    <p class="text-[#121212] text-[18px] font-bold tracking-wide">카카오뱅크 3333-37-0613731</p>
+                    <p class="text-[#121212] text-[14px] mt-1 font-bold">예금주: 다독(DA:DOK)</p>
                 </div>
 
                 <div class="flex flex-col gap-5">
@@ -1842,7 +1958,7 @@
                     <button
                         class="w-full py-[17px] rounded-2xl bg-gradient-to-r from-[var(--point-color)] to-[#B59530] text-[#06110D] font-bold text-[16px] tracking-wide transition-all shadow-[0_8px_20px_rgba(212,175,55,0.25)] hover:brightness-110 active:scale-[0.98]"
                         onclick="finishPartnerApplication()">
-                        파트너 로그인 이동
+                        메인화면 이동
                     </button>
                     <button
                         class="w-full py-[17px] rounded-2xl bg-[#0A1B13] border border-[var(--point-color)] text-[var(--point-color)] hover:bg-[var(--point-color)] hover:text-[#06110D] font-bold text-[16px] tracking-wide transition-all"
@@ -2546,7 +2662,7 @@
             </div>
         </div>
 
-        <script src="assets/js/script.js?v=20260412_100"></script>
+        <script src="assets/js/script.js?v=20260414_6"></script>
     </div>
 
     <!-- Global Custom Toast -->
