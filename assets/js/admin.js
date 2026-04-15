@@ -38,12 +38,14 @@ auth.onAuthStateChanged((user) => {
         if (userEmailEl) userEmailEl.textContent = user.email;
         if (loginBtn) loginBtn.classList.add('hidden');
         if (logoutBtn) logoutBtn.classList.remove('hidden');
+        startSidebarBadgeReadsListener(user);
     } else {
         if (authOverlay) authOverlay.classList.remove('hidden');
         if (mainApp) mainApp.classList.add('hidden');
         if (userInfoEl) userInfoEl.classList.add('hidden');
         if (loginBtn) loginBtn.classList.remove('hidden');
         if (logoutBtn) logoutBtn.classList.add('hidden');
+        stopSidebarBadgeReadsListener();
     }
 });
 
@@ -80,6 +82,349 @@ function adminLogout() {
 let currentUserCount = 0;
 let currentShopCount = 0;
 let categoriesList = [];
+const SIDEBAR_BADGE_MAP = {
+    users: 'users-badge',
+    approvals: 'pending-badge',
+    shops: 'shops-badge',
+    subscriptions: 'subscriptions-badge',
+    messages: 'messages-badge',
+    categories: 'categories-badge',
+    cs: 'cs-badge',
+};
+
+const SIDEBAR_BADGE_KEYS = Object.keys(SIDEBAR_BADGE_MAP);
+let sidebarBadgeCounts = {
+    users: 0,
+    approvals: 0,
+    shops: 0,
+    subscriptions: 0,
+    messages: 0,
+    categories: 0,
+    cs: 0,
+};
+let sidebarBadgeUnreadCounts = {
+    users: 0,
+    approvals: 0,
+    shops: 0,
+    subscriptions: 0,
+    messages: 0,
+    categories: 0,
+    cs: 0,
+};
+let sidebarBadgeSeenAtMs = {};
+let sidebarBadgeReadsLoaded = false;
+let sidebarBadgeReadsUnsubscribe = null;
+let sidebarBadgeSaveTimer = null;
+let categoryFilterUnreadByKey = {};
+let categoryFilterActivityByKey = {};
+let categoriesCollectionUnreadCount = 0;
+let sidebarSnapshotCache = {
+    users: null,
+    partners: null,
+    categories: null,
+    subscriptions: null,
+    messages: null,
+    cs: null,
+};
+
+function normalizeBadgeCountValue(value) {
+    return Number.isFinite(Number(value)) ? Math.max(0, Number(value)) : 0;
+}
+
+function normalizeMsTimestamp(value) {
+    if (!value && value !== 0) return 0;
+    if (typeof value === 'number') return Number.isFinite(value) ? Math.max(0, value) : 0;
+    if (value instanceof Date) return Number.isFinite(value.getTime()) ? value.getTime() : 0;
+    if (typeof value === 'string') {
+        const parsed = Date.parse(value);
+        return Number.isFinite(parsed) ? parsed : 0;
+    }
+    if (typeof value.toMillis === 'function') {
+        const ms = value.toMillis();
+        return Number.isFinite(ms) ? ms : 0;
+    }
+    if (typeof value.seconds === 'number') {
+        const nano = typeof value.nanoseconds === 'number' ? value.nanoseconds : 0;
+        return value.seconds * 1000 + Math.floor(nano / 1000000);
+    }
+    return 0;
+}
+
+function getLatestActivityMs(data, fields = ['updatedAt', 'createdAt']) {
+    if (!data || typeof data !== 'object') return 0;
+    let latest = 0;
+    fields.forEach((field) => {
+        const ms = normalizeMsTimestamp(data[field]);
+        if (ms > latest) latest = ms;
+    });
+    return latest;
+}
+
+function getSeenAtMsForKey(key) {
+    return normalizeMsTimestamp(sidebarBadgeSeenAtMs[key]);
+}
+
+function countUnreadDocsByTimestamp(snapshot, key, fields, predicate) {
+    if (!snapshot || !sidebarBadgeReadsLoaded) return 0;
+    const seenAtMs = getSeenAtMsForKey(key);
+    if (!seenAtMs) return 0;
+    let unread = 0;
+    snapshot.forEach((doc) => {
+        const data = typeof doc.data === 'function' ? doc.data() || {} : doc || {};
+        if (typeof predicate === 'function' && !predicate(data, doc)) return;
+        const latestMs = getLatestActivityMs(data, fields);
+        if (latestMs > seenAtMs) unread++;
+    });
+    return unread;
+}
+
+function recomputeSidebarUnreadFromCache() {
+    if (!sidebarBadgeReadsLoaded) {
+        renderAllSidebarCategoryBadges();
+        return;
+    }
+
+    if (sidebarSnapshotCache.users) {
+        sidebarBadgeUnreadCounts.users = countUnreadDocsByTimestamp(
+            sidebarSnapshotCache.users,
+            'users',
+            ['updatedAt', 'createdAt'],
+        );
+    }
+
+    if (sidebarSnapshotCache.partners) {
+        sidebarBadgeUnreadCounts.shops = countUnreadDocsByTimestamp(
+            sidebarSnapshotCache.partners,
+            'shops',
+            ['updatedAt', 'createdAt'],
+        );
+        sidebarBadgeUnreadCounts.approvals = countUnreadDocsByTimestamp(
+            sidebarSnapshotCache.partners,
+            'approvals',
+            ['updatedAt', 'createdAt'],
+            (data) => data.status === 'pending',
+        );
+    }
+
+    if (sidebarSnapshotCache.subscriptions) {
+        sidebarBadgeUnreadCounts.subscriptions = countUnreadDocsByTimestamp(
+            sidebarSnapshotCache.subscriptions,
+            'subscriptions',
+            ['updatedAt', 'createdAt', 'requestedAt', 'submittedAt'],
+            (data) => normalizeSubRequestStatus(data?.status || 'pending') === 'pending',
+        );
+    }
+
+    if (sidebarSnapshotCache.messages) {
+        sidebarBadgeUnreadCounts.messages = countUnreadDocsByTimestamp(
+            sidebarSnapshotCache.messages,
+            'messages',
+            ['updatedAt', 'createdAt', 'scheduledAt'],
+            (data) => {
+                const status = String(data?.status || '').toLowerCase();
+                return status === 'scheduled' || status === 'failed';
+            },
+        );
+    }
+
+    if (sidebarSnapshotCache.cs) {
+        sidebarBadgeUnreadCounts.cs = countUnreadDocsByTimestamp(
+            sidebarSnapshotCache.cs,
+            'cs',
+            ['updatedAt', 'createdAt'],
+            (data) => (data.status || 'pending') === 'pending',
+        );
+    }
+
+    if (sidebarSnapshotCache.categories) {
+        categoriesCollectionUnreadCount = countUnreadDocsByTimestamp(
+            sidebarSnapshotCache.categories,
+            'categories',
+            ['updatedAt', 'createdAt'],
+        );
+    }
+    const seenAtMs = getSeenAtMsForKey('categories');
+    Object.keys(categoryFilterActivityByKey).forEach((key) => {
+        const activityMs = normalizeMsTimestamp(categoryFilterActivityByKey[key]);
+        categoryFilterUnreadByKey[key] =
+            sidebarBadgeReadsLoaded && seenAtMs && activityMs > seenAtMs ? 1 : 0;
+    });
+
+    refreshCategorySidebarBadge();
+    renderAllSidebarCategoryBadges();
+}
+
+function getSidebarBadgeStyleClass(isUnread) {
+    if (isUnread) {
+        return 'ml-auto bg-red-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full';
+    }
+    return 'ml-auto bg-[#22332B] text-[#A7B2AE] text-[10px] font-bold px-2 py-0.5 rounded-full';
+}
+
+function renderSidebarCategoryBadge(key) {
+    const badgeId = SIDEBAR_BADGE_MAP[key];
+    const badge = document.getElementById(badgeId);
+    if (!badge) return;
+
+    const totalCount = normalizeBadgeCountValue(sidebarBadgeCounts[key]);
+    const unreadCount = sidebarBadgeReadsLoaded
+        ? normalizeBadgeCountValue(sidebarBadgeUnreadCounts[key])
+        : 0;
+    const showUnread = unreadCount > 0;
+    const displayCount = showUnread ? unreadCount : totalCount;
+
+    if (displayCount <= 0) {
+        badge.classList.add('hidden');
+        return;
+    }
+
+    badge.textContent = String(displayCount);
+    badge.className = getSidebarBadgeStyleClass(showUnread);
+    badge.classList.remove('hidden');
+}
+
+function renderAllSidebarCategoryBadges() {
+    SIDEBAR_BADGE_KEYS.forEach((key) => renderSidebarCategoryBadge(key));
+}
+
+function queuePersistSidebarBadgeReads() {
+    if (!auth.currentUser || !sidebarBadgeReadsLoaded) return;
+    if (sidebarBadgeSaveTimer) {
+        clearTimeout(sidebarBadgeSaveTimer);
+    }
+    sidebarBadgeSaveTimer = setTimeout(() => {
+        const uid = auth.currentUser?.uid;
+        if (!uid) return;
+        db.collection('admin_sidebar_badge_reads')
+            .doc(uid)
+            .set(
+                {
+                    seenAtMs: sidebarBadgeSeenAtMs,
+                    seenCounts: sidebarBadgeCounts,
+                    updatedBy: auth.currentUser?.email || uid,
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                },
+                { merge: true },
+            )
+            .catch((err) => console.error('사이드바 배지 읽음 상태 저장 실패:', err));
+    }, 300);
+}
+
+function startSidebarBadgeReadsListener(user) {
+    if (!user?.uid) return;
+    if (sidebarBadgeReadsUnsubscribe) {
+        sidebarBadgeReadsUnsubscribe();
+        sidebarBadgeReadsUnsubscribe = null;
+    }
+
+    sidebarBadgeReadsUnsubscribe = db
+        .collection('admin_sidebar_badge_reads')
+        .doc(user.uid)
+        .onSnapshot(
+            (doc) => {
+                const raw = doc.exists ? doc.data() || {} : {};
+                const fromDbSeenAt = raw.seenAtMs || {};
+                const fromDbLegacySeenCounts = raw.seenCounts || {};
+                const sanitized = {};
+                const nowMs = Date.now();
+                SIDEBAR_BADGE_KEYS.forEach((key) => {
+                    if (Object.prototype.hasOwnProperty.call(fromDbSeenAt, key)) {
+                        sanitized[key] = normalizeMsTimestamp(fromDbSeenAt[key]);
+                    } else if (Object.prototype.hasOwnProperty.call(fromDbLegacySeenCounts, key)) {
+                        sanitized[key] = nowMs;
+                    }
+                });
+                sidebarBadgeSeenAtMs = sanitized;
+                sidebarBadgeReadsLoaded = true;
+
+                let hasNewKey = false;
+                SIDEBAR_BADGE_KEYS.forEach((key) => {
+                    if (!Object.prototype.hasOwnProperty.call(sidebarBadgeSeenAtMs, key)) {
+                        sidebarBadgeSeenAtMs[key] = nowMs;
+                        hasNewKey = true;
+                    }
+                });
+
+                recomputeSidebarUnreadFromCache();
+                if (hasNewKey || !doc.exists) {
+                    queuePersistSidebarBadgeReads();
+                }
+            },
+            (err) => {
+                console.error('사이드바 배지 읽음 상태 로드 실패:', err);
+                sidebarBadgeReadsLoaded = false;
+                SIDEBAR_BADGE_KEYS.forEach((key) => {
+                    sidebarBadgeUnreadCounts[key] = 0;
+                });
+                renderAllSidebarCategoryBadges();
+            },
+        );
+}
+
+function stopSidebarBadgeReadsListener() {
+    if (sidebarBadgeReadsUnsubscribe) {
+        sidebarBadgeReadsUnsubscribe();
+        sidebarBadgeReadsUnsubscribe = null;
+    }
+    if (sidebarBadgeSaveTimer) {
+        clearTimeout(sidebarBadgeSaveTimer);
+        sidebarBadgeSaveTimer = null;
+    }
+    sidebarBadgeReadsLoaded = false;
+    sidebarBadgeSeenAtMs = {};
+    SIDEBAR_BADGE_KEYS.forEach((key) => {
+        sidebarBadgeUnreadCounts[key] = 0;
+    });
+    renderAllSidebarCategoryBadges();
+}
+
+function markSidebarCategoryAsSeen(key) {
+    if (!sidebarBadgeReadsLoaded) return;
+    if (!Object.prototype.hasOwnProperty.call(SIDEBAR_BADGE_MAP, key)) return;
+    sidebarBadgeSeenAtMs[key] = Date.now();
+    sidebarBadgeUnreadCounts[key] = 0;
+    recomputeSidebarUnreadFromCache();
+    queuePersistSidebarBadgeReads();
+}
+
+function setSidebarCategoryCount(key, count, unreadCount = 0) {
+    if (!Object.prototype.hasOwnProperty.call(SIDEBAR_BADGE_MAP, key)) return;
+    sidebarBadgeCounts[key] = normalizeBadgeCountValue(count);
+    sidebarBadgeUnreadCounts[key] = normalizeBadgeCountValue(unreadCount);
+    if (
+        sidebarBadgeReadsLoaded &&
+        !Object.prototype.hasOwnProperty.call(sidebarBadgeSeenAtMs, key)
+    ) {
+        sidebarBadgeSeenAtMs[key] = Date.now();
+        queuePersistSidebarBadgeReads();
+    }
+    renderSidebarCategoryBadge(key);
+}
+
+function refreshCategorySidebarBadge() {
+    if (typeof categoryData === 'undefined' || !categoryData) return;
+    const keys = [
+        'massage',
+        'place',
+        'age',
+        'categories',
+        'customer_report_reason',
+        'partner_report_reason',
+        'customer_inquiry_type',
+        'partner_inquiry_type',
+    ];
+    const total = keys.reduce((sum, key) => {
+        const list = categoryData[key];
+        if (!Array.isArray(list)) return sum;
+        return sum + list.length;
+    }, 0);
+    const filterUnread = Object.values(categoryFilterUnreadByKey).reduce(
+        (sum, val) => sum + normalizeBadgeCountValue(val),
+        0,
+    );
+    const unread = normalizeBadgeCountValue(categoriesCollectionUnreadCount) + filterUnread;
+    setSidebarCategoryCount('categories', total, unread);
+}
 
 // 소비자 앱에 하드코딩되어 있던 기본 필터 데이터
 const DEFAULT_FILTERS = {
@@ -195,8 +540,13 @@ function switchTab(tabId) {
             window.loadSubscriptionRequests();
         }
     }
+    else if (tabId === 'messages') loadMessageCenter();
     else if (tabId === 'dashboard') updateDashboardStats();
     else if (tabId === 'cs') loadCSTickets();
+
+    if (Object.prototype.hasOwnProperty.call(SIDEBAR_BADGE_MAP, tabId)) {
+        markSidebarCategoryAsSeen(tabId);
+    }
 }
 
 function updateDashboardStats() {
@@ -250,41 +600,657 @@ function closeModal(modalId) {
     if (targetModal) targetModal.classList.add('hidden');
 }
 
+// ─── Message Center ───
+let messageCenterUsers = [];
+let messageCenterPartners = [];
+let unsubscribeAdminMessages = null;
+let messageSchedulerTimer = null;
+let isProcessingScheduledMessages = false;
+
+const MESSAGE_TEMPLATES = {
+    user_security_notice: {
+        category: 'guide',
+        priority: 'important',
+        linkType: 'user_security',
+        title: '[보안 안내] 계정 보호를 위해 비밀번호를 점검해주세요.',
+        body: '안전한 서비스 이용을 위해 비밀번호를 주기적으로 변경해 주세요.\n타 사이트와 동일한 비밀번호 사용은 권장되지 않습니다.'
+    },
+    user_usage_guide: {
+        category: 'guide',
+        priority: 'normal',
+        linkType: 'user_mypage',
+        title: '[이용 안내] 마이페이지 기능 사용 가이드',
+        body: '마이페이지에서 채팅 목록, 찜한 업체, 보안 설정을 편하게 이용하실 수 있습니다.\n자세한 기능은 각 메뉴에서 확인해주세요.'
+    },
+    user_maintenance_notice: {
+        category: 'notice',
+        priority: 'normal',
+        linkType: 'none',
+        title: '[점검 공지] 서비스 점검 일정 안내',
+        body: '보다 안정적인 서비스 제공을 위해 점검이 진행될 예정입니다.\n점검 시간 동안 일부 기능 사용이 제한될 수 있습니다.'
+    },
+    approval_done: {
+        category: 'result',
+        priority: 'important',
+        linkType: 'partner_dashboard',
+        title: '[승인 완료] 파트너 권한이 활성화되었습니다.',
+        body: '관리자 확인이 완료되어 파트너 권한이 활성화되었습니다.\n대시보드에서 배너/정보를 확인해주세요.'
+    },
+    approval_rejected: {
+        category: 'result',
+        priority: 'important',
+        linkType: 'partner_entry',
+        title: '[안내] 신청 건이 반려되었습니다.',
+        body: '요청하신 신청 건이 반려 처리되었습니다.\n반려 사유를 확인 후 필요한 서류를 보완해 재신청해주세요.'
+    },
+    payment_reminder: {
+        category: 'guide',
+        priority: 'normal',
+        linkType: 'partner_entry',
+        title: '[입금 확인 요청] 결제 내역을 확인해주세요.',
+        body: '입금 확인을 위해 입금자명/시간/금액을 다시 한번 확인해 주세요.\n확인 즉시 처리 상태가 업데이트됩니다.'
+    },
+    policy_notice: {
+        category: 'notice',
+        priority: 'normal',
+        linkType: 'none',
+        title: '[운영 공지] 서비스 정책 안내',
+        body: '안정적인 운영을 위해 정책이 일부 업데이트되었습니다.\n자세한 내용은 앱 내 공지사항을 확인해주세요.'
+    }
+};
+
+const MESSAGE_TEMPLATE_GROUPS = {
+    user: [
+        { value: 'user_security_notice', label: '계정 보안 안내' },
+        { value: 'user_usage_guide', label: '서비스 이용 안내' },
+        { value: 'user_maintenance_notice', label: '점검 공지 안내' },
+        { value: 'policy_notice', label: '운영 정책 공지' }
+    ],
+    partner: [
+        { value: 'approval_done', label: '승인 완료 안내' },
+        { value: 'approval_rejected', label: '반려 안내' },
+        { value: 'payment_reminder', label: '입금 확인 요청' },
+        { value: 'policy_notice', label: '운영 정책 공지' }
+    ]
+};
+
+const MESSAGE_LINK_OPTIONS = {
+    all: [
+        { value: 'none', label: '이동 없음' },
+        { value: 'support_center', label: '신고센터/문의' },
+        { value: 'login', label: '로그인 화면' }
+    ],
+    user: [
+        { value: 'none', label: '이동 없음' },
+        { value: 'user_mypage', label: '회원 마이페이지' },
+        { value: 'user_security', label: '회원 계정/보안 설정' },
+        { value: 'support_center', label: '신고센터/문의' },
+        { value: 'login', label: '로그인 화면' }
+    ],
+    partner: [
+        { value: 'none', label: '이동 없음' },
+        { value: 'partner_dashboard', label: '업체 대시보드' },
+        { value: 'partner_entry', label: '업체 입점권 안내/구매' },
+        { value: 'partner_login', label: '업체 로그인' },
+        { value: 'support_center', label: '신고센터/문의' },
+        { value: 'login', label: '로그인 화면' }
+    ]
+};
+
+function getLinkTypeLabel(linkType = 'none') {
+    const labels = {
+        none: '이동 없음',
+        partner_dashboard: '업체 대시보드',
+        partner_entry: '업체 입점권 안내/구매',
+        partner_login: '업체 로그인',
+        user_mypage: '회원 마이페이지',
+        user_security: '회원 계정/보안',
+        support_center: '신고센터/문의',
+        login: '로그인 화면'
+    };
+    return labels[linkType] || labels.none;
+}
+
+function getAudienceKeyByTargetType(targetType = '') {
+    if (targetType === 'user_single' || targetType === 'users_all') return 'user';
+    if (targetType === 'partner_single' || targetType === 'partners_all') return 'partner';
+    return 'all';
+}
+
+function getSelectedMessageTargetType() {
+    const audience = document.getElementById('msg-audience-type')?.value || 'user';
+    const scope = document.getElementById('msg-target-scope')?.value || 'single';
+    if (audience === 'partner') return scope === 'all' ? 'partners_all' : 'partner_single';
+    return scope === 'all' ? 'users_all' : 'user_single';
+}
+
+function refreshMessageTemplateOptions() {
+    const audienceEl = document.getElementById('msg-audience-type');
+    const tplEl = document.getElementById('msg-template-select');
+    if (!tplEl) return;
+    const audience = audienceEl?.value === 'partner' ? 'partner' : 'user';
+    const options = MESSAGE_TEMPLATE_GROUPS[audience] || [];
+    const prev = tplEl.value || '';
+
+    tplEl.innerHTML = `
+        <option value="">템플릿 직접 선택</option>
+        ${options.map((opt) => `<option value="${opt.value}">${opt.label}</option>`).join('')}
+    `;
+
+    const exists = options.some((opt) => opt.value === prev);
+    tplEl.value = exists ? prev : '';
+}
+
+function refreshMessageLinkOptions() {
+    const targetType = getSelectedMessageTargetType();
+    const audience = getAudienceKeyByTargetType(targetType);
+    const linkEl = document.getElementById('msg-link-type');
+    if (!linkEl) return;
+
+    const options = MESSAGE_LINK_OPTIONS[audience] || MESSAGE_LINK_OPTIONS.all;
+    const prev = linkEl.value || 'none';
+    linkEl.innerHTML = options
+        .map((opt) => `<option value="${opt.value}">${opt.label}</option>`)
+        .join('');
+    const exists = options.some((opt) => opt.value === prev);
+    linkEl.value = exists ? prev : 'none';
+}
+
+function getMessageTargetLabel(targetType) {
+    if (targetType === 'users_all') return '개인회원 전체';
+    if (targetType === 'partners_all') return '업체 전체';
+    if (targetType === 'user_single') return '개인회원 단건';
+    if (targetType === 'partner_single') return '업체 단건';
+    return targetType || '-';
+}
+
+function escapeHtml(value = '') {
+    return String(value || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function formatMessageDate(value) {
+    if (!value) return '-';
+    let d = null;
+    if (typeof value.toDate === 'function') d = value.toDate();
+    else if (typeof value.toMillis === 'function') d = new Date(value.toMillis());
+    else d = new Date(value);
+    if (!d || Number.isNaN(d.getTime())) return '-';
+    return `${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+
+function parseScheduleDateTimeLocal(value) {
+    if (!value) return null;
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return null;
+    return date;
+}
+
+function formatDateTimeLocal(date) {
+    if (!date || Number.isNaN(date.getTime())) return '';
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    const hh = String(date.getHours()).padStart(2, '0');
+    const mm = String(date.getMinutes()).padStart(2, '0');
+    return `${y}-${m}-${d}T${hh}:${mm}`;
+}
+
+window.updateMessageSchedulePreview = function () {
+    const input = document.getElementById('msg-schedule-at');
+    const preview = document.getElementById('msg-schedule-preview');
+    if (!preview) return;
+    const parsed = parseScheduleDateTimeLocal(input?.value || '');
+    if (!parsed) {
+        preview.innerText = '예상 발송: 지금';
+        return;
+    }
+    preview.innerText = `예상 발송: ${formatMessageDate(parsed)} 예약`;
+};
+
+window.setMessageSchedulePreset = function (preset) {
+    const input = document.getElementById('msg-schedule-at');
+    if (!input) return;
+
+    const now = new Date();
+    let target = null;
+    if (preset === '10m') target = new Date(now.getTime() + 10 * 60 * 1000);
+    else if (preset === '30m') target = new Date(now.getTime() + 30 * 60 * 1000);
+    else if (preset === '1h') target = new Date(now.getTime() + 60 * 60 * 1000);
+    else if (preset === 'tomorrow9') {
+        target = new Date(now);
+        target.setDate(target.getDate() + 1);
+        target.setHours(9, 0, 0, 0);
+    } else {
+        // now / unknown preset => immediate send
+        input.value = '';
+        window.updateMessageSchedulePreview();
+        return;
+    }
+
+    target.setSeconds(0, 0);
+    input.value = formatDateTimeLocal(target);
+    window.updateMessageSchedulePreview();
+};
+
+function buildMessageRecipients(targetType, recipientId = '') {
+    if (targetType === 'user_single') {
+        return messageCenterUsers.filter((u) => u.id === recipientId).map((u) => ({
+            type: 'user',
+            docId: u.id,
+            userId: u.userId,
+            name: u.name
+        }));
+    }
+    if (targetType === 'partner_single') {
+        return messageCenterPartners.filter((p) => p.id === recipientId).map((p) => ({
+            type: 'partner',
+            docId: p.id,
+            userId: p.userId,
+            name: p.name
+        }));
+    }
+    if (targetType === 'users_all') {
+        return messageCenterUsers.map((u) => ({ type: 'user', docId: u.id, userId: u.userId, name: u.name }));
+    }
+    if (targetType === 'partners_all') {
+        return messageCenterPartners.map((p) => ({ type: 'partner', docId: p.id, userId: p.userId, name: p.name }));
+    }
+    return [];
+}
+
+async function fanoutNotificationsFromMessage(messageId, payload, recipients) {
+    if (!recipients.length) return 0;
+    const chunkSize = 400;
+    for (let i = 0; i < recipients.length; i += chunkSize) {
+        const chunk = recipients.slice(i, i + chunkSize);
+        const batch = db.batch();
+        chunk.forEach((r) => {
+            const ref = db.collection('user_notifications').doc();
+            batch.set(ref, {
+                messageId,
+                recipientType: r.type,
+                recipientDocId: r.docId,
+                recipientUserId: r.userId,
+                recipientName: r.name,
+                category: payload.category,
+                priority: payload.priority,
+                linkType: payload.linkType || 'none',
+                linkLabel: payload.linkLabel || getLinkTypeLabel(payload.linkType || 'none'),
+                title: payload.title,
+                body: payload.body,
+                isRead: false,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+        });
+        await batch.commit();
+    }
+    return recipients.length;
+}
+
+async function dispatchAdminMessage(messageRef, payload) {
+    const recipients = buildMessageRecipients(payload.targetType, payload.targetRecipientId || '');
+    if (!recipients.length) {
+        await messageRef.update({
+            status: 'failed',
+            failReason: '수신자 없음',
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        return { ok: false, count: 0 };
+    }
+
+    const count = await fanoutNotificationsFromMessage(messageRef.id, payload, recipients);
+    await messageRef.update({
+        status: 'sent',
+        recipientCount: count,
+        sentAt: firebase.firestore.FieldValue.serverTimestamp(),
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    return { ok: true, count };
+}
+
+async function processDueScheduledMessages() {
+    if (isProcessingScheduledMessages) return;
+    isProcessingScheduledMessages = true;
+    try {
+        const now = Date.now();
+        const snap = await db.collection('admin_messages')
+            .where('status', '==', 'scheduled')
+            .get();
+
+        const dueRows = [];
+        snap.forEach((doc) => {
+            const data = doc.data() || {};
+            const ts = data.scheduledAt && typeof data.scheduledAt.toMillis === 'function'
+                ? data.scheduledAt.toMillis()
+                : 0;
+            if (ts && ts <= now) dueRows.push({ id: doc.id, ref: doc.ref, data });
+        });
+
+        for (const row of dueRows) {
+            const locked = await db.runTransaction(async (tx) => {
+                const cur = await tx.get(row.ref);
+                const curData = cur.data() || {};
+                if (curData.status !== 'scheduled') return false;
+                tx.update(row.ref, {
+                    status: 'sending',
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                return true;
+            });
+            if (!locked) continue;
+
+            try {
+                await dispatchAdminMessage(row.ref, row.data);
+            } catch (err) {
+                console.error('예약 발송 처리 실패:', err);
+                await row.ref.update({
+                    status: 'failed',
+                    failReason: err.message || 'Unknown error',
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+            }
+        }
+    } catch (err) {
+        console.error('예약 메시지 스케줄러 오류:', err);
+    } finally {
+        isProcessingScheduledMessages = false;
+    }
+}
+
+async function loadMessageCenter() {
+    await Promise.all([loadMessageCenterRecipients(), loadAdminMessageHistory()]);
+    refreshMessageRecipientOptions();
+    refreshMessageTemplateOptions();
+    refreshMessageLinkOptions();
+    updateMessageSchedulePreview();
+    processDueScheduledMessages();
+    if (messageSchedulerTimer) clearInterval(messageSchedulerTimer);
+    messageSchedulerTimer = setInterval(processDueScheduledMessages, 30000);
+}
+
+async function loadMessageCenterRecipients() {
+    try {
+        const [userSnap, partnerSnap] = await Promise.all([
+            db.collection('users').get(),
+            db.collection('partners').get()
+        ]);
+
+        messageCenterUsers = userSnap.docs.map((doc) => {
+            const data = doc.data() || {};
+            return {
+                id: doc.id,
+                userId: data.userId || doc.id,
+                name: data.name || data.userName || data.nickname || '이름 없음'
+            };
+        }).sort((a, b) => String(a.name).localeCompare(String(b.name), 'ko'));
+
+        messageCenterPartners = partnerSnap.docs.map((doc) => {
+            const data = doc.data() || {};
+            return {
+                id: doc.id,
+                userId: data.userId || doc.id,
+                name: data.name || data.company || '업체명 없음'
+            };
+        }).sort((a, b) => String(a.name).localeCompare(String(b.name), 'ko'));
+    } catch (err) {
+        console.error('메시지 수신자 목록 로드 실패:', err);
+    }
+}
+
+window.refreshMessageRecipientOptions = function () {
+    const targetType = getSelectedMessageTargetType();
+    const wrap = document.getElementById('msg-recipient-wrap');
+    const select = document.getElementById('msg-recipient-select');
+    if (!wrap || !select) return;
+
+    const isAll = targetType === 'users_all' || targetType === 'partners_all';
+    wrap.classList.toggle('hidden', isAll);
+    select.innerHTML = '';
+    if (isAll) {
+        refreshMessageTemplateOptions();
+        refreshMessageLinkOptions();
+        return;
+    }
+
+    const source = targetType === 'user_single' ? messageCenterUsers : messageCenterPartners;
+    if (!source.length) {
+        const opt = document.createElement('option');
+        opt.value = '';
+        opt.textContent = '선택 가능한 수신자가 없습니다.';
+        select.appendChild(opt);
+        return;
+    }
+
+    source.forEach((row) => {
+        const opt = document.createElement('option');
+        opt.value = row.id;
+        opt.textContent = `${row.name} (${row.userId})`;
+        select.appendChild(opt);
+    });
+
+    refreshMessageTemplateOptions();
+    refreshMessageLinkOptions();
+};
+
+window.applyMessageTemplate = function () {
+    const key = document.getElementById('msg-template-select')?.value || '';
+    if (!key || !MESSAGE_TEMPLATES[key]) return;
+    const t = MESSAGE_TEMPLATES[key];
+    const categoryEl = document.getElementById('msg-category');
+    const priorityEl = document.getElementById('msg-priority');
+    const linkEl = document.getElementById('msg-link-type');
+    const titleEl = document.getElementById('msg-title-input');
+    const bodyEl = document.getElementById('msg-body-input');
+    const targetType = getSelectedMessageTargetType();
+    const audience = getAudienceKeyByTargetType(targetType);
+    if (categoryEl) categoryEl.value = t.category;
+    if (priorityEl) priorityEl.value = t.priority;
+    refreshMessageLinkOptions();
+    if (linkEl) {
+        const allowed = MESSAGE_LINK_OPTIONS[audience] || MESSAGE_LINK_OPTIONS.all;
+        const isAllowed = allowed.some((opt) => opt.value === (t.linkType || 'none'));
+        linkEl.value = isAllowed ? (t.linkType || 'none') : 'none';
+    }
+    if (titleEl) titleEl.value = t.title;
+    if (bodyEl) bodyEl.value = t.body;
+};
+
+window.clearMessageSchedule = function () {
+    const el = document.getElementById('msg-schedule-at');
+    if (el) el.value = '';
+    window.updateMessageSchedulePreview();
+};
+
+window.sendAdminMessage = async function () {
+    const targetType = getSelectedMessageTargetType();
+    const category = document.getElementById('msg-category')?.value || 'notice';
+    const recipientId = document.getElementById('msg-recipient-select')?.value || '';
+    const title = (document.getElementById('msg-title-input')?.value || '').trim();
+    const body = (document.getElementById('msg-body-input')?.value || '').trim();
+    const priority = document.getElementById('msg-priority')?.value || 'normal';
+    const linkType = document.getElementById('msg-link-type')?.value || 'none';
+    const sendBtn = document.getElementById('msg-send-btn');
+    const scheduleRaw = document.getElementById('msg-schedule-at')?.value || '';
+    const parsedSchedule = parseScheduleDateTimeLocal(scheduleRaw);
+    const scheduledDate = parsedSchedule && parsedSchedule.getTime() > Date.now() ? parsedSchedule : null;
+
+    if (!title || !body) {
+        alert('제목과 내용을 모두 입력해주세요.');
+        return;
+    }
+
+    if ((targetType === 'user_single' || targetType === 'partner_single') && !recipientId) {
+        alert('수신자를 선택해주세요.');
+        return;
+    }
+
+    try {
+        if (sendBtn) {
+            sendBtn.disabled = true;
+            sendBtn.innerText = '발송 중...';
+        }
+
+        const recipients = buildMessageRecipients(targetType, recipientId);
+
+        if (!recipients.length) {
+            alert('발송할 수신자가 없습니다.');
+            return;
+        }
+
+        const payload = {
+            targetType,
+            targetLabel: getMessageTargetLabel(targetType),
+            targetRecipientId: targetType === 'user_single' || targetType === 'partner_single' ? recipientId : '',
+            category,
+            priority,
+            linkType,
+            linkLabel: getLinkTypeLabel(linkType),
+            title,
+            body,
+            senderEmail: auth.currentUser?.email || 'admin',
+            recipientCount: recipients.length,
+            status: scheduledDate ? 'scheduled' : 'draft',
+            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        };
+        if (scheduledDate) {
+            payload.scheduledAt = firebase.firestore.Timestamp.fromDate(scheduledDate);
+        }
+
+        const messageRef = await db.collection('admin_messages').add(payload);
+        if (scheduledDate) {
+            alert(`예약 발송이 등록되었습니다.\n예정 시각: ${formatMessageDate(scheduledDate)}`);
+        } else {
+            const result = await dispatchAdminMessage(messageRef, payload);
+            if (!result.ok) {
+                alert('메시지 발송에 실패했습니다. 수신자 목록을 확인해주세요.');
+                return;
+            }
+            alert(`메시지가 ${result.count}명에게 발송되었습니다.\n발송 시각: ${formatMessageDate(new Date())}`);
+        }
+
+        const templateEl = document.getElementById('msg-template-select');
+        const linkEl = document.getElementById('msg-link-type');
+        document.getElementById('msg-title-input').value = '';
+        document.getElementById('msg-body-input').value = '';
+        if (templateEl) templateEl.value = '';
+        if (linkEl) linkEl.value = 'none';
+        window.clearMessageSchedule();
+        loadAdminMessageHistory();
+    } catch (err) {
+        console.error('메시지 발송 실패:', err);
+        alert('메시지 발송 중 오류가 발생했습니다: ' + err.message);
+    } finally {
+        if (sendBtn) {
+            sendBtn.disabled = false;
+            sendBtn.innerText = '메시지 발송';
+        }
+    }
+};
+
+async function loadAdminMessageHistory() {
+    const container = document.getElementById('msg-history-list');
+    if (!container) return;
+
+    if (unsubscribeAdminMessages) unsubscribeAdminMessages();
+    container.innerHTML = '<div class="text-[#A7B2AE] text-sm">불러오는 중...</div>';
+
+    unsubscribeAdminMessages = db.collection('admin_messages')
+        .orderBy('createdAt', 'desc')
+        .limit(40)
+        .onSnapshot((snapshot) => {
+            if (snapshot.empty) {
+                container.innerHTML = '<div class="text-[#A7B2AE] text-sm">발송 이력이 없습니다.</div>';
+                return;
+            }
+            let html = '';
+            snapshot.forEach((doc) => {
+                const data = doc.data() || {};
+                const statusColor = data.status === 'scheduled'
+                    ? 'text-blue-300 border-blue-500/40 bg-blue-500/10'
+                    : data.status === 'failed'
+                        ? 'text-red-300 border-red-500/40 bg-red-500/10'
+                        : 'text-green-300 border-green-500/40 bg-green-500/10';
+                const statusLabel = data.status === 'scheduled'
+                    ? `예약 (${formatMessageDate(data.scheduledAt)})`
+                    : data.status === 'failed'
+                        ? '실패'
+                        : '발송완료';
+                html += `
+                    <div class="rounded-xl border border-[#2A3731] bg-[#06110D] p-4">
+                        <div class="flex items-start justify-between gap-3">
+                            <div class="text-white font-bold text-sm">${escapeHtml(data.title || '(제목 없음)')}</div>
+                            <span class="text-[11px] text-[#A7B2AE] whitespace-nowrap">${formatMessageDate(data.createdAt)}</span>
+                        </div>
+                        <div class="text-[12px] text-[#A7B2AE] mt-1">
+                            ${escapeHtml(data.targetLabel || getMessageTargetLabel(data.targetType))} · ${escapeHtml(data.category || 'notice')} · ${escapeHtml(data.priority || 'normal')} · ${Number(data.recipientCount || 0)}명
+                        </div>
+                        <div class="text-[11px] text-[#7F8E88] mt-1">관련 화면: ${escapeHtml(data.linkLabel || getLinkTypeLabel(data.linkType || 'none'))}</div>
+                        <div class="mt-2">
+                            <span class="inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold border ${statusColor}">${statusLabel}</span>
+                            ${data.failReason ? `<span class="text-[10px] text-red-300 ml-2">${escapeHtml(data.failReason)}</span>` : ''}
+                        </div>
+                        <p class="text-[13px] text-white/90 mt-2 leading-relaxed whitespace-pre-wrap">${escapeHtml(data.body || '')}</p>
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
+        }, (err) => {
+            console.error('메시지 이력 로드 실패:', err);
+            container.innerHTML = `<div class="text-red-400 text-sm">이력 로드 실패: ${escapeHtml(err.message)}</div>`;
+        });
+}
+
 // ─── Initial Listeners ───
 window.addEventListener('DOMContentLoaded', () => {
     db.collection('users').onSnapshot((snap) => {
+        sidebarSnapshotCache.users = snap;
         currentUserCount = snap.size;
+        const unread = countUnreadDocsByTimestamp(snap, 'users', ['updatedAt', 'createdAt']);
+        setSidebarCategoryCount('users', snap.size, unread);
         updateDashboardStats();
     });
     db.collection('partners').onSnapshot((snap) => {
+        sidebarSnapshotCache.partners = snap;
         currentShopCount = snap.size;
+        const shopUnread = countUnreadDocsByTimestamp(snap, 'shops', ['updatedAt', 'createdAt']);
+        setSidebarCategoryCount('shops', snap.size, shopUnread);
 
-        // Update badge for pending partners
         let pendingCount = 0;
         snap.forEach((doc) => {
             if (doc.data().status === 'pending') {
                 pendingCount++;
             }
         });
-        const badge = document.getElementById('pending-badge');
-        if (badge) {
-            badge.innerText = pendingCount;
-            if (pendingCount > 0) {
-                badge.classList.remove('hidden');
-            } else {
-                badge.classList.add('hidden');
-            }
-        }
+        const pendingUnread = countUnreadDocsByTimestamp(
+            snap,
+            'approvals',
+            ['updatedAt', 'createdAt'],
+            (data) => data.status === 'pending',
+        );
+        setSidebarCategoryCount('approvals', pendingCount, pendingUnread);
 
         updateDashboardStats();
     });
     db.collection('categories')
         .orderBy('createdAt', 'asc')
         .onSnapshot((snap) => {
+            sidebarSnapshotCache.categories = snap;
             const list = snap.docs.map((doc) => ({ id: doc.id, name: doc.data().name }));
             categoriesList = list;
             categoryData.categories = list;
             updateCategoryBadge('categories', list.length);
+            categoriesCollectionUnreadCount = countUnreadDocsByTimestamp(
+                snap,
+                'categories',
+                ['updatedAt', 'createdAt'],
+            );
+            refreshCategorySidebarBadge();
             if (currentCategoryType === 'categories') renderActiveCategoryList();
         });
 
@@ -294,12 +1260,74 @@ window.addEventListener('DOMContentLoaded', () => {
         db.collection('app_filters')
             .doc(key)
             .onSnapshot((doc) => {
-                const data = doc.exists ? doc.data().options || [] : [];
+                const rawData = doc.exists ? doc.data().options || [] : [];
+                const data = key === 'place' ? normalizePlaceOptions(rawData) : rawData;
+                if (
+                    key === 'place' &&
+                    doc.exists &&
+                    JSON.stringify(rawData) !== JSON.stringify(data)
+                ) {
+                    doc.ref
+                        .set(
+                            {
+                                options: data,
+                                updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                            },
+                            { merge: true },
+                        )
+                        .catch((err) =>
+                            console.error('place 옵션 정규화 저장 실패:', err?.message || err),
+                        );
+                }
                 categoryData[key] = data;
                 updateCategoryBadge(key, data.length);
+                const activityMs = getLatestActivityMs(doc.exists ? doc.data() || {} : {}, [
+                    'updatedAt',
+                    'createdAt',
+                ]);
+                categoryFilterActivityByKey[key] = activityMs;
+                const seenAtMs = getSeenAtMsForKey('categories');
+                categoryFilterUnreadByKey[key] =
+                    sidebarBadgeReadsLoaded && activityMs > seenAtMs ? 1 : 0;
+                refreshCategorySidebarBadge();
                 if (typeof currentCategoryType !== 'undefined' && currentCategoryType === key) renderActiveCategoryList();
                 if (typeof currentCSCategoryType !== 'undefined' && currentCSCategoryType === key) renderCSActiveCategoryList();
             });
+    });
+
+    db.collection('subscription_requests').onSnapshot((snapshot) => {
+        sidebarSnapshotCache.subscriptions = snapshot;
+        let pending = 0;
+        snapshot.forEach((doc) => {
+            const status = normalizeSubRequestStatus(doc.data()?.status || 'pending');
+            if (status === 'pending') pending++;
+        });
+        const unread = countUnreadDocsByTimestamp(
+            snapshot,
+            'subscriptions',
+            ['updatedAt', 'createdAt', 'requestedAt', 'submittedAt'],
+            (data) => normalizeSubRequestStatus(data?.status || 'pending') === 'pending',
+        );
+        setSidebarCategoryCount('subscriptions', pending, unread);
+    });
+
+    db.collection('admin_messages').onSnapshot((snapshot) => {
+        sidebarSnapshotCache.messages = snapshot;
+        let pendingActions = 0;
+        snapshot.forEach((doc) => {
+            const status = String(doc.data()?.status || '').toLowerCase();
+            if (status === 'scheduled' || status === 'failed') pendingActions++;
+        });
+        const unread = countUnreadDocsByTimestamp(
+            snapshot,
+            'messages',
+            ['updatedAt', 'createdAt', 'scheduledAt'],
+            (data) => {
+                const status = String(data?.status || '').toLowerCase();
+                return status === 'scheduled' || status === 'failed';
+            },
+        );
+        setSidebarCategoryCount('messages', pendingActions, unread);
     });
 });
 
@@ -309,6 +1337,23 @@ window.addEventListener('DOMContentLoaded', () => {
 
 let currentCategoryType = 'massage';
 let currentCSCategoryType = 'customer_report_reason';
+function normalizePlaceLabel(label) {
+    if (typeof label !== 'string') return '';
+    return label
+        .replace(/프라이빗\s*/g, '')
+        .replace(/스탠다드\s*/g, '')
+        .replace(/\s{2,}/g, ' ')
+        .trim();
+}
+
+function normalizePlaceOptions(options) {
+    if (!Array.isArray(options)) return [];
+    const normalized = options
+        .map((item) => normalizePlaceLabel(item))
+        .filter((item) => Boolean(item));
+    return normalized.filter((item, idx) => normalized.indexOf(item) === idx);
+}
+
 const CATEGORY_META = {
     massage: {
         title: '마사지 테마',
@@ -439,23 +1484,34 @@ function handleInlineSubmit(e) {
     const meta = CATEGORY_META[currentCategoryType];
 
     if (meta.isFilter) {
+        const normalizedVal = currentCategoryType === 'place' ? normalizePlaceLabel(val) : val;
+        if (!normalizedVal) {
+            alert('유효한 항목명을 입력해주세요.');
+            return;
+        }
         const ref = db.collection('app_filters').doc(currentCategoryType);
         ref.get()
             .then((doc) => {
                 if (doc.exists) {
-                    const current = doc.data().options || [];
-                    if (current.includes(val)) {
+                    const currentRaw = doc.data().options || [];
+                    const current =
+                        currentCategoryType === 'place'
+                            ? normalizePlaceOptions(currentRaw)
+                            : currentRaw;
+                    if (current.includes(normalizedVal)) {
                         alert('이미 존재하는 항목입니다.');
                         return;
                     }
                     return ref.update({
-                        options: firebase.firestore.FieldValue.arrayUnion(val),
+                        options: firebase.firestore.FieldValue.arrayUnion(normalizedVal),
                         updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
                     });
                 } else {
+                    const defaultHead =
+                        currentCategoryType === 'place' ? '상관없음(전체)' : '전체';
                     return ref.set({
                         title: meta.title,
-                        options: ['전체', val],
+                        options: [defaultHead, normalizedVal],
                         updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
                     });
                 }
@@ -2949,6 +4005,7 @@ function initCSTicketsListener() {
     db.collection('cs_tickets')
         .orderBy('createdAt', 'desc')
         .onSnapshot(snapshot => {
+            sidebarSnapshotCache.cs = snapshot;
             csTicketsData = snapshot.docs.map(doc => {
                 const data = doc.data();
                 let displayDate = '';
@@ -2974,6 +4031,14 @@ function initCSTicketsListener() {
                     memo: data.memo || ''
                 };
             });
+            const pendingCount = csTicketsData.filter((ticket) => ticket.status === 'pending').length;
+            const unreadCount = countUnreadDocsByTimestamp(
+                snapshot,
+                'cs',
+                ['updatedAt', 'createdAt'],
+                (data) => (data.status || 'pending') === 'pending',
+            );
+            setSidebarCategoryCount('cs', pendingCount, unreadCount);
             
             // Update detail panel if open
             if (activeCSTicketId && document.getElementById('slide-cs-detail') && !document.getElementById('slide-cs-detail').classList.contains('translate-x-full')) {

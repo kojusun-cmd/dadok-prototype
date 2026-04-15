@@ -51,15 +51,34 @@
         <nav class="flex-1 overflow-y-auto py-4">
             <ul class="space-y-1 px-3">
                 <li><a href="#" onclick="switchTab('dashboard')" class="tab-link active flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-[#11291D] hover:text-white transition-colors">대시보드 홈</a></li>
-                <li><a href="#" onclick="switchTab('users')" class="tab-link flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-[#11291D] hover:text-white transition-colors">회원 관리</a></li>
+                <li><a href="#" onclick="switchTab('users')" class="tab-link flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-[#11291D] hover:text-white transition-colors">
+                    회원 관리
+                    <span id="users-badge" class="ml-auto bg-[#22332B] text-[#A7B2AE] text-[10px] font-bold px-2 py-0.5 rounded-full hidden">0</span>
+                </a></li>
                 <li><a href="#" onclick="switchTab('approvals')" class="tab-link flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-[#11291D] hover:text-white transition-colors">
                     제휴 파트너 승인 
                     <span id="pending-badge" class="ml-auto bg-red-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full hidden">0</span>
                 </a></li>
-                <li><a href="#" onclick="switchTab('shops')" class="tab-link flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-[#11291D] hover:text-white transition-colors">마사지 샵 관리</a></li>
-                <li><a href="#" onclick="switchTab('subscriptions')" class="tab-link flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-[#11291D] hover:text-white transition-colors">입점권 관리</a></li>
-                <li><a href="#" onclick="switchTab('categories')" class="tab-link flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-[#11291D] hover:text-white transition-colors">앱 카테고리 관리</a></li>
-                <li><a href="#" onclick="switchTab('cs')" class="tab-link flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-[#11291D] hover:text-white transition-colors">신고 및 문의 관리 (CS)</a></li>
+                <li><a href="#" onclick="switchTab('shops')" class="tab-link flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-[#11291D] hover:text-white transition-colors">
+                    마사지 샵 관리
+                    <span id="shops-badge" class="ml-auto bg-[#22332B] text-[#A7B2AE] text-[10px] font-bold px-2 py-0.5 rounded-full hidden">0</span>
+                </a></li>
+                <li><a href="#" onclick="switchTab('subscriptions')" class="tab-link flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-[#11291D] hover:text-white transition-colors">
+                    입점권 관리
+                    <span id="subscriptions-badge" class="ml-auto bg-[#22332B] text-[#A7B2AE] text-[10px] font-bold px-2 py-0.5 rounded-full hidden">0</span>
+                </a></li>
+                <li><a href="#" onclick="switchTab('messages')" class="tab-link flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-[#11291D] hover:text-white transition-colors">
+                    메시지 센터
+                    <span id="messages-badge" class="ml-auto bg-[#22332B] text-[#A7B2AE] text-[10px] font-bold px-2 py-0.5 rounded-full hidden">0</span>
+                </a></li>
+                <li><a href="#" onclick="switchTab('categories')" class="tab-link flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-[#11291D] hover:text-white transition-colors">
+                    앱 카테고리 관리
+                    <span id="categories-badge" class="ml-auto bg-[#22332B] text-[#A7B2AE] text-[10px] font-bold px-2 py-0.5 rounded-full hidden">0</span>
+                </a></li>
+                <li><a href="#" onclick="switchTab('cs')" class="tab-link flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-[#11291D] hover:text-white transition-colors">
+                    신고 및 문의 관리 (CS)
+                    <span id="cs-badge" class="ml-auto bg-[#22332B] text-[#A7B2AE] text-[10px] font-bold px-2 py-0.5 rounded-full hidden">0</span>
+                </a></li>
             </ul>
         </nav>
         
@@ -531,6 +550,125 @@
                 </table>
             </div>
         </div>
+
+        <!-- Message Center Tab -->
+        <div id="tab-messages" class="tab-content hidden">
+            <h2 class="text-3xl font-bold text-white mb-2">메시지 센터</h2>
+            <p class="text-[#A7B2AE] mb-6">개인회원/업체에게 운영 공지, 안내, 경고 메시지를 발송합니다.</p>
+            <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                <div class="bg-[#0A1B13] border border-[#2A3731] rounded-2xl p-6 shadow-lg">
+                    <h3 class="text-xl font-bold text-[var(--point-color)] mb-4">새 메시지 발송</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs text-[#A7B2AE] mb-1.5 font-bold">대상 구분</label>
+                            <select id="msg-audience-type" onchange="refreshMessageRecipientOptions()"
+                                class="w-full bg-[#06110D] border border-[#2A3731] rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-[var(--point-color)]">
+                                <option value="user">개인회원</option>
+                                <option value="partner">업체</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs text-[#A7B2AE] mb-1.5 font-bold">발송 범위</label>
+                            <select id="msg-target-scope" onchange="refreshMessageRecipientOptions()"
+                                class="w-full bg-[#06110D] border border-[#2A3731] rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-[var(--point-color)]">
+                                <option value="single">단건</option>
+                                <option value="all">전체</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs text-[#A7B2AE] mb-1.5 font-bold">템플릿</label>
+                            <select id="msg-template-select" onchange="applyMessageTemplate()"
+                                class="w-full bg-[#06110D] border border-[#2A3731] rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-[var(--point-color)]">
+                                <option value="">템플릿 직접 선택</option>
+                                <option value="approval_done">승인 완료 안내</option>
+                                <option value="approval_rejected">반려 안내</option>
+                                <option value="payment_reminder">입금 확인 요청</option>
+                                <option value="policy_notice">운영 정책 공지</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs text-[#A7B2AE] mb-1.5 font-bold">카테고리</label>
+                            <select id="msg-category"
+                                class="w-full bg-[#06110D] border border-[#2A3731] rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-[var(--point-color)]">
+                                <option value="notice">공지</option>
+                                <option value="guide">안내</option>
+                                <option value="warning">경고</option>
+                                <option value="result">처리결과</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs text-[#A7B2AE] mb-1.5 font-bold">발송 시점</label>
+                            <div class="flex gap-2">
+                                <input id="msg-schedule-at" type="datetime-local"
+                                    onchange="updateMessageSchedulePreview()"
+                                    class="w-full bg-[#06110D] border border-[#2A3731] rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-[var(--point-color)] schedule-white-icon">
+                                <button onclick="clearMessageSchedule()" type="button"
+                                    class="px-3 py-2.5 border border-[#2A3731] rounded-xl text-[#A7B2AE] hover:text-white hover:border-[var(--point-color)] transition-colors">해제</button>
+                            </div>
+                            <div class="flex flex-wrap gap-2 mt-2">
+                                <button type="button" onclick="setMessageSchedulePreset('now')"
+                                    class="px-2.5 py-1.5 rounded-lg text-[11px] font-bold border border-[#2A3731] text-[#A7B2AE] hover:text-white hover:border-[var(--point-color)] transition-colors">즉시</button>
+                                <button type="button" onclick="setMessageSchedulePreset('10m')"
+                                    class="px-2.5 py-1.5 rounded-lg text-[11px] font-bold border border-[#2A3731] text-[#A7B2AE] hover:text-white hover:border-[var(--point-color)] transition-colors">10분 후</button>
+                                <button type="button" onclick="setMessageSchedulePreset('30m')"
+                                    class="px-2.5 py-1.5 rounded-lg text-[11px] font-bold border border-[#2A3731] text-[#A7B2AE] hover:text-white hover:border-[var(--point-color)] transition-colors">30분 후</button>
+                                <button type="button" onclick="setMessageSchedulePreset('1h')"
+                                    class="px-2.5 py-1.5 rounded-lg text-[11px] font-bold border border-[#2A3731] text-[#A7B2AE] hover:text-white hover:border-[var(--point-color)] transition-colors">1시간 후</button>
+                                <button type="button" onclick="setMessageSchedulePreset('tomorrow9')"
+                                    class="px-2.5 py-1.5 rounded-lg text-[11px] font-bold border border-[#2A3731] text-[#A7B2AE] hover:text-white hover:border-[var(--point-color)] transition-colors">내일 오전 9시</button>
+                            </div>
+                            <div id="msg-schedule-preview" class="mt-1 text-[11px] text-[#7F8E88]">예상 발송: 지금</div>
+                        </div>
+                    </div>
+                    <div id="msg-recipient-wrap" class="mt-4">
+                        <label class="block text-xs text-[#A7B2AE] mb-1.5 font-bold">수신자 선택</label>
+                        <select id="msg-recipient-select"
+                            class="w-full bg-[#06110D] border border-[#2A3731] rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-[var(--point-color)]"></select>
+                    </div>
+                    <div class="mt-4">
+                        <label class="block text-xs text-[#A7B2AE] mb-1.5 font-bold">제목</label>
+                        <input id="msg-title-input" type="text" placeholder="메시지 제목"
+                            class="w-full bg-[#06110D] border border-[#2A3731] rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[var(--point-color)]">
+                    </div>
+                    <div class="mt-4">
+                        <label class="block text-xs text-[#A7B2AE] mb-1.5 font-bold">내용</label>
+                        <textarea id="msg-body-input" rows="5" placeholder="전달할 내용을 입력해주세요."
+                            class="w-full bg-[#06110D] border border-[#2A3731] rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[var(--point-color)]"></textarea>
+                    </div>
+                    <div class="mt-4">
+                        <label class="block text-xs text-[#A7B2AE] mb-1.5 font-bold">중요도</label>
+                        <select id="msg-priority"
+                            class="w-full bg-[#06110D] border border-[#2A3731] rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-[var(--point-color)]">
+                            <option value="normal">일반</option>
+                            <option value="important">중요</option>
+                        </select>
+                    </div>
+                    <div class="mt-4">
+                        <label class="block text-xs text-[#A7B2AE] mb-1.5 font-bold">관련 화면 이동</label>
+                        <select id="msg-link-type"
+                            class="w-full bg-[#06110D] border border-[#2A3731] rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-[var(--point-color)]">
+                            <option value="none">이동 없음</option>
+                            <option value="partner_dashboard">업체 대시보드</option>
+                            <option value="partner_entry">업체 입점권 안내/구매</option>
+                            <option value="partner_login">업체 로그인</option>
+                            <option value="user_mypage">회원 마이페이지</option>
+                            <option value="user_security">회원 계정/보안 설정</option>
+                            <option value="support_center">신고센터/문의</option>
+                            <option value="login">로그인 화면</option>
+                        </select>
+                    </div>
+                    <button id="msg-send-btn" onclick="sendAdminMessage()"
+                        class="w-full mt-5 px-4 py-3 bg-gradient-to-r from-[var(--point-color)] to-[#B59530] text-white font-bold rounded-xl hover:brightness-110 active:scale-[0.98] transition-all shadow-[0_8px_20px_rgba(212,175,55,0.25)]">메시지 발송</button>
+                </div>
+
+                <div class="bg-[#0A1B13] border border-[#2A3731] rounded-2xl p-6 shadow-lg">
+                    <h3 class="text-xl font-bold text-white mb-4">최근 발송 이력</h3>
+                    <div id="msg-history-list" class="space-y-3 max-h-[620px] overflow-y-auto pr-1">
+                        <div class="text-[#A7B2AE] text-sm">불러오는 중...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
             
         <!-- CS Management Tab -->
         <div id="tab-cs" class="tab-content hidden h-full">
@@ -951,9 +1089,14 @@
     </div>
 
     <!-- Scripts -->
-    <script src="./assets/js/admin.js?v=20260414_6"></script>
+    <script src="./assets/js/admin.js?v=20260415_13"></script>
     <style>
         .tab-link.active { background-color: #11291D; color: white; border-left: 3px solid var(--point-color); }
+        .schedule-white-icon::-webkit-calendar-picker-indicator {
+            filter: invert(1) brightness(2);
+            opacity: 1;
+            cursor: pointer;
+        }
     </style>
 </body>
 </html>

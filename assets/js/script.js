@@ -431,6 +431,7 @@ const filterSheet = document.getElementById('filter-sheet');
 
             let chatOpenedFromModal = false;
             let profileOpenedFromFavorites = false;
+            let profileOpenedFromPartnerDashboard = false;
 
             function openProfileFromFavorites(name, desc, id, reviews, rating, massage, place, age, image, ticketType, ticketExpiry) {
                 profileOpenedFromFavorites = true;
@@ -465,12 +466,7 @@ const filterSheet = document.getElementById('filter-sheet');
             };
 
             function openProfile(name, desc, id, reviews, rating, massage, place, age, image, ticketType, ticketExpiry) {
-                // [수정] 프로필 열릴 때 조회수 업데이트
-                window.partnerDashboardStats.totalVisitors++;
-                window.partnerDashboardStats.todayVisitors++;
-                saveDashboardStats();
-                updateDashboardDOM();
-                syncDashboardStatsToFirestore();
+                trackPartnerProfileView(id);
 
                 if (id === 'my-partner') {
                     if (localStorage.getItem('myPartnerProfile')) {
@@ -486,6 +482,8 @@ const filterSheet = document.getElementById('filter-sheet');
                 document.getElementById('profile-desc').innerText = currentPartner.desc;
                 if (currentPartner.image) {
                     document.getElementById('profile-img').style.backgroundImage = `url('${currentPartner.image}')`;
+                } else {
+                    document.getElementById('profile-img').style.backgroundImage = 'none';
                 }
 
                 const tagsContainer = document.getElementById('profile-tags');
@@ -1180,12 +1178,7 @@ const filterSheet = document.getElementById('filter-sheet');
                     author: maskedId
                 });
 
-                // [수정] 리뷰 작성 완료 시 리뷰 수치 증가
-                window.partnerDashboardStats.totalReviews++;
-                window.partnerDashboardStats.todayReviews++;
-                saveDashboardStats();
-                updateDashboardDOM();
-                syncDashboardStatsToFirestore();
+                persistPartnerReview(currentPartner?.id, rating, text, maskedId);
 
                 const starPath = "M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z";
                 let starsHtml = '';
@@ -1282,6 +1275,30 @@ const filterSheet = document.getElementById('filter-sheet');
                         ctaBtn.classList.add('pointer-events-none', 'opacity-0');
                         ctaBtn.style.zIndex = '110';
                     }, 300);
+                    return;
+                }
+
+                if (
+                    typeof profileOpenedFromPartnerDashboard !== 'undefined' &&
+                    profileOpenedFromPartnerDashboard
+                ) {
+                    profileOpenedFromPartnerDashboard = false;
+                    const overlay = document.getElementById('overlay');
+                    const ctaBtn = document.getElementById('cta-button');
+                    // 파트너 대시보드 위 상세 닫기 시 배경 흐림 페이드 없이 즉시 제거
+                    if (overlay) {
+                        overlay.style.transition = 'none';
+                        overlay.classList.remove('show');
+                        // Reflow 후 transition 복원
+                        void overlay.offsetWidth;
+                        overlay.style.transition = '';
+                        overlay.style.zIndex = '';
+                    }
+                    // 닫기 애니메이션이 끝난 뒤 레이어를 원복해야, 시트가 뒤로 깔리지 않고 앞에서 자연스럽게 사라진다.
+                    setTimeout(() => {
+                        if (profileSheet) profileSheet.style.zIndex = '';
+                        if (ctaBtn) ctaBtn.style.zIndex = '110';
+                    }, 320);
                     return;
                 }
 
@@ -2774,10 +2791,13 @@ const filterSheet = document.getElementById('filter-sheet');
 
             function openPartnerDashboard() {
                 populateDashboardFromPartner();
+                loadPartnerDashboardStats();
                 renderPartnerBanners();
+                refreshNoticeUnreadBadges();
                 const modal = document.getElementById('partner-dashboard-modal');
                 if (modal) {
                     modal.style.display = 'flex';
+                    modal.style.transform = '';
                     setTimeout(() => {
                         modal.classList.remove('translate-x-full');
                     }, 10);
@@ -2804,6 +2824,10 @@ const filterSheet = document.getElementById('filter-sheet');
                 isPartnerLoggedIn = false;
                 localStorage.removeItem('dadok_isPartnerLoggedIn');
                 sessionStorage.removeItem('dadok_isPartnerLoggedIn');
+                localStorage.removeItem('dadok_loggedInPartnerDocId');
+                sessionStorage.removeItem('dadok_loggedInPartnerDocId');
+                localStorage.removeItem('dadok_loggedInPartnerUserId');
+                sessionStorage.removeItem('dadok_loggedInPartnerUserId');
                 partnerActivePasses = []; // 필요한 경우 로그아웃 시 배열 초기화 (여기서는 예시이므로 둠)
                 closePartnerDashboardToLogin();
             }
@@ -2910,6 +2934,14 @@ const filterSheet = document.getElementById('filter-sheet');
                     } else {
                         localStorage.removeItem('dadok_loggedInPartnerDocId');
                         sessionStorage.removeItem('dadok_loggedInPartnerDocId');
+                    }
+
+                    if (keepLogin) {
+                        localStorage.setItem('dadok_loggedInPartnerUserId', idValue);
+                        sessionStorage.removeItem('dadok_loggedInPartnerUserId');
+                    } else {
+                        sessionStorage.setItem('dadok_loggedInPartnerUserId', idValue);
+                        localStorage.removeItem('dadok_loggedInPartnerUserId');
                     }
                     
                     if (keepLogin) {
@@ -3649,6 +3681,7 @@ const filterSheet = document.getElementById('filter-sheet');
             function openMyPageModal() {
                 const myPageModal = document.getElementById('mypage-modal');
                 myPageModal.style.display = 'flex';
+                refreshNoticeUnreadBadges();
                 void myPageModal.offsetWidth; // force reflow
                 setTimeout(() => {
                     myPageModal.classList.remove('translate-x-full');
@@ -3760,6 +3793,261 @@ const filterSheet = document.getElementById('filter-sheet');
                 container.innerHTML = html;
             }
 
+            function escapeNoticeText(value = '') {
+                return String(value || '')
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;')
+                    .replace(/'/g, '&#39;');
+            }
+
+            function formatNoticeDate(value) {
+                if (!value) return '-';
+                let d = null;
+                if (typeof value.toDate === 'function') d = value.toDate();
+                else if (typeof value.toMillis === 'function') d = new Date(value.toMillis());
+                else d = new Date(value);
+                if (!d || Number.isNaN(d.getTime())) return '-';
+                return `${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+            }
+
+            let currentNoticeAudience = 'user';
+            let currentNoticeRecipient = { type: '', docId: '' };
+            let currentNoticeRows = [];
+
+            async function resolveNotificationRecipient(audience) {
+                if (audience === 'partner') {
+                    const partnerDocId = localStorage.getItem('dadok_loggedInPartnerDocId') || sessionStorage.getItem('dadok_loggedInPartnerDocId');
+                    return { type: 'partner', docId: partnerDocId || '' };
+                }
+
+                const userId = localStorage.getItem('dadok_username') || sessionStorage.getItem('dadok_username') || '';
+                if (!userId || typeof firebase === 'undefined') {
+                    return { type: 'user', docId: '' };
+                }
+                const snap = await firebase.firestore().collection('users').where('userId', '==', userId).limit(1).get();
+                if (snap.empty) return { type: 'user', docId: '' };
+                return { type: 'user', docId: snap.docs[0].id };
+            }
+
+            async function renderNoticeList(audience) {
+                const container = document.getElementById('notice-list-container');
+                if (!container) return;
+                container.innerHTML = '<div class="text-[var(--text-sub)] text-sm">알림을 불러오는 중입니다...</div>';
+
+                if (typeof firebase === 'undefined') {
+                    container.innerHTML = '<div class="text-[#F87171] text-sm">데이터베이스 연결에 실패했습니다.</div>';
+                    return;
+                }
+
+                try {
+                    const target = await resolveNotificationRecipient(audience);
+                    currentNoticeAudience = audience;
+                    currentNoticeRecipient = target;
+                    if (!target.docId) {
+                        container.innerHTML = '<div class="text-[var(--text-sub)] text-sm">수신자 정보를 찾을 수 없습니다.</div>';
+                        return;
+                    }
+
+                    const snap = await firebase.firestore().collection('user_notifications')
+                        .where('recipientType', '==', target.type)
+                        .where('recipientDocId', '==', target.docId)
+                        .get();
+
+                    const rows = [];
+                    snap.forEach((doc) => rows.push({ id: doc.id, ...doc.data() }));
+                    rows.sort((a, b) => {
+                        const getTs = (x) => {
+                            if (x?.createdAt && typeof x.createdAt.toMillis === 'function') return x.createdAt.toMillis();
+                            return 0;
+                        };
+                        return getTs(b) - getTs(a);
+                    });
+
+                    if (!rows.length) {
+                        currentNoticeRows = [];
+                        refreshNoticeUnreadBadges();
+                        container.innerHTML = '<div class="text-[var(--text-sub)] text-sm p-4">도착한 관리자 알림이 없습니다.</div>';
+                        return;
+                    }
+
+                    currentNoticeRows = rows;
+                    refreshNoticeUnreadBadges();
+
+                    let html = '<div class="space-y-3">';
+                    rows.forEach((row) => {
+                        const priorityBadge = row.priority === 'important'
+                            ? '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-500/20 text-red-300 border border-red-500/30">중요</span>'
+                            : '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#11291D] text-[var(--point-color)] border border-[#2A3731]">일반</span>';
+                        const unreadDot = row.isRead ? '' : '<span class="inline-flex w-2.5 h-2.5 rounded-full bg-red-400"></span>';
+                        const linkBtn = row.linkType && row.linkType !== 'none'
+                            ? `<button onclick="openNoticeLinkedScreen('${row.id}', '${row.linkType}')" class="px-2 py-1 text-[10px] font-bold rounded-lg border border-[#2A3731] text-white hover:border-[var(--point-color)] hover:text-[var(--point-color)] transition-colors">관련 화면 이동</button>`
+                            : '';
+                        const readBtn = row.isRead
+                            ? '<span class="text-[10px] text-[#6C7A74]">읽음</span>'
+                            : `<button onclick="markNoticeAsRead('${row.id}')" class="px-2 py-1 text-[10px] font-bold rounded-lg border border-[var(--point-color)]/40 text-[var(--point-color)] hover:bg-[var(--point-color)]/15 transition-colors">읽음 처리</button>`;
+                        html += `
+                            <div class="bg-[#0A1B13] border ${row.isRead ? 'border-[#2A3731]' : 'border-[var(--point-color)]/35'} rounded-2xl p-4">
+                                <div class="flex items-start justify-between gap-2 mb-2">
+                                    <div class="flex items-center gap-2 text-white font-bold text-[15px]">${unreadDot}${escapeNoticeText(row.title || '(제목 없음)')}</div>
+                                    <div class="flex items-center gap-2">${priorityBadge}${readBtn}${linkBtn}</div>
+                                </div>
+                                <div class="text-[11px] text-[var(--text-sub)] mb-2">${escapeNoticeText(row.category || 'notice')} · ${formatNoticeDate(row.createdAt)} · ${escapeNoticeText(row.linkLabel || '이동 없음')}</div>
+                                <p class="text-[13px] text-white/85 leading-relaxed whitespace-pre-wrap">${escapeNoticeText(row.body || '')}</p>
+                            </div>
+                        `;
+                    });
+                    html += '</div>';
+                    container.innerHTML = html;
+                } catch (e) {
+                    console.error('알림함 로드 실패:', e);
+                    container.innerHTML = `<div class="text-[#F87171] text-sm p-4">알림 로드 실패: ${escapeNoticeText(e.message || 'Unknown error')}</div>`;
+                }
+            }
+
+            async function refreshNoticeUnreadBadges() {
+                const userBadge = document.getElementById('user-notice-unread-badge');
+                const partnerBadge = document.getElementById('partner-notice-unread-badge');
+
+                if (currentNoticeRows.length > 0 && currentNoticeAudience) {
+                    const unread = currentNoticeRows.filter((r) => !r.isRead).length;
+                    const targetBadge = currentNoticeAudience === 'partner' ? partnerBadge : userBadge;
+                    if (targetBadge) {
+                        targetBadge.innerText = String(unread);
+                        targetBadge.classList.toggle('hidden', unread === 0);
+                    }
+                }
+
+                if (typeof firebase === 'undefined') return;
+                try {
+                    const [userTarget, partnerTarget] = await Promise.all([
+                        resolveNotificationRecipient('user'),
+                        resolveNotificationRecipient('partner')
+                    ]);
+                    const loadUnread = async (target) => {
+                        if (!target?.docId) return 0;
+                        const snap = await firebase.firestore().collection('user_notifications')
+                            .where('recipientType', '==', target.type)
+                            .where('recipientDocId', '==', target.docId)
+                            .get();
+                        let unread = 0;
+                        snap.forEach((doc) => {
+                            if (!doc.data()?.isRead) unread++;
+                        });
+                        return unread;
+                    };
+                    const [userUnread, partnerUnread] = await Promise.all([loadUnread(userTarget), loadUnread(partnerTarget)]);
+                    if (userBadge) {
+                        userBadge.innerText = String(userUnread);
+                        userBadge.classList.toggle('hidden', userUnread === 0);
+                    }
+                    if (partnerBadge) {
+                        partnerBadge.innerText = String(partnerUnread);
+                        partnerBadge.classList.toggle('hidden', partnerUnread === 0);
+                    }
+                } catch (e) {
+                    console.error('알림 뱃지 갱신 실패:', e);
+                }
+            }
+
+            async function markNoticeAsRead(notificationId) {
+                if (!notificationId || typeof firebase === 'undefined') return;
+                try {
+                    await firebase.firestore().collection('user_notifications').doc(notificationId).update({
+                        isRead: true,
+                        readAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                    await renderNoticeList(currentNoticeAudience);
+                } catch (e) {
+                    console.error('읽음 처리 실패:', e);
+                }
+            }
+
+            async function openNoticeLinkedScreen(notificationId, linkType = 'none') {
+                await markNoticeAsRead(notificationId);
+                closeNoticeModal();
+
+                if (!linkType || linkType === 'none') return;
+                if (linkType === 'partner_dashboard') {
+                    if (typeof openPartnerDashboard === 'function') openPartnerDashboard();
+                    return;
+                }
+                if (linkType === 'partner_entry') {
+                    if (typeof openPartnerEntryScreen === 'function') openPartnerEntryScreen();
+                    return;
+                }
+                if (linkType === 'partner_login') {
+                    if (typeof openPartnerLoginScreen === 'function') openPartnerLoginScreen();
+                    return;
+                }
+                if (linkType === 'user_mypage') {
+                    if (typeof openMyPageModal === 'function') openMyPageModal();
+                    return;
+                }
+                if (linkType === 'user_security') {
+                    if (typeof openMyPageModal === 'function') openMyPageModal();
+                    setTimeout(() => {
+                        if (typeof openSecurityModal === 'function') openSecurityModal();
+                    }, 250);
+                    return;
+                }
+                if (linkType === 'support_center') {
+                    if (typeof openSupportScreen === 'function') openSupportScreen();
+                    return;
+                }
+                if (linkType === 'login') {
+                    if (typeof openLoginModal === 'function') openLoginModal();
+                }
+            }
+
+            async function markAllNoticesAsRead() {
+                if (!currentNoticeRecipient?.docId || typeof firebase === 'undefined') return;
+                try {
+                    const snap = await firebase.firestore().collection('user_notifications')
+                        .where('recipientType', '==', currentNoticeRecipient.type)
+                        .where('recipientDocId', '==', currentNoticeRecipient.docId)
+                        .where('isRead', '==', false)
+                        .get();
+                    if (snap.empty) return;
+                    const batch = firebase.firestore().batch();
+                    snap.forEach((doc) => {
+                        batch.update(doc.ref, {
+                            isRead: true,
+                            readAt: firebase.firestore.FieldValue.serverTimestamp()
+                        });
+                    });
+                    await batch.commit();
+                    await renderNoticeList(currentNoticeAudience);
+                } catch (e) {
+                    console.error('전체 읽음 처리 실패:', e);
+                }
+            }
+
+            function openNoticeModal(audience = 'user') {
+                const modal = document.getElementById('notice-modal');
+                const titleEl = document.getElementById('notice-modal-title');
+                if (!modal) return;
+                if (titleEl) titleEl.innerText = audience === 'partner' ? '업체 관리자 알림함' : '회원 관리자 알림함';
+                modal.style.display = 'flex';
+                void modal.offsetWidth;
+                setTimeout(() => {
+                    modal.classList.remove('translate-x-full');
+                    modal.classList.add('translate-x-0');
+                }, 10);
+                renderNoticeList(audience);
+            }
+
+            function closeNoticeModal() {
+                const modal = document.getElementById('notice-modal');
+                if (!modal) return;
+                modal.classList.remove('translate-x-0');
+                modal.classList.add('translate-x-full');
+                setTimeout(() => {
+                    modal.style.display = 'none';
+                }, 300);
+            }
+
             function openSecurityModal() {
                 const modal = document.getElementById('security-modal');
                 modal.style.display = 'flex';
@@ -3805,6 +4093,7 @@ const filterSheet = document.getElementById('filter-sheet');
                 // 모달 추적 변수 초기화로 뒤로가기 방지 무시
                 if (typeof chatOpenedFromModal !== 'undefined') chatOpenedFromModal = false;
                 if (typeof profileOpenedFromFavorites !== 'undefined') profileOpenedFromFavorites = false;
+                if (typeof profileOpenedFromPartnerDashboard !== 'undefined') profileOpenedFromPartnerDashboard = false;
 
                 // 하단 시트 닫기
                 closeAllModals();
@@ -3813,6 +4102,7 @@ const filterSheet = document.getElementById('filter-sheet');
                 if (typeof closeMyPageModal === 'function') closeMyPageModal();
                 if (typeof closeFavoritesModal === 'function') closeFavoritesModal();
                 if (typeof closeChatListModal === 'function') closeChatListModal();
+                if (typeof closeNoticeModal === 'function') closeNoticeModal();
                 if (typeof closeLoginModal === 'function') closeLoginModal();
                 if (typeof closeLoginFormModal === 'function') closeLoginFormModal();
                 if (typeof closeFindIdPwScreen === 'function') closeFindIdPwScreen();
@@ -4007,32 +4297,98 @@ const filterSheet = document.getElementById('filter-sheet');
                 requestAnimationFrame(smoothScroll);
             }
 
-            function openMyBanner() {
+            async function ensureCurrentPartnerForBanner() {
+                if (currentPartner && (currentPartner.id || currentPartner.name)) {
+                    return currentPartner;
+                }
+
+                if (typeof populateDashboardFromPartner === 'function') {
+                    await populateDashboardFromPartner();
+                }
+                if (currentPartner && (currentPartner.id || currentPartner.name)) {
+                    return currentPartner;
+                }
+
+                try {
+                    const savedProfile = localStorage.getItem('myPartnerProfile');
+                    if (savedProfile) {
+                        const parsed = JSON.parse(savedProfile);
+                        if (parsed && typeof parsed === 'object') {
+                            currentPartner = {
+                                id: parsed.id || 'my-partner',
+                                ...parsed
+                            };
+                            return currentPartner;
+                        }
+                    }
+                } catch (e) {
+                    console.warn('로컬 파트너 프로필 파싱 실패:', e);
+                }
+
+                if (typeof firebase !== 'undefined') {
+                    const partnerDocId = localStorage.getItem('dadok_loggedInPartnerDocId') || sessionStorage.getItem('dadok_loggedInPartnerDocId');
+                    if (partnerDocId) {
+                        try {
+                            const doc = await firebase.firestore().collection('partners').doc(partnerDocId).get();
+                            if (doc.exists) {
+                                currentPartner = { id: doc.id, ...doc.data() };
+                                return currentPartner;
+                            }
+                        } catch (e) {
+                            console.error('파트너 배너용 문서 조회 실패:', e);
+                        }
+                    }
+
+                    const partnerUserId = localStorage.getItem('dadok_loggedInPartnerUserId') || sessionStorage.getItem('dadok_loggedInPartnerUserId');
+                    if (partnerUserId) {
+                        try {
+                            const snap = await firebase
+                                .firestore()
+                                .collection('partners')
+                                .where('userId', '==', partnerUserId)
+                                .limit(1)
+                                .get();
+                            if (!snap.empty) {
+                                const doc = snap.docs[0];
+                                currentPartner = { id: doc.id, ...doc.data() };
+                                sessionStorage.setItem('dadok_loggedInPartnerDocId', doc.id);
+                                return currentPartner;
+                            }
+                        } catch (e) {
+                            console.error('파트너 userId 기반 조회 실패:', e);
+                        }
+                    }
+                }
+
+                return null;
+            }
+
+            async function openMyBanner() {
+                await ensureCurrentPartnerForBanner();
                 if (!currentPartner) {
                     showCustomToast("파트너 정보가 없습니다.");
                     return;
                 }
+                profileOpenedFromPartnerDashboard = true;
+                const profileSheet = document.getElementById('profile-sheet');
+                const overlay = document.getElementById('overlay');
+                const ctaBtn = document.getElementById('cta-button');
+                if (profileSheet) profileSheet.style.zIndex = '250';
+                if (overlay) overlay.style.zIndex = '240';
+                if (ctaBtn) ctaBtn.style.zIndex = '260';
 
-                // 대시보드 닫기
-                document.getElementById('partner-dashboard-modal').style.transform = 'translateX(100%)';
-                setTimeout(() => {
-                    document.getElementById('partner-dashboard-modal').style.display = 'none';
-                }, 300);
-
-                // 내 업체 배너(상세 뷰) 열기 - 목업 데이터 기반으로 연동
-                setTimeout(() => {
-                    openProfile(
-                        currentPartner.name,
-                        currentPartner.desc || '다독 인증 프리미엄 케어',
-                        currentPartner.id || 'my-partner',
-                        window.partnerDashboardStats.totalReviews.toString(),
-                        '5.0',
-                        currentPartner.massage || '스웨디시,건식',
-                        currentPartner.region ? ('서울 ' + currentPartner.region) : '서울 강남/서초',
-                        currentPartner.age || '전연령',
-                        'https://images.unsplash.com/photo-1544161515-4ab6ce6db874?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80'
-                    );
-                }, 300);
+                // 대시보드는 유지한 채 상세 시트만 상단에 오버레이로 표시
+                openProfile(
+                    currentPartner.name,
+                    currentPartner.desc || '다독 인증 프리미엄 케어',
+                    'my-partner',
+                    window.partnerDashboardStats.totalReviews.toString(),
+                    '5.0',
+                    currentPartner.massage || '스웨디시,건식',
+                    currentPartner.region ? ('서울 ' + currentPartner.region) : '서울 강남/서초',
+                    currentPartner.age || '전연령',
+                    currentPartner.image || ''
+                );
             }
 
             function openChatWithUser(userName) {
@@ -4065,10 +4421,10 @@ const filterSheet = document.getElementById('filter-sheet');
             }
 
             const DEFAULT_PARTNER_DASHBOARD_STATS = {
-                totalVisitors: 4285,
-                todayVisitors: 12,
-                totalReviews: 152,
-                todayReviews: 3
+                totalVisitors: 0,
+                todayVisitors: 0,
+                totalReviews: 0,
+                todayReviews: 0
             };
 
             // [추가] 글로벌 파트너 대시보드 스탯 연동
@@ -4081,22 +4437,6 @@ const filterSheet = document.getElementById('filter-sheet');
                 // KST(Asia/Seoul) fixed day key for daily reset consistency.
                 const kstDate = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
                 return `${kstDate.getFullYear()}-${String(kstDate.getMonth() + 1).padStart(2, '0')}-${String(kstDate.getDate()).padStart(2, '0')}`;
-            }
-
-            function applyDailyStatsReset(stats, statsDate) {
-                const todayKey = getTodayDateKey();
-                if (statsDate === todayKey) {
-                    return { stats, statsDate: todayKey, wasReset: false };
-                }
-                return {
-                    stats: {
-                        ...stats,
-                        todayVisitors: 0,
-                        todayReviews: 0
-                    },
-                    statsDate: todayKey,
-                    wasReset: true
-                };
             }
 
             function saveDashboardStats() {
@@ -4117,6 +4457,71 @@ const filterSheet = document.getElementById('filter-sheet');
                 };
             }
 
+            function getCurrentViewerId() {
+                return (
+                    localStorage.getItem('dadok_loggedInUserDocId') ||
+                    sessionStorage.getItem('dadok_loggedInUserDocId') ||
+                    localStorage.getItem('dadok_username') ||
+                    sessionStorage.getItem('dadok_username') ||
+                    'anonymous'
+                );
+            }
+
+            let partnerStatsRefreshTimer = null;
+
+            function queueRefreshPartnerDashboardStats(delayMs = 250) {
+                if (partnerStatsRefreshTimer) clearTimeout(partnerStatsRefreshTimer);
+                partnerStatsRefreshTimer = setTimeout(() => {
+                    refreshPartnerDashboardStatsFromSource();
+                }, delayMs);
+            }
+
+            async function trackPartnerProfileView(partnerId) {
+                const cleanPartnerId = String(partnerId || '').trim();
+                if (!cleanPartnerId || cleanPartnerId === 'my-partner' || typeof firebase === 'undefined') return;
+                const loggedInPartnerId = getLoggedInPartnerDocId();
+                if (loggedInPartnerId && loggedInPartnerId === cleanPartnerId) return;
+
+                try {
+                    await firebase.firestore().collection('partner_profile_views').add({
+                        partnerId: cleanPartnerId,
+                        viewerId: getCurrentViewerId(),
+                        dayKey: getTodayDateKey(),
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                    if (loggedInPartnerId && loggedInPartnerId === cleanPartnerId) {
+                        queueRefreshPartnerDashboardStats();
+                    }
+                } catch (e) {
+                    console.error('방문자 로그 저장 실패', e);
+                }
+            }
+
+            async function persistPartnerReview(partnerId, rating, text, authorMaskedId) {
+                const cleanPartnerId = String(partnerId || '').trim();
+                if (!cleanPartnerId || cleanPartnerId === 'my-partner' || typeof firebase === 'undefined') return;
+                try {
+                    await firebase.firestore().collection('partner_reviews').add({
+                        partnerId: cleanPartnerId,
+                        viewerId: getCurrentViewerId(),
+                        author: authorMaskedId || 'user',
+                        rating: Number(rating || 0),
+                        content: String(text || '').trim(),
+                        dayKey: getTodayDateKey(),
+                        status: 'published',
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+
+                    const loggedInPartnerId = getLoggedInPartnerDocId();
+                    if (loggedInPartnerId && loggedInPartnerId === cleanPartnerId) {
+                        queueRefreshPartnerDashboardStats();
+                    }
+                } catch (e) {
+                    console.error('리뷰 저장 실패', e);
+                }
+            }
+
             async function syncDashboardStatsToFirestore() {
                 const partnerDocId = getLoggedInPartnerDocId();
                 if (!partnerDocId || typeof firebase === 'undefined') return;
@@ -4133,56 +4538,65 @@ const filterSheet = document.getElementById('filter-sheet');
                 }
             }
 
-            async function loadPartnerDashboardStats() {
+            async function refreshPartnerDashboardStatsFromSource() {
                 const partnerDocId = getLoggedInPartnerDocId();
                 const todayKey = getTodayDateKey();
-                const localStatsDate = localStorage.getItem('partnerDashboardStatsDate') || '';
                 if (!partnerDocId || typeof firebase === 'undefined') {
-                    const localStats = normalizeDashboardStats(window.partnerDashboardStats || DEFAULT_PARTNER_DASHBOARD_STATS);
-                    const resetResult = applyDailyStatsReset(localStats, localStatsDate);
-                    window.partnerDashboardStats = resetResult.stats;
-                    window.partnerDashboardStatsDate = resetResult.statsDate;
+                    window.partnerDashboardStats = normalizeDashboardStats(window.partnerDashboardStats || DEFAULT_PARTNER_DASHBOARD_STATS);
+                    window.partnerDashboardStatsDate = todayKey;
                     saveDashboardStats();
                     updateDashboardDOM();
                     return;
                 }
 
                 try {
-                    const doc = await firebase.firestore().collection('partners').doc(partnerDocId).get();
-                    if (!doc.exists) {
-                        const localStats = normalizeDashboardStats(window.partnerDashboardStats || DEFAULT_PARTNER_DASHBOARD_STATS);
-                        const resetResult = applyDailyStatsReset(localStats, localStatsDate);
-                        window.partnerDashboardStats = resetResult.stats;
-                        window.partnerDashboardStatsDate = resetResult.statsDate;
-                    } else {
-                        const partnerData = doc.data() || {};
-                        const dbStats = partnerData.stats || {};
-                        const dbStatsDate = partnerData.statsDate || '';
-                        const mergedStats = {
-                            ...DEFAULT_PARTNER_DASHBOARD_STATS,
-                            ...normalizeDashboardStats(window.partnerDashboardStats || {}),
-                            ...normalizeDashboardStats(dbStats)
-                        };
-                        if (!mergedStats.totalReviews && Number(partnerData.reviews) > 0) {
-                            mergedStats.totalReviews = Number(partnerData.reviews);
-                        }
-                        const resetResult = applyDailyStatsReset(mergedStats, dbStatsDate || localStatsDate);
-                        window.partnerDashboardStats = resetResult.stats;
-                        window.partnerDashboardStatsDate = resetResult.statsDate;
-                        if (resetResult.wasReset) {
-                            syncDashboardStatsToFirestore();
-                        }
-                    }
-                } catch (e) {
-                    console.error('대시보드 통계 로드 실패', e);
-                    const localStats = normalizeDashboardStats(window.partnerDashboardStats || DEFAULT_PARTNER_DASHBOARD_STATS);
-                    const resetResult = applyDailyStatsReset(localStats, localStatsDate || todayKey);
-                    window.partnerDashboardStats = resetResult.stats;
-                    window.partnerDashboardStatsDate = resetResult.statsDate;
-                }
+                    const db = firebase.firestore();
+                    const [allViewsSnap, allReviewsSnap] = await Promise.all([
+                        db.collection('partner_profile_views')
+                            .where('partnerId', '==', partnerDocId)
+                            .get(),
+                        db.collection('partner_reviews')
+                            .where('partnerId', '==', partnerDocId)
+                            .get()
+                    ]);
 
-                saveDashboardStats();
-                updateDashboardDOM();
+                    let todayVisitors = 0;
+                    allViewsSnap.forEach((doc) => {
+                        const data = doc.data() || {};
+                        if ((data.dayKey || '') === todayKey) todayVisitors++;
+                    });
+
+                    let totalReviews = 0;
+                    let todayReviews = 0;
+                    allReviewsSnap.forEach((doc) => {
+                        const data = doc.data() || {};
+                        if ((data.status || 'published') !== 'published') return;
+                        totalReviews++;
+                        if ((data.dayKey || '') === todayKey) todayReviews++;
+                    });
+
+                    window.partnerDashboardStats = normalizeDashboardStats({
+                        totalVisitors: allViewsSnap.size,
+                        todayVisitors: todayVisitors,
+                        totalReviews: totalReviews,
+                        todayReviews: todayReviews
+                    });
+                    window.partnerDashboardStatsDate = todayKey;
+
+                    saveDashboardStats();
+                    updateDashboardDOM();
+                    await syncDashboardStatsToFirestore();
+                } catch (e) {
+                    console.error('실데이터 대시보드 집계 실패', e);
+                    window.partnerDashboardStats = normalizeDashboardStats(window.partnerDashboardStats || DEFAULT_PARTNER_DASHBOARD_STATS);
+                    window.partnerDashboardStatsDate = todayKey;
+                    saveDashboardStats();
+                    updateDashboardDOM();
+                }
+            }
+
+            async function loadPartnerDashboardStats() {
+                await refreshPartnerDashboardStatsFromSource();
             }
 
             function updateDashboardDOM() {
