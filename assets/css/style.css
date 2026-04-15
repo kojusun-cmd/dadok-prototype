@@ -265,6 +265,38 @@
             pointer-events: auto;
         }
 
+        /* Partner dashboard readability tuning */
+        #partner-dashboard-modal h3 {
+            font-size: 15px;
+        }
+
+        #partner-dashboard-modal label {
+            font-size: 13px !important;
+        }
+
+        #partner-dashboard-modal input,
+        #partner-dashboard-modal textarea {
+            font-size: 15px !important;
+        }
+
+        #partner-dashboard-modal input[type="time"]::-webkit-calendar-picker-indicator {
+            filter: invert(1) brightness(2);
+            opacity: 1;
+            cursor: pointer;
+        }
+
+        #partner-dashboard-modal button {
+            font-size: 15px;
+        }
+
+        /* Edge/Chromium password reveal icon (all app password inputs) */
+        input[type="password"]::-ms-reveal,
+        input[type="password"]::-ms-clear {
+            filter: invert(1) brightness(2);
+            opacity: 1;
+            cursor: pointer;
+        }
+
         .drag-handle {
             width: 40px;
             height: 4px;

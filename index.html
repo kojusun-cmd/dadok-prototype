@@ -47,7 +47,7 @@
 
     <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@300;400;500;600;700&display=swap"
         rel="stylesheet">
-    <link rel="stylesheet" href="assets/css/style.css">
+    <link rel="stylesheet" href="assets/css/style.css?v=20260415_1">
 </head>
 
 <body>
@@ -1209,6 +1209,45 @@
             </div>
 
             <div class="flex-1 overflow-y-auto w-full mx-auto pb-32 px-5 pt-6">
+                <div id="partner-approval-gate" class="hidden mb-8">
+                    <div class="bg-[#0A1B13] border border-[#2A3731] rounded-2xl p-5 shadow-sm">
+                        <div class="flex items-center justify-between gap-3 mb-4">
+                            <h3 class="text-[16px] font-bold text-white tracking-wide">파트너 승인 상태</h3>
+                            <span id="partner-approval-status-badge"
+                                class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-[#3A2810] text-[#FACC15]">승인 대기</span>
+                        </div>
+                        <p id="partner-approval-title" class="text-[18px] font-bold text-[var(--point-color)] leading-snug mb-2">
+                            현재 승인 심사가 진행 중입니다.</p>
+                        <p id="partner-approval-desc" class="text-[13px] text-[#A7B2AE] leading-relaxed">
+                            관리자 승인 완료 후 업체 정보 수정 및 배너 관리 기능이 자동으로 열립니다.
+                        </p>
+
+                        <div class="mt-4 rounded-xl border border-[#2A3731] bg-[#06110D] px-4 py-3">
+                            <p class="text-[11px] text-[#7F8E88] mb-1">관리자 안내메시지</p>
+                            <p id="partner-approval-admin-message" class="text-[13px] text-white leading-relaxed">
+                                아직 전달된 안내메시지가 없습니다.
+                            </p>
+                        </div>
+
+                        <div class="grid grid-cols-1 gap-2 mt-4">
+                            <button id="partner-approval-primary-btn" type="button"
+                                onclick="goToPartnerEntryFromDashboard()"
+                                class="w-full py-3 rounded-xl bg-gradient-to-r from-[var(--point-color)] to-[#B59530] text-[#06110D] font-bold text-[14px] tracking-wide shadow-[0_4px_15px_rgba(212,175,55,0.25)] hover:brightness-110 transition-all">
+                                입점권 재신청/안내 보기
+                            </button>
+                            <button type="button" onclick="openNoticePage('partner')"
+                                class="w-full py-3 rounded-xl border border-[#2A3731] bg-[#06110D] text-white font-bold text-[14px] tracking-wide hover:border-[var(--point-color)] transition-all">
+                                공지/안내함 확인
+                            </button>
+                            <button type="button" onclick="openSupportFromPartnerDashboard()"
+                                class="w-full py-3 rounded-xl border border-[#2A3731] bg-[#06110D] text-white font-bold text-[14px] tracking-wide hover:border-[var(--point-color)] transition-all">
+                                관리자 문의하기
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="partner-dashboard-main-sections">
 
                 <!-- 홍보 상품 섹션 -->
                 <div class="mb-8">
@@ -1352,12 +1391,11 @@
                                     d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z">
                                 </path>
                             </svg>
-                            <span class="text-[15px] font-bold text-white tracking-wide">채팅목록 확인하기</span>
+                            <span class="text-[15px] font-bold text-white tracking-wide">문의 채팅 확인하기</span>
                         </div>
                         <div class="flex items-center gap-2">
-                            <span
-                                class="bg-[var(--point-color)] text-[#030906] text-[10.5px] font-bold px-2 py-0.5 rounded-full animate-pulse">새
-                                문의 2건</span>
+                            <span id="partner-chat-unread-badge"
+                                class="hidden bg-[var(--point-color)] text-[#030906] text-[10.5px] font-bold px-2 py-0.5 rounded-full animate-pulse">새 문의 0건</span>
                             <svg class="w-4 h-4 text-[var(--text-sub)]" fill="none" stroke="currentColor"
                                 viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7">
@@ -1370,7 +1408,7 @@
                 <div class="mb-8">
                     <button
                         class="w-full py-4 rounded-xl border border-[#2A3731] bg-gradient-to-b from-[#0A1B13] to-[#06110D] hover:border-[var(--point-color)]/50 transition-colors flex items-center justify-between px-5 shadow-sm active:scale-95"
-                        onclick="openNoticeModal('partner')">
+                        onclick="openNoticePage('partner')">
                         <div class="flex items-center gap-3">
                             <svg class="w-5 h-5 text-[var(--point-color)]" fill="none" stroke="currentColor"
                                 viewBox="0 0 24 24">
@@ -1378,9 +1416,9 @@
                                     d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.389 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9">
                                 </path>
                             </svg>
-                            <span class="text-[15px] font-bold text-white tracking-wide">관리자 알림함 확인</span>
+                            <span class="text-[15px] font-bold text-white tracking-wide">공지/안내함 확인</span>
                             <span id="partner-notice-unread-badge"
-                                class="hidden bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">0</span>
+                                class="hidden bg-red-500 text-white text-[10.5px] font-bold px-2 py-0.5 rounded-full">새 공지 0건</span>
                         </div>
                         <svg class="w-4 h-4 text-[var(--text-sub)]" fill="none" stroke="currentColor"
                             viewBox="0 0 24 24">
@@ -1400,9 +1438,14 @@
                             </path>
                         </svg> 업체 사진 등록
                     </h3>
-                    <div
+                    <div id="partner-photo-picker-box"
+                        onclick="triggerPartnerImagePicker()"
                         class="w-full py-8 border-2 border-dashed border-[#D4AF37] rounded-xl flex items-center justify-center cursor-pointer bg-[#0A1B13] hover:bg-[#D4AF37]/10 transition-colors">
+                        <input id="partner-photo-file-input" type="file" class="hidden" accept="image/*"
+                            onchange="handlePartnerImageSelected(this)">
                         <div class="flex flex-col items-center gap-2 text-[#D4AF37]">
+                            <div id="partner-photo-preview"
+                                class="hidden w-20 h-20 rounded-xl bg-cover bg-center border border-[var(--point-color)] shadow-sm"></div>
                             <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                     d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z">
@@ -1410,7 +1453,8 @@
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                     d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path>
                             </svg>
-                            <span class="text-[14px] font-bold tracking-widest">사진 변경하기</span>
+                            <span id="partner-photo-picker-label" class="text-[14px] font-bold tracking-widest">사진 변경하기</span>
+                            <span class="text-[11px] text-[#A7B2AE]">휴대폰 갤러리에서 바로 업로드</span>
                         </div>
                     </div>
                 </div>
@@ -1576,6 +1620,39 @@
                                 class="w-full bg-[#0A1B13] border border-[#2A3731] rounded-xl px-4 py-3.5 text-[var(--text-main)] font-medium text-[15px] focus:outline-none focus:border-[var(--point-color)] transition-all">
                         </div>
 
+                        <div class="bg-[#0A1B13] border border-[#2A3731] rounded-xl p-4">
+                            <div class="flex items-center justify-between mb-3">
+                                <div>
+                                    <label class="text-[var(--text-sub)] text-[12px] font-bold tracking-widest block">전화 연결 허용</label>
+                                    <p class="text-[11px] text-[var(--text-sub)] mt-1">채팅창 전화 버튼 노출 및 연결 여부를 직접 제어합니다.</p>
+                                </div>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input id="partner-input-call-enabled" type="checkbox" class="sr-only peer" checked>
+                                    <div class="w-14 h-8 bg-[#1A2521] rounded-full peer peer-checked:bg-[#D4AF37] transition-all"></div>
+                                    <div class="absolute left-1 top-1 w-6 h-6 bg-white rounded-full transition-all peer-checked:translate-x-6"></div>
+                                </label>
+                            </div>
+                            <div class="flex flex-col gap-1.5">
+                                <label class="text-[var(--text-sub)] text-[12px] font-bold tracking-widest ml-1">통화 가능 시간</label>
+                                <div class="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+                                    <input type="time" id="partner-input-call-start" value="13:00"
+                                        class="w-full bg-[#06110D] border border-[#2A3731] rounded-xl px-3 py-3 text-[var(--text-main)] font-medium text-[14px] focus:outline-none focus:border-[var(--point-color)] transition-all">
+                                    <span class="text-[var(--text-sub)] text-[12px] font-bold">~</span>
+                                    <input type="time" id="partner-input-call-end" value="05:00"
+                                        class="w-full bg-[#06110D] border border-[#2A3731] rounded-xl px-3 py-3 text-[var(--text-main)] font-medium text-[14px] focus:outline-none focus:border-[var(--point-color)] transition-all">
+                                </div>
+                                <div class="flex flex-wrap gap-2 mt-2">
+                                    <button type="button" onclick="setPartnerCallTimePreset('day')"
+                                        class="px-3 py-1.5 rounded-full text-[11px] border border-[#2A3731] text-[var(--text-sub)] hover:border-[var(--point-color)] hover:text-[var(--point-color)] transition-colors">주간형 10:00~22:00</button>
+                                    <button type="button" onclick="setPartnerCallTimePreset('night')"
+                                        class="px-3 py-1.5 rounded-full text-[11px] border border-[#2A3731] text-[var(--text-sub)] hover:border-[var(--point-color)] hover:text-[var(--point-color)] transition-colors">야간형 18:00~03:00</button>
+                                    <button type="button" onclick="setPartnerCallTimePreset('all_day')"
+                                        class="px-3 py-1.5 rounded-full text-[11px] border border-[#2A3731] text-[var(--text-sub)] hover:border-[var(--point-color)] hover:text-[var(--point-color)] transition-colors">24시간 00:00~23:59</button>
+                                </div>
+                                <p class="text-[11px] text-[var(--text-sub)] mt-1 ml-1">시간만 선택하면 자동으로 통화 가능 시간에 반영됩니다.</p>
+                            </div>
+                        </div>
+
                         <div class="flex flex-col gap-1.5">
                             <label class="text-[var(--text-sub)] text-[12px] font-bold tracking-widest ml-1">상세 주소
                                 (위치)</label>
@@ -1677,6 +1754,7 @@
                         onclick="saveDashboardSettings()">
                         저장하기
                     </button>
+                </div>
                 </div>
             </div>
         </div>
@@ -2248,7 +2326,7 @@
                         </button>
                         <button
                             class="w-full flex items-center justify-between px-6 py-[22px] hover:bg-[var(--point-color)]/10 transition-colors border-t border-[var(--border-color)]/50"
-                            onclick="openNoticeModal('user')">
+                            onclick="openNoticePage('user')">
                             <div class="flex items-center gap-4 text-[var(--text-main)]">
                                 <svg class="w-[22px] h-[22px] text-[var(--point-color)]" fill="none"
                                     stroke="currentColor" viewBox="0 0 24 24">
@@ -2256,9 +2334,9 @@
                                         d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.389 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9">
                                     </path>
                                 </svg>
-                                <span class="font-medium text-[16px] tracking-wide">관리자 알림함</span>
+                                <span class="font-medium text-[16px] tracking-wide">공지/안내함 확인</span>
                                 <span id="user-notice-unread-badge"
-                                    class="hidden bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">0</span>
+                                    class="hidden bg-red-500 text-white text-[10.5px] font-bold px-2 py-0.5 rounded-full">새 공지 0건</span>
                             </div>
                             <svg class="w-5 h-5 text-[var(--text-sub)]/50" fill="none" stroke="currentColor"
                                 viewBox="0 0 24 24">
@@ -2355,18 +2433,18 @@
 
         <!-- 관리자 알림함 모달 -->
         <div id="notice-modal" style="display: none;"
-            class="absolute inset-x-0 inset-y-0 z-[220] bg-[var(--bg-color)] flex-col transition-transform duration-300 translate-x-full overflow-hidden h-full">
+            class="absolute inset-x-0 inset-y-0 z-[240] bg-[var(--bg-color)] flex-col transition-transform duration-300 translate-x-full overflow-hidden h-full">
             <div
                 class="px-5 py-4 flex items-center justify-between border-b border-[var(--border-color)] bg-[#06110D]/95 backdrop-blur-md">
                 <button
                     class="w-10 h-10 flex items-center justify-center text-[var(--point-color)] hover:text-white transition-colors"
-                    onclick="closeNoticeModal()">
+                    onclick="closeNoticePage()">
                     <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7">
                         </path>
                     </svg>
                 </button>
-                <span id="notice-modal-title" class="text-lg font-bold text-[var(--text-main)] tracking-widest">관리자 알림함</span>
+                <span id="notice-modal-title" class="text-lg font-bold text-[var(--text-main)] tracking-widest">공지/안내함</span>
                 <button
                     class="px-3 py-1.5 text-[11px] font-bold border border-[#2A3731] rounded-lg text-[var(--text-sub)] hover:text-white hover:border-[var(--point-color)] transition-colors"
                     onclick="markAllNoticesAsRead()">전체 읽음</button>
@@ -2550,8 +2628,12 @@
                     class="space-y-4 text-sm bg-[var(--surface-color)]/70 p-6 rounded-2xl border border-[var(--border-color)]">
                     <div class="flex gap-4">
                         <span class="w-16 flex-shrink-0 font-medium text-[var(--point-color)] opacity-80">영업시간</span>
-                        <span style="color: var(--text-main);">오후 13:00 ~ 오전 05:00<br><span
+                        <span id="profile-hours-text" style="color: var(--text-main);">오후 13:00 ~ 오전 05:00<br><span
                                 class="text-xs text-[var(--text-sub)] mt-1 block opacity-80">(연중무휴)</span></span>
+                    </div>
+                    <div class="flex gap-4">
+                        <span class="w-16 flex-shrink-0 font-medium text-[var(--point-color)] opacity-80">통화안내</span>
+                        <span id="profile-call-policy-text" style="color: var(--text-main);">통화 가능: 활성화<br><span class="text-xs text-[var(--text-sub)] mt-1 block opacity-80">통화 가능 시간: 오후 13:00 ~ 오전 05:00</span></span>
                     </div>
                     <div class="flex gap-4">
                         <span class="w-16 flex-shrink-0 font-medium text-[var(--point-color)] opacity-80">주차안내</span>
@@ -2667,10 +2749,10 @@
             </div>
 
             <div class="px-5 py-6 overflow-y-auto flex-1 flex flex-col gap-4 bg-[var(--bg-color)]">
-                <div class="text-center text-sm text-[var(--text-sub)] my-2">2026년 4월 2일</div>
+                <div id="chat-default-intro" class="text-center text-sm text-[var(--text-sub)] my-2">2026년 4월 2일</div>
 
                 <!-- 상담원 기본 메시지 -->
-                <div class="flex gap-3">
+                <div id="chat-default-greeting" class="flex gap-3">
                     <div id="chat-default-avatar"
                         class="w-8 h-8 rounded-full bg-cover bg-center border border-[var(--point-color)] shrink-0"
                         style="background-image: url('https://images.unsplash.com/photo-1544435253-f0ead49638fa?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&q=80'); filter: grayscale(15%) sepia(20%);">
@@ -2683,7 +2765,7 @@
                 </div>
 
                 <!-- 버튼 형태의 빠른 메시지 제안 -->
-                <div class="flex flex-col gap-2 pl-11 mt-2">
+                <div id="chat-quick-template-box" class="flex flex-col gap-2 pl-11 mt-2">
                     <button
                         class="text-left w-fit bg-transparent text-white  border border-[var(--point-color)] px-4 py-2.5 rounded-full text-sm font-medium hover:bg-[var(--point-color)] hover:text-[#06110D] transition-colors"
                         onclick="sendMockChatMessage('오늘 저녁 8시 예약 가능한가요?')">오늘 저녁 8시 예약 가능한가요?</button>
@@ -2703,14 +2785,14 @@
             <div class="absolute bottom-0 left-0 w-full px-5 py-3 border-t bg-[var(--surface-color)]"
                 style="border-color: var(--border-color);">
                 <div class="flex gap-2">
-                    <a href="tel:010-0000-0000" onclick="alert('가상의 업체 번호로 연결됩니다.')"
+                    <button id="chat-call-btn" onclick="onChatCallButtonClick()"
                         class="shrink-0 w-12 h-12 flex items-center justify-center rounded-full bg-[var(--point-color)] text-[#06110D] shadow-sm hover:brightness-110 transition-colors">
                         <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
                             <path
                                 d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.026 11.026 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z">
                             </path>
                         </svg>
-                    </a>
+                    </button>
                     <div
                         class="flex-1 bg-[var(--bg-color)] border border-[var(--border-color)] rounded-full px-4 flex items-center shadow-inner">
                         <input type="text" id="chat-input" placeholder="메시지 입력..."
@@ -2725,10 +2807,11 @@
                         </svg>
                     </button>
                 </div>
+                <p id="chat-call-status" class="text-[11px] text-[var(--text-sub)] mt-2 ml-1">전화 연결 상태를 확인 중입니다.</p>
             </div>
         </div>
 
-        <script src="assets/js/script.js?v=20260415_13"></script>
+        <script src="assets/js/script.js?v=20260415_26"></script>
     </div>
 
     <!-- Global Custom Toast -->

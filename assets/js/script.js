@@ -415,6 +415,724 @@ const filterSheet = document.getElementById('filter-sheet');
             let userFavorites = [];
             let userChats = [];
             let currentPartner = null;
+            let activeChatThreadId = null;
+            let activeChatThreadMeta = null;
+            let unsubscribeChatThreadMessages = null;
+            let unsubscribeChatList = null;
+            let unsubscribePartnerChatBadge = null;
+            let chatListRows = [];
+
+            function escapeChatHtml(value = '') {
+                return String(value || '')
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;')
+                    .replace(/'/g, '&#39;');
+            }
+
+            function formatChatTimestamp(value) {
+                if (!value) return '';
+                let date = null;
+                if (typeof value.toDate === 'function') date = value.toDate();
+                else if (value instanceof Date) date = value;
+                else {
+                    const parsed = new Date(value);
+                    if (!Number.isNaN(parsed.getTime())) date = parsed;
+                }
+                if (!date) return '';
+                return date.toLocaleTimeString('ko-KR', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    hour12: false
+                });
+            }
+
+            function formatChatRelativeTime(value) {
+                if (!value) return '-';
+                let date = null;
+                if (typeof value.toDate === 'function') date = value.toDate();
+                else if (value instanceof Date) date = value;
+                else {
+                    const parsed = new Date(value);
+                    if (!Number.isNaN(parsed.getTime())) date = parsed;
+                }
+                if (!date) return '-';
+                const diffMs = Date.now() - date.getTime();
+                const diffMin = Math.floor(diffMs / 60000);
+                if (diffMin < 1) return '방금 전';
+                if (diffMin < 60) return `${diffMin}분 전`;
+                const diffHour = Math.floor(diffMin / 60);
+                if (diffHour < 24) return `${diffHour}시간 전`;
+                const diffDay = Math.floor(diffHour / 24);
+                if (diffDay < 7) return `${diffDay}일 전`;
+                return date.toLocaleDateString('ko-KR');
+            }
+
+            async function ensureLoggedInUserDocId() {
+                let docId =
+                    localStorage.getItem('dadok_loggedInUserDocId') ||
+                    sessionStorage.getItem('dadok_loggedInUserDocId') ||
+                    '';
+                if (docId || typeof firebase === 'undefined') return docId;
+
+                const username =
+                    localStorage.getItem('dadok_username') ||
+                    sessionStorage.getItem('dadok_username') ||
+                    '';
+                if (!username) return '';
+
+                try {
+                    const snap = await firebase
+                        .firestore()
+                        .collection('users')
+                        .where('userId', '==', username)
+                        .limit(1)
+                        .get();
+                    if (!snap.empty) {
+                        docId = snap.docs[0].id;
+                        if (localStorage.getItem('dadok_isLoggedIn') === 'true') {
+                            localStorage.setItem('dadok_loggedInUserDocId', docId);
+                        } else {
+                            sessionStorage.setItem('dadok_loggedInUserDocId', docId);
+                        }
+                    }
+                } catch (e) {
+                    console.error('사용자 문서 ID 조회 실패:', e);
+                }
+                return docId;
+            }
+
+            async function getCurrentChatActor() {
+                const partnerDocId = getLoggedInPartnerDocId();
+                if (partnerDocId) {
+                    return {
+                        role: 'partner',
+                        docId: partnerDocId,
+                        userId:
+                            localStorage.getItem('dadok_loggedInPartnerUserId') ||
+                            sessionStorage.getItem('dadok_loggedInPartnerUserId') ||
+                            '',
+                        name:
+                            (currentPartner && currentPartner.name) ||
+                            localStorage.getItem('dadok_loggedInPartnerUserId') ||
+                            '파트너'
+                    };
+                }
+
+                const userDocId = await ensureLoggedInUserDocId();
+                const userId =
+                    localStorage.getItem('dadok_username') ||
+                    sessionStorage.getItem('dadok_username') ||
+                    '';
+                return {
+                    role: 'user',
+                    docId: userDocId,
+                    userId,
+                    name: userId || '고객'
+                };
+            }
+
+            function buildChatThreadId(userDocId, partnerDocId) {
+                if (!userDocId || !partnerDocId) return '';
+                return `u_${userDocId}__p_${partnerDocId}`;
+            }
+
+            function getThreadUnreadCountForActor(thread = {}, actorRole = '') {
+                if (actorRole === 'partner') return Number(thread.unreadForPartner || 0);
+                if (actorRole === 'user') return Number(thread.unreadForUser || 0);
+                return 0;
+            }
+
+            function getThreadDisplayName(thread = {}, actorRole = '') {
+                if (actorRole === 'partner') {
+                    return thread.userName || thread.userId || '고객';
+                }
+                return thread.partnerName || thread.partnerUserId || '업체';
+            }
+
+            function getThreadDisplayImage(thread = {}, actorRole = '') {
+                if (actorRole === 'partner') {
+                    return (
+                        thread.userImage ||
+                        'https://images.unsplash.com/photo-1544435253-f0ead49638fa?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&q=80'
+                    );
+                }
+                return (
+                    thread.partnerImage ||
+                    'https://images.unsplash.com/photo-1544435253-f0ead49638fa?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&q=80'
+                );
+            }
+
+            function renderPartnerChatBadgeFromRows(rows = []) {
+                const badge = document.getElementById('partner-chat-unread-badge');
+                if (!badge) return;
+                const totalUnread = rows.reduce((sum, row) => sum + Number(row.unreadForPartner || 0), 0);
+                if (totalUnread > 0) {
+                    badge.textContent = `새 문의 ${totalUnread}건`;
+                    badge.classList.remove('hidden');
+                } else {
+                    badge.classList.add('hidden');
+                }
+            }
+
+            let currentChatCallState = {
+                phone: '',
+                canCall: false,
+                reason: '전화 연결 상태를 확인 중입니다.',
+                isBusinessOpen: false,
+                actorRole: 'user'
+            };
+
+            function parseKstMinutesFromAmPm(ampm = '', hour = 0, minute = 0) {
+                let h = Number(hour || 0);
+                const m = Number(minute || 0);
+                if (ampm === '오전') {
+                    if (h === 12) h = 0;
+                } else if (ampm === '오후') {
+                    if (h < 12) h += 12;
+                }
+                return h * 60 + m;
+            }
+
+            function parseBusinessHourWindow(rawText = '') {
+                const text = String(rawText || '').trim();
+                if (!text) return null;
+                if (text.includes('24') || text.includes('연중무휴')) {
+                    return { startMin: 0, endMin: 1440, overnight: false };
+                }
+                const regex = /(오전|오후)?\s*(\d{1,2})\s*:\s*(\d{2})/g;
+                const matches = [...text.matchAll(regex)];
+                if (matches.length < 2) return null;
+                const start = matches[0];
+                const end = matches[1];
+                const startMin = parseKstMinutesFromAmPm(start[1] || '', start[2], start[3]);
+                const endMin = parseKstMinutesFromAmPm(end[1] || '', end[2], end[3]);
+                const overnight = endMin <= startMin;
+                return { startMin, endMin, overnight };
+            }
+
+            function normalizeTimeValue(value = '') {
+                const raw = String(value || '').trim();
+                const match = raw.match(/^(\d{1,2}):(\d{2})$/);
+                if (!match) return '';
+                const hh = String(Math.min(23, Math.max(0, Number(match[1])))).padStart(2, '0');
+                const mm = String(Math.min(59, Math.max(0, Number(match[2])))).padStart(2, '0');
+                return `${hh}:${mm}`;
+            }
+
+            function parseCallHoursToRange(rawText = '') {
+                const text = String(rawText || '').trim();
+                const matches = [...text.matchAll(/(\d{1,2})\s*:\s*(\d{2})/g)];
+                if (matches.length >= 2) {
+                    const start = normalizeTimeValue(`${matches[0][1]}:${matches[0][2]}`) || '10:00';
+                    const end = normalizeTimeValue(`${matches[1][1]}:${matches[1][2]}`) || '22:00';
+                    return { start, end };
+                }
+                return { start: '10:00', end: '22:00' };
+            }
+
+            function getPartnerCallHourRange() {
+                const startInput = document.getElementById('partner-input-call-start');
+                const endInput = document.getElementById('partner-input-call-end');
+                const start = normalizeTimeValue(startInput?.value || '');
+                const end = normalizeTimeValue(endInput?.value || '');
+                return {
+                    start: start || '10:00',
+                    end: end || '22:00'
+                };
+            }
+
+            function setPartnerCallTimePreset(type = 'day') {
+                const startInput = document.getElementById('partner-input-call-start');
+                const endInput = document.getElementById('partner-input-call-end');
+                if (!startInput || !endInput) return;
+                if (type === 'night') {
+                    startInput.value = '18:00';
+                    endInput.value = '03:00';
+                    return;
+                }
+                if (type === 'all_day') {
+                    startInput.value = '00:00';
+                    endInput.value = '23:59';
+                    return;
+                }
+                startInput.value = '10:00';
+                endInput.value = '22:00';
+            }
+
+            window.setPartnerCallTimePreset = setPartnerCallTimePreset;
+
+            function updatePartnerPhotoPickerUI(imageUrl = '', isUploading = false) {
+                const previewEl = document.getElementById('partner-photo-preview');
+                const labelEl = document.getElementById('partner-photo-picker-label');
+                const pickerBox = document.getElementById('partner-photo-picker-box');
+                const safeUrl = String(imageUrl || '').trim();
+
+                if (previewEl) {
+                    if (safeUrl) {
+                        previewEl.style.backgroundImage = `url('${safeUrl}')`;
+                        previewEl.classList.remove('hidden');
+                    } else {
+                        previewEl.style.backgroundImage = 'none';
+                        previewEl.classList.add('hidden');
+                    }
+                }
+
+                if (labelEl) {
+                    if (isUploading) {
+                        labelEl.innerText = '사진 업로드 중...';
+                    } else {
+                        labelEl.innerText = safeUrl ? '사진 다시 변경하기' : '사진 변경하기';
+                    }
+                }
+
+                if (pickerBox) {
+                    pickerBox.classList.toggle('opacity-60', !!isUploading);
+                    pickerBox.classList.toggle('pointer-events-none', !!isUploading);
+                }
+            }
+
+            function triggerPartnerImagePicker() {
+                const input = document.getElementById('partner-photo-file-input');
+                if (!input) return;
+                input.click();
+            }
+
+            async function handlePartnerImageSelected(inputEl) {
+                const file = inputEl?.files?.[0];
+                if (!file) return;
+
+                if (!String(file.type || '').startsWith('image/')) {
+                    showCustomToast('이미지 파일만 업로드할 수 있습니다.');
+                    inputEl.value = '';
+                    return;
+                }
+
+                const maxBytes = 10 * 1024 * 1024; // 10MB
+                if (file.size > maxBytes) {
+                    showCustomToast('이미지 용량은 10MB 이하만 업로드할 수 있습니다.');
+                    inputEl.value = '';
+                    return;
+                }
+
+                const partnerDocId = localStorage.getItem('dadok_loggedInPartnerDocId') || sessionStorage.getItem('dadok_loggedInPartnerDocId');
+                if (!partnerDocId || typeof firebase === 'undefined') {
+                    showCustomToast('로그인 정보 또는 네트워크 상태를 확인해주세요.');
+                    inputEl.value = '';
+                    return;
+                }
+
+                updatePartnerPhotoPickerUI(currentPartner?.image || '', true);
+
+                try {
+                    const partnerRef = firebase.firestore().collection('partners').doc(partnerDocId);
+                    const partnerDoc = await partnerRef.get();
+                    if (!partnerDoc.exists) {
+                        showCustomToast('파트너 정보를 찾을 수 없습니다.');
+                        inputEl.value = '';
+                        updatePartnerPhotoPickerUI(currentPartner?.image || '', false);
+                        return;
+                    }
+
+                    const partnerData = partnerDoc.data() || {};
+                    if (!isPartnerApproved(partnerData)) {
+                        showCustomToast('관리자 승인 완료된 파트너만 사진을 변경할 수 있습니다.');
+                        inputEl.value = '';
+                        updatePartnerPhotoPickerUI(currentPartner?.image || '', false);
+                        return;
+                    }
+
+                    const safeFileName = String(file.name || 'partner_photo')
+                        .replace(/[^\w.\-]/g, '_')
+                        .slice(-80);
+                    const storageRef = firebase.storage().ref();
+                    const fileRef = storageRef.child(`partners_profile/${partnerDocId}/${Date.now()}_${safeFileName}`);
+                    const snapshot = await fileRef.put(file, { contentType: file.type || 'image/jpeg' });
+                    const imageUrl = await snapshot.ref.getDownloadURL();
+
+                    await partnerRef.update({
+                        image: imageUrl,
+                        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+
+                    currentPartner = {
+                        ...(currentPartner || {}),
+                        id: partnerDocId,
+                        ...partnerData,
+                        image: imageUrl
+                    };
+
+                    const savedProfileRaw = localStorage.getItem('myPartnerProfile');
+                    if (savedProfileRaw) {
+                        try {
+                            const savedProfile = JSON.parse(savedProfileRaw);
+                            if (!savedProfile?.id || savedProfile.id === partnerDocId) {
+                                localStorage.setItem('myPartnerProfile', JSON.stringify({ ...savedProfile, image: imageUrl }));
+                            }
+                        } catch (e) {
+                            console.error('로컬 프로필 이미지 동기화 실패:', e);
+                        }
+                    }
+
+                    DB_CHOICE = DB_CHOICE.map((p) => (p.id === partnerDocId ? { ...p, image: imageUrl } : p));
+                    DB_RECOMMEND = DB_RECOMMEND.map((p) => (p.id === partnerDocId ? { ...p, image: imageUrl } : p));
+                    filteredChoiceDB = filteredChoiceDB.map((p) => (p.id === partnerDocId ? { ...p, image: imageUrl } : p));
+                    filteredRecDB = filteredRecDB.map((p) => (p.id === partnerDocId ? { ...p, image: imageUrl } : p));
+
+                    const profileNameEl = document.getElementById('profile-name');
+                    const profileImageEl = document.getElementById('profile-img');
+                    if (profileImageEl && profileNameEl && profileNameEl.innerText === (currentPartner.name || '')) {
+                        profileImageEl.style.backgroundImage = `url('${imageUrl}')`;
+                    }
+
+                    if (typeof applyFiltersToData === 'function') applyFiltersToData();
+                    if (typeof initializeDynamicContent === 'function') initializeDynamicContent();
+                    if (typeof ensureThreadForCurrentPartnerProfile === 'function') {
+                        await ensureThreadForCurrentPartnerProfile().catch(() => null);
+                    }
+
+                    updatePartnerPhotoPickerUI(imageUrl, false);
+                    showCustomToast('업체 사진이 업로드되어 썸네일/상세페이지에 실시간 반영되었습니다.');
+                } catch (e) {
+                    console.error('업체 사진 업로드 실패:', e);
+                    updatePartnerPhotoPickerUI(currentPartner?.image || '', false);
+                    showCustomToast('사진 업로드에 실패했습니다. 잠시 후 다시 시도해주세요.');
+                } finally {
+                    inputEl.value = '';
+                }
+            }
+
+            window.triggerPartnerImagePicker = triggerPartnerImagePicker;
+            window.handlePartnerImageSelected = handlePartnerImageSelected;
+
+            function isWithinBusinessHours(rawHours = '') {
+                const windowInfo = parseBusinessHourWindow(rawHours);
+                if (!windowInfo) {
+                    return { canEvaluate: false, isOpen: true, label: '영업시간 정보 미등록' };
+                }
+
+                const nowKst = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
+                const nowMin = nowKst.getHours() * 60 + nowKst.getMinutes();
+                let isOpen = false;
+                if (windowInfo.overnight) {
+                    isOpen = nowMin >= windowInfo.startMin || nowMin < windowInfo.endMin;
+                } else {
+                    isOpen = nowMin >= windowInfo.startMin && nowMin < windowInfo.endMin;
+                }
+                return {
+                    canEvaluate: true,
+                    isOpen,
+                    label: isOpen ? '현재 통화 가능 시간입니다. 바로 전화 연결됩니다.' : '현재 통화 가능 시간이 아닙니다. 채팅 문의를 이용해주세요.'
+                };
+            }
+
+            function getCurrentPartnerPhone() {
+                const candidates = [
+                    currentPartner?.phoneNumber,
+                    currentPartner?.contact,
+                    currentPartner?.phone,
+                    activeChatThreadMeta?.partnerPhone,
+                    activeChatThreadMeta?.participantPartnerUserId
+                ];
+                for (const value of candidates) {
+                    const digits = normalizePhoneDigits(String(value || ''));
+                    if (digits.length >= 9) return digits;
+                }
+                return '';
+            }
+
+            function getCurrentPartnerCallHoursText() {
+                const start = activeChatThreadMeta?.partnerCallStart || currentPartner?.callAvailableStart || '';
+                const end = activeChatThreadMeta?.partnerCallEnd || currentPartner?.callAvailableEnd || '';
+                if (start && end) return `${start} ~ ${end}`;
+                return (
+                    activeChatThreadMeta?.partnerCallHours ||
+                    currentPartner?.callAvailableHours ||
+                    currentPartner?.callHours ||
+                    ''
+                );
+            }
+
+            function getCurrentPartnerCallEnabled() {
+                if (typeof activeChatThreadMeta?.partnerCallEnabled === 'boolean') {
+                    return activeChatThreadMeta.partnerCallEnabled;
+                }
+                if (typeof currentPartner?.callEnabled === 'boolean') return currentPartner.callEnabled;
+                return true;
+            }
+
+            function updateChatCallButtonState(actorRole = 'user') {
+                const callBtn = document.getElementById('chat-call-btn');
+                const statusEl = document.getElementById('chat-call-status');
+                if (!callBtn) return;
+                const phoneDigits = getCurrentPartnerPhone();
+                const callEnabled = getCurrentPartnerCallEnabled();
+                const callHoursText = getCurrentPartnerCallHoursText();
+                const callHourCheck = isWithinBusinessHours(callHoursText);
+                const isUserMode = actorRole === 'user';
+                const hasPhone = Boolean(phoneDigits);
+                const hasCallHours = Boolean(String(callHoursText || '').trim());
+                const canCall = isUserMode && hasPhone && callEnabled && hasCallHours && callHourCheck.isOpen;
+                const reason = !isUserMode
+                    ? '업체/관리자 모드에서는 전화 연결 버튼이 비활성화됩니다.'
+                    : !hasPhone
+                        ? '등록된 전화번호가 없어 채팅 문의만 가능합니다.'
+                        : !callEnabled
+                            ? '업체가 현재 전화 문의를 비활성화했습니다. 채팅 문의를 이용해주세요.'
+                            : !hasCallHours
+                                ? '업체가 통화 가능 시간을 아직 설정하지 않았습니다.'
+                            : callHourCheck.label;
+
+                currentChatCallState = {
+                    phone: phoneDigits,
+                    canCall,
+                    reason,
+                    isBusinessOpen: callHourCheck.isOpen,
+                    actorRole
+                };
+
+                callBtn.disabled = !canCall;
+                if (canCall) {
+                    callBtn.className =
+                        'shrink-0 w-12 h-12 flex items-center justify-center rounded-full bg-[var(--point-color)] text-[#06110D] shadow-sm hover:brightness-110 transition-colors';
+                } else {
+                    callBtn.className =
+                        'shrink-0 w-12 h-12 flex items-center justify-center rounded-full bg-[#1A2521] text-[#A7B2AE] border border-[#2A3731] shadow-sm transition-colors cursor-not-allowed';
+                }
+                if (statusEl) {
+                    statusEl.textContent = reason;
+                    statusEl.className = canCall
+                        ? 'text-[11px] text-[var(--point-color)] mt-2 ml-1'
+                        : 'text-[11px] text-[var(--text-sub)] mt-2 ml-1';
+                }
+            }
+
+            async function logCallClickEvent() {
+                if (typeof firebase === 'undefined') return;
+                try {
+                    const actor = await getCurrentChatActor();
+                    const partnerId =
+                        currentPartner?.id ||
+                        activeChatThreadMeta?.participantPartnerDocId ||
+                        '';
+                    const partnerName =
+                        currentPartner?.name ||
+                        activeChatThreadMeta?.partnerName ||
+                        '';
+
+                    await firebase.firestore().collection('call_click_logs').add({
+                        threadId: activeChatThreadId || '',
+                        partnerDocId: partnerId,
+                        partnerName: partnerName,
+                        callerRole: actor.role || 'user',
+                        callerDocId: actor.docId || '',
+                        callerUserId: actor.userId || '',
+                        callerName: actor.name || '',
+                        phoneDigits: currentChatCallState.phone || '',
+                        isBusinessOpen: Boolean(currentChatCallState.isBusinessOpen),
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                } catch (e) {
+                    console.error('전화 클릭 로그 저장 실패:', e);
+                }
+            }
+
+            async function onChatCallButtonClick() {
+                if (!currentChatCallState.canCall) return;
+                await logCallClickEvent();
+                window.location.href = `tel:${currentChatCallState.phone}`;
+            }
+
+            window.onChatCallButtonClick = onChatCallButtonClick;
+
+            function bindPartnerDashboardChatBadgeListener() {
+                const partnerDocId = getLoggedInPartnerDocId();
+                if (!partnerDocId || typeof firebase === 'undefined') return;
+                if (typeof unsubscribePartnerChatBadge === 'function') {
+                    unsubscribePartnerChatBadge();
+                    unsubscribePartnerChatBadge = null;
+                }
+                unsubscribePartnerChatBadge = firebase
+                    .firestore()
+                    .collection('chat_threads')
+                    .where('participantPartnerDocId', '==', partnerDocId)
+                    .onSnapshot((snap) => {
+                        const rows = snap.docs.map((doc) => ({ id: doc.id, ...(doc.data() || {}) }));
+                        renderPartnerChatBadgeFromRows(rows);
+                    });
+            }
+
+            async function markThreadAsRead(threadId, actorRole) {
+                if (!threadId || !actorRole || typeof firebase === 'undefined') return;
+                const fieldName = actorRole === 'partner' ? 'unreadForPartner' : 'unreadForUser';
+                try {
+                    await firebase.firestore().collection('chat_threads').doc(threadId).set(
+                        {
+                            [fieldName]: 0,
+                            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                        },
+                        { merge: true }
+                    );
+                } catch (e) {
+                    console.error('채팅 읽음 처리 실패:', e);
+                }
+            }
+
+            async function ensureThreadForCurrentPartnerProfile() {
+                if (typeof firebase === 'undefined' || !currentPartner) return null;
+                const actor = await getCurrentChatActor();
+                if (actor.role !== 'user') {
+                    showCustomToast('고객 계정으로 예약 문의가 가능합니다.');
+                    return null;
+                }
+                if (!actor.docId) {
+                    showCustomToast('로그인 후 채팅을 이용할 수 있습니다.');
+                    return null;
+                }
+                const partnerDocId = String(currentPartner.id || '').trim();
+                if (!partnerDocId || partnerDocId === 'my-partner') {
+                    showCustomToast('채팅 가능한 업체 정보를 찾지 못했습니다.');
+                    return null;
+                }
+
+                const threadId = buildChatThreadId(actor.docId, partnerDocId);
+                if (!threadId) return null;
+
+                const threadRef = firebase.firestore().collection('chat_threads').doc(threadId);
+                const baseData = {
+                    id: threadId,
+                    participantUserDocId: actor.docId,
+                    participantUserId: actor.userId || '',
+                    participantPartnerDocId: partnerDocId,
+                    participantPartnerUserId: currentPartner.userId || '',
+                    userName: actor.name || actor.userId || '고객',
+                    partnerName: currentPartner.name || '업체',
+                    partnerImage: currentPartner.image || '',
+                    partnerPhone:
+                        currentPartner.phoneNumber ||
+                        currentPartner.contact ||
+                        currentPartner.phone ||
+                        '',
+                    partnerBusinessHours:
+                        currentPartner.hours ||
+                        currentPartner.businessHours ||
+                        currentPartner.operatingHours ||
+                        '',
+                    partnerCallEnabled:
+                        typeof currentPartner.callEnabled === 'boolean'
+                            ? currentPartner.callEnabled
+                            : true,
+                    partnerCallHours:
+                        currentPartner.callAvailableHours ||
+                        currentPartner.callHours ||
+                        currentPartner.hours ||
+                        '',
+                    partnerCallStart: currentPartner.callAvailableStart || '',
+                    partnerCallEnd: currentPartner.callAvailableEnd || '',
+                    lastMessage: '',
+                    lastSenderRole: '',
+                    unreadForUser: 0,
+                    unreadForPartner: 0,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                };
+                await threadRef.set(baseData, { merge: true });
+                return {
+                    id: threadId,
+                    ...baseData
+                };
+            }
+
+            function stopChatThreadMessagesListener() {
+                if (typeof unsubscribeChatThreadMessages === 'function') {
+                    unsubscribeChatThreadMessages();
+                    unsubscribeChatThreadMessages = null;
+                }
+            }
+
+            function renderRealtimeChatMessages(messages = [], actorRole = 'user') {
+                const container = document.getElementById('chat-messages-container');
+                if (!container) return;
+                if (!messages.length) {
+                    container.innerHTML = `<div class="text-center text-[13px] text-[var(--text-sub)] py-6">아직 대화가 없습니다. 첫 메시지를 보내보세요.</div>`;
+                    return;
+                }
+
+                container.innerHTML = messages
+                    .map((msg) => {
+                        const senderRole = msg.senderRole || 'user';
+                        const isMine = senderRole === actorRole;
+                        const safeText = escapeChatHtml(msg.text || '').replace(/\n/g, '<br>');
+                        const timeLabel = formatChatTimestamp(msg.createdAt);
+                        if (isMine) {
+                            return `
+                                <div class="flex justify-end mb-2">
+                                    <div class="max-w-[80%]">
+                                        <div class="bg-[var(--point-color)] text-[#06110D] p-3 rounded-2xl rounded-tr-sm text-[15px] leading-relaxed shadow-sm font-medium">${safeText}</div>
+                                        <div class="text-[10px] text-[var(--text-sub)] text-right mt-1">${timeLabel}</div>
+                                    </div>
+                                </div>
+                            `;
+                        }
+                        return `
+                            <div class="flex gap-3 mb-2">
+                                <div class="w-8 h-8 rounded-full bg-cover bg-center border border-[var(--point-color)] shrink-0 shadow-sm" style="background-image: url('${getThreadDisplayImage(activeChatThreadMeta || {}, actorRole)}');"></div>
+                                <div class="max-w-[80%]">
+                                    <div class="bg-[var(--surface-color)] border border-[var(--border-color)] text-[var(--text-main)] p-3 rounded-2xl rounded-tl-sm text-[15px] leading-relaxed shadow-sm">${safeText}</div>
+                                    <div class="text-[10px] text-[var(--text-sub)] mt-1">${timeLabel}</div>
+                                </div>
+                            </div>
+                        `;
+                    })
+                    .join('');
+
+                const scrollArea = container.parentElement;
+                if (scrollArea) scrollArea.scrollTop = scrollArea.scrollHeight;
+            }
+
+            async function openChatByThread(threadMeta) {
+                if (!threadMeta || !threadMeta.id || typeof firebase === 'undefined') return;
+                activeChatThreadId = threadMeta.id;
+                activeChatThreadMeta = threadMeta;
+                const actor = await getCurrentChatActor();
+                const defaultIntro = document.getElementById('chat-default-intro');
+                const defaultGreeting = document.getElementById('chat-default-greeting');
+                const quickTemplateBox = document.getElementById('chat-quick-template-box');
+                if (defaultIntro) defaultIntro.style.display = 'none';
+                if (defaultGreeting) defaultGreeting.style.display = 'none';
+                if (quickTemplateBox) quickTemplateBox.style.display = 'none';
+
+                const chatName = document.getElementById('chat-profile-name');
+                if (chatName) chatName.innerText = getThreadDisplayName(threadMeta, actor.role);
+                const headerImg = document.getElementById('chat-header-img');
+                const defaultAvatar = document.getElementById('chat-default-avatar');
+                const imageUrl = getThreadDisplayImage(threadMeta, actor.role);
+                if (headerImg) headerImg.style.backgroundImage = `url('${imageUrl}')`;
+                if (defaultAvatar) defaultAvatar.style.backgroundImage = `url('${imageUrl}')`;
+
+                stopChatThreadMessagesListener();
+                unsubscribeChatThreadMessages = firebase
+                    .firestore()
+                    .collection('chat_messages')
+                    .where('threadId', '==', threadMeta.id)
+                    .orderBy('createdAt', 'asc')
+                    .onSnapshot((snap) => {
+                        const rows = snap.docs.map((doc) => ({ id: doc.id, ...(doc.data() || {}) }));
+                        renderRealtimeChatMessages(rows, actor.role);
+                    });
+
+                await markThreadAsRead(threadMeta.id, actor.role);
+                updateChatCallButtonState(actor.role);
+                const chatSheet = document.getElementById('chat-sheet');
+                if (chatSheet) {
+                    if (typeof profileOpenedFromFavorites !== 'undefined' && profileOpenedFromFavorites) {
+                        chatSheet.style.zIndex = '260';
+                    }
+                    chatSheet.classList.add('open');
+                }
+                if (overlay) overlay.classList.add('show');
+            }
 
             window.removeFavorite = function (id) {
                 userFavorites = userFavorites.filter(p => p.id !== id);
@@ -445,24 +1163,14 @@ const filterSheet = document.getElementById('filter-sheet');
             }
 
             window.resumeChat = function (id) {
-                const chat = userChats.find(c => c.id === id);
-                if (chat) {
-                    currentPartner = chat;
-                    chatOpenedFromModal = true;
-                    setTimeout(() => {
-                        const chatName = document.getElementById('chat-profile-name');
-                        chatName.innerText = chat.name;
-                        chatName.dataset.resume = "true";
-                        if (chat.image) {
-                            document.getElementById('chat-header-img').style.backgroundImage = `url('${chat.image}')`;
-                            document.getElementById('chat-default-avatar').style.backgroundImage = `url('${chat.image}')`;
-                        }
-                        document.getElementById('chat-sheet').style.zIndex = '250';
-                        document.getElementById('overlay').style.zIndex = '240';
-                        document.getElementById('chat-sheet').classList.add('open');
-                        overlay.classList.add('show');
-                    }, 50);
-                }
+                const thread = chatListRows.find((row) => row.id === id);
+                if (!thread) return;
+                chatOpenedFromModal = true;
+                setTimeout(() => {
+                    document.getElementById('chat-sheet').style.zIndex = '250';
+                    document.getElementById('overlay').style.zIndex = '240';
+                    openChatByThread(thread);
+                }, 50);
             };
 
             function openProfile(name, desc, id, reviews, rating, massage, place, age, image, ticketType, ticketExpiry) {
@@ -476,6 +1184,10 @@ const filterSheet = document.getElementById('filter-sheet');
                     }
                 } else {
                     currentPartner = { name, desc, id, reviews, rating, massage, place, age, image, ticketType, ticketExpiry };
+                    const sourcePartner = [...DB_CHOICE, ...DB_RECOMMEND].find((p) => p.id === id);
+                    if (sourcePartner) {
+                        currentPartner = { ...sourcePartner, ...currentPartner };
+                    }
                 }
 
                 document.getElementById('profile-name').innerText = currentPartner.name;
@@ -550,6 +1262,28 @@ const filterSheet = document.getElementById('filter-sheet');
                     // 리뷰 시트에서 계산 시 사용하기 위해 원래의 데이터를 저장
                     window.currentProfileReviews = reviews;
                     window.currentProfileRating = rating;
+                }
+
+                const profileHoursText = document.getElementById('profile-hours-text');
+                const profileCallPolicyText = document.getElementById('profile-call-policy-text');
+                const operatingHours =
+                    currentPartner.hours ||
+                    currentPartner.businessHours ||
+                    currentPartner.operatingHours ||
+                    '정보 없음';
+                const callEnabled = typeof currentPartner.callEnabled === 'boolean' ? currentPartner.callEnabled : true;
+                const startHour = currentPartner.callAvailableStart || '';
+                const endHour = currentPartner.callAvailableEnd || '';
+                const callHours =
+                    (startHour && endHour ? `${startHour} ~ ${endHour}` : '') ||
+                    currentPartner.callAvailableHours ||
+                    currentPartner.callHours ||
+                    '미설정';
+                if (profileHoursText) {
+                    profileHoursText.innerHTML = `${escapeChatHtml(operatingHours)}<br><span class="text-xs text-[var(--text-sub)] mt-1 block opacity-80">(변동 가능)</span>`;
+                }
+                if (profileCallPolicyText) {
+                    profileCallPolicyText.innerHTML = `통화 가능: ${callEnabled ? '활성화' : '비활성화'}<br><span class="text-xs text-[var(--text-sub)] mt-1 block opacity-80">통화 가능 시간: ${escapeChatHtml(callHours)}</span>`;
                 }
 
                 // 관심업체 상태 복원
@@ -658,6 +1392,120 @@ const filterSheet = document.getElementById('filter-sheet');
                 return (rawData?.status || '') === 'active';
             }
 
+            function normalizePartnerStatus(rawStatus = '') {
+                const status = String(rawStatus || '').trim().toLowerCase();
+                if (status === 'active' || status === 'approved') return 'active';
+                if (status === 'rejected' || status === 'denied' || status === 'blocked') return 'rejected';
+                if (status === 'pending' || status === 'review' || status === 'waiting') return 'pending';
+                return 'pending';
+            }
+
+            function getPartnerStatusMeta(rawStatus = '') {
+                const status = normalizePartnerStatus(rawStatus);
+                if (status === 'active') {
+                    return {
+                        status,
+                        badgeClass: 'px-2.5 py-1 rounded-full text-[11px] font-bold bg-[#143321] text-[#86EFAC]',
+                        badgeText: '승인 완료',
+                        title: '관리자 승인 완료 상태입니다.',
+                        desc: '업체 정보 수정, 배너 관리, 채팅/알림 기능을 자유롭게 이용할 수 있습니다.',
+                        primaryButtonText: '입점권 안내/추가 구매 보기'
+                    };
+                }
+                if (status === 'rejected') {
+                    return {
+                        status,
+                        badgeClass: 'px-2.5 py-1 rounded-full text-[11px] font-bold bg-[#3A1616] text-[#FCA5A5]',
+                        badgeText: '반려/보완 필요',
+                        title: '현재 승인 보류 상태입니다.',
+                        desc: '안내된 보완 사항을 확인한 뒤 재신청하거나 관리자에게 문의해 주세요.',
+                        primaryButtonText: '보완 후 재신청하기'
+                    };
+                }
+                return {
+                    status: 'pending',
+                    badgeClass: 'px-2.5 py-1 rounded-full text-[11px] font-bold bg-[#3A2810] text-[#FACC15]',
+                    badgeText: '승인 대기',
+                    title: '현재 승인 심사가 진행 중입니다.',
+                    desc: '관리자 승인 완료 후 업체 정보 수정 및 배너 관리 기능이 자동으로 열립니다.',
+                    primaryButtonText: '입점권 재신청/안내 보기'
+                };
+            }
+
+            async function loadPartnerLatestNoticeMessage(partnerDocId = '') {
+                if (!partnerDocId || typeof firebase === 'undefined') return '';
+                try {
+                    const snap = await firebase.firestore().collection('user_notifications')
+                        .where('recipientType', '==', 'partner')
+                        .where('recipientDocId', '==', partnerDocId)
+                        .limit(30)
+                        .get();
+                    let latestRow = null;
+                    snap.forEach((doc) => {
+                        const data = doc.data() || {};
+                        const createdAtMs = data.createdAt?.toDate ? data.createdAt.toDate().getTime() : 0;
+                        if (!latestRow || createdAtMs > latestRow.createdAtMs) {
+                            latestRow = { ...data, createdAtMs };
+                        }
+                    });
+                    if (!latestRow) return '';
+                    const title = String(latestRow.title || '').trim();
+                    const body = String(latestRow.body || '').trim();
+                    if (title && body) return `${title} - ${body}`;
+                    return title || body || '';
+                } catch (e) {
+                    console.error('파트너 최신 안내메시지 조회 실패:', e);
+                    return '';
+                }
+            }
+
+            async function setPartnerDashboardAccessMode(partnerData = null) {
+                const gateEl = document.getElementById('partner-approval-gate');
+                const mainEl = document.getElementById('partner-dashboard-main-sections');
+                if (!gateEl || !mainEl) return;
+
+                const data = partnerData || currentPartner || {};
+                const approved = isPartnerApproved(data);
+                gateEl.classList.toggle('hidden', approved);
+                mainEl.classList.toggle('hidden', !approved);
+                if (approved) return;
+
+                const meta = getPartnerStatusMeta(data.status || '');
+                const badgeEl = document.getElementById('partner-approval-status-badge');
+                const titleEl = document.getElementById('partner-approval-title');
+                const descEl = document.getElementById('partner-approval-desc');
+                const msgEl = document.getElementById('partner-approval-admin-message');
+                const primaryBtn = document.getElementById('partner-approval-primary-btn');
+
+                if (badgeEl) {
+                    badgeEl.className = meta.badgeClass;
+                    badgeEl.innerText = meta.badgeText;
+                }
+                if (titleEl) titleEl.innerText = meta.title;
+                if (descEl) descEl.innerText = meta.desc;
+                if (primaryBtn) primaryBtn.innerText = meta.primaryButtonText;
+
+                const dataMessageCandidates = [
+                    data.approvalMessage,
+                    data.adminMessage,
+                    data.adminMemo,
+                    data.rejectReason,
+                    data.rejectionReason,
+                    data.reviewNote
+                ];
+                const localMessage = dataMessageCandidates
+                    .map((v) => (typeof v === 'string' ? v.trim() : ''))
+                    .find(Boolean);
+
+                if (msgEl) {
+                    msgEl.innerText = localMessage || '안내메시지 확인 중...';
+                    if (!localMessage) {
+                        const latestMsg = await loadPartnerLatestNoticeMessage(data.id || '');
+                        msgEl.innerText = latestMsg || '아직 전달된 안내메시지가 없습니다.';
+                    }
+                }
+            }
+
             // 앱 배너 노출은 "관리자 승인 + 입점권 부여 + 유효기간 내"를 모두 충족해야 함
             function canExposePartnerBanner(rawData = {}) {
                 const data = rawData || {};
@@ -704,6 +1552,17 @@ const filterSheet = document.getElementById('filter-sheet');
                             image: data.image || `https://picsum.photos/seed/dadok_${index}/400/400`,
                             menus: data.pricing || [],
                             desc: data.description || '여성을 위한 프라이빗 라운지',
+                            phoneNumber: data.phoneNumber || data.phone || '',
+                            hours: data.hours || data.businessHours || '',
+                            callEnabled: typeof data.callEnabled === 'boolean' ? data.callEnabled : true,
+                            callAvailableHours:
+                                data.callAvailableHours ||
+                                data.callHours ||
+                                data.hours ||
+                                data.businessHours ||
+                                '',
+                            callAvailableStart: data.callAvailableStart || '',
+                            callAvailableEnd: data.callAvailableEnd || '',
                             tier: data.tier || 'Premium',
                             ticketExpiryTimestamp: getPartnerTicketExpiryMs(data)
                         };
@@ -755,7 +1614,20 @@ const filterSheet = document.getElementById('filter-sheet');
                                 ticketExpiryTimestamp: getPartnerTicketExpiryMs(savedPartner),
                                 image: savedPartner.image || 'https://images.unsplash.com/photo-1544161515-4ab6ce6db874?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80',
                                 menus: savedPartner.pricing || [],
-                                desc: savedPartner.description || '새로 둥록된 파트너'
+                                desc: savedPartner.description || '새로 둥록된 파트너',
+                                phoneNumber: savedPartner.phoneNumber || savedPartner.phone || savedPartner.contact || '',
+                                hours: savedPartner.hours || savedPartner.businessHours || '',
+                                callEnabled:
+                                    typeof savedPartner.callEnabled === 'boolean'
+                                        ? savedPartner.callEnabled
+                                        : true,
+                                callAvailableHours:
+                                    savedPartner.callAvailableHours ||
+                                    savedPartner.callHours ||
+                                    savedPartner.hours ||
+                                    '',
+                                callAvailableStart: savedPartner.callAvailableStart || '',
+                                callAvailableEnd: savedPartner.callAvailableEnd || ''
                             };
                             DB_CHOICE.unshift(myPartnerMock);
                         }
@@ -1601,52 +2473,32 @@ const filterSheet = document.getElementById('filter-sheet');
                 renderFavoritesList();
             }
 
-            function recordChatProgress(message) {
-                if (!currentPartner) return;
-                const existing = userChats.find(c => c.id === currentPartner.id);
-                if (existing) {
-                    existing.lastMessage = message;
-                    existing.time = '방금 전';
-                } else {
-                    userChats.unshift({
-                        ...currentPartner,
-                        lastMessage: message,
-                        time: '방금 전'
-                    });
-                }
-                renderChatList();
-            }
-
-            function openChatSheet() {
-                const chatSheet = document.getElementById('chat-sheet');
-                const chatName = document.getElementById('chat-profile-name');
-
-                if (!chatName.dataset.resume) {
-                    chatName.innerText = document.getElementById('profile-name').innerText;
-                    if (currentPartner && currentPartner.image) {
-                        document.getElementById('chat-header-img').style.backgroundImage = `url('${currentPartner.image}')`;
-                        document.getElementById('chat-default-avatar').style.backgroundImage = `url('${currentPartner.image}')`;
-                    }
-                    document.getElementById('chat-messages-container').innerHTML = ''; // 초기화
-
-                    setTimeout(() => {
-                        appendBotMessage('안녕하세요, 예약 문의 도와드리겠습니다. 😊');
-                    }, 500);
-                } else {
-                    delete chatName.dataset.resume;
-                }
-                if (typeof profileOpenedFromFavorites !== 'undefined' && profileOpenedFromFavorites) {
-                    chatSheet.style.zIndex = '260';
+            async function openChatSheet() {
+                const actor = await getCurrentChatActor();
+                if (actor.role === 'user') {
+                    const thread = await ensureThreadForCurrentPartnerProfile();
+                    if (!thread) return;
+                    await openChatByThread(thread);
+                    const input = document.getElementById('chat-input');
+                    if (input) input.value = '';
+                    return;
                 }
 
-                document.getElementById('chat-input').value = '';
-                chatSheet.classList.add('open');
-                overlay.classList.add('show');
+                if (!activeChatThreadMeta || !activeChatThreadMeta.id) {
+                    showCustomToast('채팅 목록에서 대화를 선택해주세요.');
+                    return;
+                }
+                await openChatByThread(activeChatThreadMeta);
             }
 
             function closeChatSheet() {
                 const chatSheet = document.getElementById('chat-sheet');
                 chatSheet.classList.remove('open');
+                const actorRole = getLoggedInPartnerDocId() ? 'partner' : 'user';
+                if (activeChatThreadId) {
+                    markThreadAsRead(activeChatThreadId, actorRole);
+                }
+                stopChatThreadMessagesListener();
 
                 if (typeof chatOpenedFromModal !== 'undefined' && chatOpenedFromModal) {
                     chatOpenedFromModal = false;
@@ -1665,25 +2517,48 @@ const filterSheet = document.getElementById('filter-sheet');
                 }
             }
 
-            function sendMockChatMessage(text) {
-                appendUserMessage(text);
-                recordChatProgress(text);
-                setTimeout(() => {
-                    appendBotMessage('예약 스케줄을 확인 후 잠시만 기다려주시면 안내해 드리겠습니다. 😊');
-                }, 800);
-            }
-
-            function sendUserMessage() {
+            async function sendUserMessage() {
                 const input = document.getElementById('chat-input');
                 const text = input.value.trim();
-                if (text) {
-                    appendUserMessage(text);
-                    recordChatProgress(text);
-                    input.value = '';
+                if (!text) return;
+                if (!activeChatThreadId || typeof firebase === 'undefined') {
+                    showCustomToast('채팅방 연결 중입니다. 잠시 후 다시 시도해주세요.');
+                    return;
+                }
+                const actor = await getCurrentChatActor();
+                const senderName = actor.name || actor.userId || actor.role;
+                const dbRef = firebase.firestore();
+                const messagePayload = {
+                    threadId: activeChatThreadId,
+                    senderRole: actor.role,
+                    senderDocId: actor.docId || '',
+                    senderUserId: actor.userId || '',
+                    senderName,
+                    text,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                };
 
-                    setTimeout(() => {
-                        appendBotMessage('제가 즉각적으로 답변해드리기 어려운 요청입니다. 잠시 기다려 주시면 직원이 상세히 답변해드리겠습니다.');
-                    }, 1000);
+                const threadRef = dbRef.collection('chat_threads').doc(activeChatThreadId);
+                const incrementTargetField = actor.role === 'partner' ? 'unreadForUser' : 'unreadForPartner';
+                const resetField = actor.role === 'partner' ? 'unreadForPartner' : 'unreadForUser';
+
+                try {
+                    await dbRef.collection('chat_messages').add(messagePayload);
+                    await threadRef.set(
+                        {
+                            lastMessage: text,
+                            lastSenderRole: actor.role,
+                            lastAt: firebase.firestore.FieldValue.serverTimestamp(),
+                            [incrementTargetField]: firebase.firestore.FieldValue.increment(1),
+                            [resetField]: 0,
+                            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                        },
+                        { merge: true }
+                    );
+                    input.value = '';
+                } catch (e) {
+                    console.error('메시지 전송 실패:', e);
+                    showCustomToast('메시지 전송 중 오류가 발생했습니다.');
                 }
             }
 
@@ -1695,37 +2570,12 @@ const filterSheet = document.getElementById('filter-sheet');
                 });
             }
 
-            function appendUserMessage(text) {
-                const container = document.getElementById('chat-messages-container');
-                const html = `
-        <div class="flex justify-end mb-2">
-            <div class="bg-[var(--point-color)] text-[#06110D] p-3 rounded-2xl rounded-tr-sm text-[15px] max-w-[80%] leading-relaxed shadow-sm font-medium">
-                ${text}
-            </div>
-        </div>
-        `;
-                container.insertAdjacentHTML('beforeend', html);
-                scrollToBottom(container);
-            }
-
-            function appendBotMessage(text) {
-                const container = document.getElementById('chat-messages-container');
-                const avatarUrl = currentPartner && currentPartner.image ? currentPartner.image : 'https://images.unsplash.com/photo-1544435253-f0ead49638fa?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&q=80';
-                const html = `
-        <div class="flex gap-3 mb-2">
-            <div class="w-8 h-8 rounded-full bg-cover bg-center border border-[var(--point-color)] shrink-0 shadow-sm" style="background-image: url('${avatarUrl}'); filter: grayscale(15%) sepia(20%);"></div>
-            <div class="bg-[var(--surface-color)] border border-[var(--border-color)] text-[var(--text-main)] p-3 rounded-2xl rounded-tl-sm text-[15px] max-w-[80%] leading-relaxed shadow-sm">
-                ${text}
-            </div>
-        </div>
-        `;
-                container.insertAdjacentHTML('beforeend', html);
-                scrollToBottom(container);
-            }
-
-            function scrollToBottom(container) {
-                const scrollArea = container.parentElement;
-                scrollArea.scrollTop = scrollArea.scrollHeight;
+            function sendMockChatMessage(text) {
+                const input = document.getElementById('chat-input');
+                if (input) {
+                    input.value = text;
+                    sendUserMessage();
+                }
             }
 
             // 계정 찾기 스크린 전환 및 탭 로직
@@ -1816,6 +2666,13 @@ const filterSheet = document.getElementById('filter-sheet');
 
             // 로그인 스크린 열기/닫기 (App Page Transition)
 
+            function resetUserLoginFormFields() {
+                const idInput = document.getElementById('login-id-input');
+                const passwordInput = document.getElementById('login-password-input');
+                if (idInput) idInput.value = '';
+                if (passwordInput) passwordInput.value = '';
+            }
+
             function openLoginModal() {
                 if (typeof isPartnerLoggedIn !== 'undefined' && isPartnerLoggedIn) {
                     showCustomToast('일반고객 전용 로그인입니다.');
@@ -1837,11 +2694,13 @@ const filterSheet = document.getElementById('filter-sheet');
                 modal.classList.add('translate-x-full');
                 setTimeout(() => {
                     modal.style.display = 'none';
+                    resetUserLoginFormFields();
                 }, 300);
             }
 
             // 아이디/비밀번호 로그인 폼 스크린 열기/닫기
             function openLoginFormModal() {
+                resetUserLoginFormFields();
                 const formModal = document.getElementById('login-form-modal');
                 formModal.style.display = 'flex';
                 void formModal.offsetWidth; // force reflow
@@ -1857,6 +2716,7 @@ const filterSheet = document.getElementById('filter-sheet');
                 formModal.classList.add('translate-x-full');
                 setTimeout(() => {
                     formModal.style.display = 'none';
+                    resetUserLoginFormFields();
                 }, 300);
             }
 
@@ -2361,6 +3221,7 @@ const filterSheet = document.getElementById('filter-sheet');
                     openPartnerDashboard();
                     return;
                 }
+                resetPartnerLoginFormFields();
                 const modal = document.getElementById('partner-login-modal');
                 modal.style.display = 'flex';
                 // 짧은 지연 후 애니메이션 클래스 추가
@@ -2374,7 +3235,27 @@ const filterSheet = document.getElementById('filter-sheet');
                 modal.classList.add('translate-x-full');
                 setTimeout(() => {
                     modal.style.display = 'none';
+                    resetPartnerLoginFormFields();
                 }, 300);
+            }
+
+            function resetPartnerLoginFormFields() {
+                const idInput = document.getElementById('partner-login-id-input');
+                const passwordInput = document.getElementById('partner-login-password-input');
+                const idError = document.getElementById('partner-login-id-error');
+                const pwError = document.getElementById('partner-login-password-error');
+                const mismatchError = document.getElementById('partner-login-mismatch-error');
+                if (idInput) {
+                    idInput.value = '';
+                    idInput.classList.remove('!border-[#ef4444]');
+                }
+                if (passwordInput) {
+                    passwordInput.value = '';
+                    passwordInput.classList.remove('!border-[#ef4444]');
+                }
+                if (idError) idError.classList.add('hidden');
+                if (pwError) pwError.classList.add('hidden');
+                if (mismatchError) mismatchError.classList.add('hidden');
             }
 
             let partnerRecoveryResetPartnerDocId = '';
@@ -2789,17 +3670,27 @@ const filterSheet = document.getElementById('filter-sheet');
                 }
             }
 
-            function openPartnerDashboard() {
-                populateDashboardFromPartner();
+            async function openPartnerDashboard() {
+                await populateDashboardFromPartner();
                 loadPartnerDashboardStats();
                 renderPartnerBanners();
                 refreshNoticeUnreadBadges();
+                bindPartnerDashboardChatBadgeListener();
+                await setPartnerDashboardAccessMode(currentPartner);
                 const modal = document.getElementById('partner-dashboard-modal');
                 if (modal) {
+                    const resetPartnerDashboardTop = () => {
+                        modal.scrollTop = 0;
+                        const scrollable = modal.querySelector('.overflow-y-auto');
+                        if (scrollable) scrollable.scrollTop = 0;
+                    };
                     modal.style.display = 'flex';
                     modal.style.transform = '';
+                    resetPartnerDashboardTop();
                     setTimeout(() => {
                         modal.classList.remove('translate-x-full');
+                        resetPartnerDashboardTop();
+                        requestAnimationFrame(resetPartnerDashboardTop);
                     }, 10);
                 }
             }
@@ -2809,6 +3700,7 @@ const filterSheet = document.getElementById('filter-sheet');
                 if (loginModal) {
                     loginModal.style.display = 'flex';
                     loginModal.classList.remove('translate-x-full');
+                    resetPartnerLoginFormFields();
                 }
 
                 const modal = document.getElementById('partner-dashboard-modal');
@@ -2818,10 +3710,15 @@ const filterSheet = document.getElementById('filter-sheet');
                         modal.style.display = 'none';
                     }, 300);
                 }
+                if (typeof unsubscribePartnerChatBadge === 'function') {
+                    unsubscribePartnerChatBadge();
+                    unsubscribePartnerChatBadge = null;
+                }
             }
 
             function logoutPartnerToLogin() {
                 isPartnerLoggedIn = false;
+                currentPartner = null;
                 localStorage.removeItem('dadok_isPartnerLoggedIn');
                 sessionStorage.removeItem('dadok_isPartnerLoggedIn');
                 localStorage.removeItem('dadok_loggedInPartnerDocId');
@@ -2839,6 +3736,10 @@ const filterSheet = document.getElementById('filter-sheet');
                     setTimeout(() => {
                         modal.style.display = 'none';
                     }, 300);
+                }
+                if (typeof unsubscribePartnerChatBadge === 'function') {
+                    unsubscribePartnerChatBadge();
+                    unsubscribePartnerChatBadge = null;
                 }
             }
 
@@ -2902,13 +3803,9 @@ const filterSheet = document.getElementById('filter-sheet');
                             const partnerData = partnerDoc.data();
                             
                             if (partnerData.password === pwValue) {
-                                if (partnerData.status === 'pending') {
-                                    alert('입점 심사가 진행 중입니다. 승인 완료 후 로그인 가능합니다.');
-                                    return;
-                                }
-                                
                                 loginSuccess = true;
                                 loggedInPartnerDocId = partnerDoc.id;
+                                currentPartner = { id: partnerDoc.id, ...partnerData };
                                 
                                 await firestoreDb.collection('partners').doc(partnerDoc.id).update({
                                     lastLoginAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -2934,6 +3831,7 @@ const filterSheet = document.getElementById('filter-sheet');
                     } else {
                         localStorage.removeItem('dadok_loggedInPartnerDocId');
                         sessionStorage.removeItem('dadok_loggedInPartnerDocId');
+                        currentPartner = null;
                     }
 
                     if (keepLogin) {
@@ -2968,6 +3866,9 @@ const filterSheet = document.getElementById('filter-sheet');
                     mismatchError.classList.remove('hidden');
                     idInput.classList.add('!border-[#ef4444]');
                     passwordInput.classList.add('!border-[#ef4444]');
+                    setTimeout(() => {
+                        resetPartnerLoginFormFields();
+                    }, 0);
                 }
             }
 
@@ -3618,20 +4519,21 @@ const filterSheet = document.getElementById('filter-sheet');
                                 lastLoginAt: firebase.firestore.FieldValue.serverTimestamp()
                             });
 
-                            completeLoginProcess(idValue);
+                            completeLoginProcess(idValue, userDoc.id);
                             return;
                         }
                     }
                     
                     // ID 없거나 비밀번호 불일치
                     alert('아이디 또는 비밀번호가 일치하지 않습니다.');
+                    resetUserLoginFormFields();
                 } catch (error) {
                     console.error("Login Error: ", error);
                     alert("로그인 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
                 }
             }
 
-            function completeLoginProcess(username) {
+            function completeLoginProcess(username, userDocId = '') {
                 isLoggedIn = true;
                 const idInput = document.getElementById('login-id-input');
                 const passwordInput = document.getElementById('login-password-input');
@@ -3647,9 +4549,13 @@ const filterSheet = document.getElementById('filter-sheet');
                 if (keepLogin) {
                     localStorage.setItem('dadok_isLoggedIn', 'true');
                     localStorage.setItem('dadok_username', username);
+                    if (userDocId) localStorage.setItem('dadok_loggedInUserDocId', userDocId);
+                    else localStorage.removeItem('dadok_loggedInUserDocId');
                 } else {
                     sessionStorage.setItem('dadok_isLoggedIn', 'true');
                     sessionStorage.setItem('dadok_username', username);
+                    if (userDocId) sessionStorage.setItem('dadok_loggedInUserDocId', userDocId);
+                    else sessionStorage.removeItem('dadok_loggedInUserDocId');
                 }
             }
 
@@ -3699,7 +4605,54 @@ const filterSheet = document.getElementById('filter-sheet');
             }
 
             // 마이페이지 서브 모달 처리 로직
-            function openChatListModal() {
+            async function bindRealtimeChatList() {
+                if (typeof firebase === 'undefined') return;
+                if (typeof unsubscribeChatList === 'function') {
+                    unsubscribeChatList();
+                    unsubscribeChatList = null;
+                }
+
+                const actor = await getCurrentChatActor();
+                if (actor.role === 'partner' && actor.docId) {
+                    unsubscribeChatList = firebase
+                        .firestore()
+                        .collection('chat_threads')
+                        .where('participantPartnerDocId', '==', actor.docId)
+                        .onSnapshot((snap) => {
+                            chatListRows = snap.docs.map((doc) => ({ id: doc.id, ...(doc.data() || {}) }));
+                            chatListRows.sort((a, b) => {
+                                const aMs = a.updatedAt?.toMillis ? a.updatedAt.toMillis() : 0;
+                                const bMs = b.updatedAt?.toMillis ? b.updatedAt.toMillis() : 0;
+                                return bMs - aMs;
+                            });
+                            renderChatList();
+                            renderPartnerChatBadgeFromRows(chatListRows);
+                        });
+                    return;
+                }
+
+                if (actor.role === 'user' && actor.docId) {
+                    unsubscribeChatList = firebase
+                        .firestore()
+                        .collection('chat_threads')
+                        .where('participantUserDocId', '==', actor.docId)
+                        .onSnapshot((snap) => {
+                            chatListRows = snap.docs.map((doc) => ({ id: doc.id, ...(doc.data() || {}) }));
+                            chatListRows.sort((a, b) => {
+                                const aMs = a.updatedAt?.toMillis ? a.updatedAt.toMillis() : 0;
+                                const bMs = b.updatedAt?.toMillis ? b.updatedAt.toMillis() : 0;
+                                return bMs - aMs;
+                            });
+                            renderChatList();
+                        });
+                    return;
+                }
+
+                chatListRows = [];
+                renderChatList();
+            }
+
+            async function openChatListModal() {
                 const modal = document.getElementById('chat-list-modal');
                 modal.style.display = 'flex';
                 void modal.offsetWidth;
@@ -3707,13 +4660,17 @@ const filterSheet = document.getElementById('filter-sheet');
                     modal.classList.remove('translate-x-full');
                     modal.classList.add('translate-x-0');
                 }, 10);
-                renderChatList();
+                await bindRealtimeChatList();
             }
 
             function closeChatListModal() {
                 const modal = document.getElementById('chat-list-modal');
                 modal.classList.remove('translate-x-0');
                 modal.classList.add('translate-x-full');
+                if (typeof unsubscribeChatList === 'function') {
+                    unsubscribeChatList();
+                    unsubscribeChatList = null;
+                }
                 setTimeout(() => {
                     modal.style.display = 'none';
                     modal.classList.remove('z-[240]');
@@ -3723,21 +4680,31 @@ const filterSheet = document.getElementById('filter-sheet');
 
             function renderChatList() {
                 const container = document.getElementById('chat-list-container');
-                if (userChats.length === 0) {
+                if (!container) return;
+                if (chatListRows.length === 0) {
                     container.innerHTML = `<div class="p-10 text-sm text-center w-full" style="color:var(--text-sub);">채팅 내역이 없습니다.<br>원하는 업체와 대화를 시작해보세요.</div>`;
                     return;
                 }
+                const actorRole = getLoggedInPartnerDocId() ? 'partner' : 'user';
                 let html = '<div class="space-y-4">';
-                userChats.forEach(chat => {
+                chatListRows.forEach(thread => {
+                    const unread = getThreadUnreadCountForActor(thread, actorRole);
+                    const displayName = escapeChatHtml(getThreadDisplayName(thread, actorRole));
+                    const displayImage = getThreadDisplayImage(thread, actorRole);
+                    const timeText = formatChatRelativeTime(thread.lastAt || thread.updatedAt);
+                    const lastText = escapeChatHtml(thread.lastMessage || '대화가 아직 없습니다.');
                     html += `
-                <div class="bg-[var(--surface-color)] p-4 rounded-xl border border-[var(--border-color)] flex items-center gap-4 cursor-pointer hover:bg-[var(--point-color)]/10 transition-colors" onclick="resumeChat('${chat.id}')">
-                    <div class="w-12 h-12 rounded-full bg-cover bg-center shrink-0 border border-[var(--point-color)]/50" style="background-image: url('${chat.image}')"></div>
+                <div class="bg-[var(--surface-color)] p-4 rounded-xl border border-[var(--border-color)] flex items-center gap-4 cursor-pointer hover:bg-[var(--point-color)]/10 transition-colors" onclick="resumeChat('${thread.id}')">
+                    <div class="w-12 h-12 rounded-full bg-cover bg-center shrink-0 border border-[var(--point-color)]/50" style="background-image: url('${displayImage}')"></div>
                     <div class="flex-1 overflow-hidden">
                         <div class="flex justify-between items-center mb-1">
-                            <h4 class="text-white font-bold text-[15px]">${chat.name}</h4>
-                            <span class="text-[11px] text-[var(--text-sub)]">${chat.time}</span>
+                            <h4 class="text-white font-bold text-[15px]">${displayName}</h4>
+                            <span class="text-[11px] text-[var(--text-sub)]">${timeText}</span>
                         </div>
-                        <p class="text-[13px] text-[var(--text-sub)] truncate">${chat.lastMessage}</p>
+                        <div class="flex items-center justify-between gap-2">
+                            <p class="text-[13px] text-[var(--text-sub)] truncate">${lastText}</p>
+                            ${unread > 0 ? `<span class="shrink-0 bg-red-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">${unread}</span>` : ''}
+                        </div>
                     </div>
                 </div>
             `;
@@ -3909,14 +4876,17 @@ const filterSheet = document.getElementById('filter-sheet');
             async function refreshNoticeUnreadBadges() {
                 const userBadge = document.getElementById('user-notice-unread-badge');
                 const partnerBadge = document.getElementById('partner-notice-unread-badge');
+                const setNoticeBadge = (el, count) => {
+                    if (!el) return;
+                    const safeCount = Number(count || 0);
+                    el.innerText = `새 공지 ${safeCount}건`;
+                    el.classList.toggle('hidden', safeCount === 0);
+                };
 
                 if (currentNoticeRows.length > 0 && currentNoticeAudience) {
                     const unread = currentNoticeRows.filter((r) => !r.isRead).length;
                     const targetBadge = currentNoticeAudience === 'partner' ? partnerBadge : userBadge;
-                    if (targetBadge) {
-                        targetBadge.innerText = String(unread);
-                        targetBadge.classList.toggle('hidden', unread === 0);
-                    }
+                    setNoticeBadge(targetBadge, unread);
                 }
 
                 if (typeof firebase === 'undefined') return;
@@ -3938,14 +4908,8 @@ const filterSheet = document.getElementById('filter-sheet');
                         return unread;
                     };
                     const [userUnread, partnerUnread] = await Promise.all([loadUnread(userTarget), loadUnread(partnerTarget)]);
-                    if (userBadge) {
-                        userBadge.innerText = String(userUnread);
-                        userBadge.classList.toggle('hidden', userUnread === 0);
-                    }
-                    if (partnerBadge) {
-                        partnerBadge.innerText = String(partnerUnread);
-                        partnerBadge.classList.toggle('hidden', partnerUnread === 0);
-                    }
+                    setNoticeBadge(userBadge, userUnread);
+                    setNoticeBadge(partnerBadge, partnerUnread);
                 } catch (e) {
                     console.error('알림 뱃지 갱신 실패:', e);
                 }
@@ -4028,7 +4992,7 @@ const filterSheet = document.getElementById('filter-sheet');
                 const modal = document.getElementById('notice-modal');
                 const titleEl = document.getElementById('notice-modal-title');
                 if (!modal) return;
-                if (titleEl) titleEl.innerText = audience === 'partner' ? '업체 관리자 알림함' : '회원 관리자 알림함';
+                if (titleEl) titleEl.innerText = audience === 'partner' ? '업체 공지/안내함' : '회원 공지/안내함';
                 modal.style.display = 'flex';
                 void modal.offsetWidth;
                 setTimeout(() => {
@@ -4046,6 +5010,15 @@ const filterSheet = document.getElementById('filter-sheet');
                 setTimeout(() => {
                     modal.style.display = 'none';
                 }, 300);
+            }
+
+            // 공지함을 전용 페이지처럼 여는 진입점 (기존 모달 로직 재사용)
+            function openNoticePage(audience = 'user') {
+                openNoticeModal(audience);
+            }
+
+            function closeNoticePage() {
+                closeNoticeModal();
             }
 
             function openSecurityModal() {
@@ -4085,8 +5058,10 @@ const filterSheet = document.getElementById('filter-sheet');
                 // 로그인 상태 초기화
                 localStorage.removeItem('dadok_isLoggedIn');
                 localStorage.removeItem('dadok_username');
+                localStorage.removeItem('dadok_loggedInUserDocId');
                 sessionStorage.removeItem('dadok_isLoggedIn');
                 sessionStorage.removeItem('dadok_username');
+                sessionStorage.removeItem('dadok_loggedInUserDocId');
             }
 
             function goHome() {
@@ -4107,6 +5082,9 @@ const filterSheet = document.getElementById('filter-sheet');
                 if (typeof closeLoginFormModal === 'function') closeLoginFormModal();
                 if (typeof closeFindIdPwScreen === 'function') closeFindIdPwScreen();
                 if (typeof closeSignupModal === 'function') closeSignupModal();
+                if (typeof resetUserLoginFormFields === 'function') resetUserLoginFormFields();
+                if (typeof resetPartnerLoginFormFields === 'function') resetPartnerLoginFormFields();
+                if (typeof resetSupportDraftFields === 'function') resetSupportDraftFields();
 
                 document.getElementById('overlay').classList.remove('show');
                 document.body.style.overflow = 'auto'; // 스크롤 활성화
@@ -4414,9 +5392,7 @@ const filterSheet = document.getElementById('filter-sheet');
                         chatModal.classList.add('translate-x-0');
                     }, 10);
 
-                    if (typeof renderChatList === 'function') {
-                        renderChatList();
-                    }
+                    bindRealtimeChatList();
                 }
             }
 
@@ -4639,13 +5615,30 @@ const filterSheet = document.getElementById('filter-sheet');
 
                 const nameInput = document.getElementById('partner-input-name');
                 const contactInput = document.getElementById('partner-input-contact');
+                const callEnabledInput = document.getElementById('partner-input-call-enabled');
+                const callStartInput = document.getElementById('partner-input-call-start');
+                const callEndInput = document.getElementById('partner-input-call-end');
                 const addressInput = document.getElementById('partner-input-address');
                 const descInput = document.getElementById('partner-input-desc');
 
                 if (nameInput) nameInput.value = currentPartner.name || '';
                 if (contactInput) contactInput.value = currentPartner.contact || currentPartner.phoneNumber || '';
+                if (callEnabledInput) {
+                    callEnabledInput.checked =
+                        typeof currentPartner.callEnabled === 'boolean'
+                            ? currentPartner.callEnabled
+                            : true;
+                }
+                const parsedCallRange = parseCallHoursToRange(
+                    `${currentPartner.callAvailableStart || ''} ~ ${currentPartner.callAvailableEnd || ''}`.trim() !== '~'
+                        ? `${currentPartner.callAvailableStart || ''} ~ ${currentPartner.callAvailableEnd || ''}`
+                        : currentPartner.callAvailableHours || currentPartner.callHours || '',
+                );
+                if (callStartInput) callStartInput.value = currentPartner.callAvailableStart || parsedCallRange.start;
+                if (callEndInput) callEndInput.value = currentPartner.callAvailableEnd || parsedCallRange.end;
                 if (addressInput) addressInput.value = currentPartner.address || currentPartner.location || '';
                 if (descInput) descInput.value = currentPartner.desc || currentPartner.catchphrase || '';
+                updatePartnerPhotoPickerUI(currentPartner.image || '', false);
 
                 // 메뉴 채우기
                 const menuContainer = document.getElementById('menu-list-container');
@@ -4716,11 +5709,17 @@ const filterSheet = document.getElementById('filter-sheet');
 
                     const nameInput = document.getElementById('partner-input-name');
                     const contactInput = document.getElementById('partner-input-contact');
+                    const callEnabledInput = document.getElementById('partner-input-call-enabled');
                     const addressInput = document.getElementById('partner-input-address');
                     const descInput = document.getElementById('partner-input-desc');
 
                     if (nameInput) currentPartner.name = nameInput.value;
                     if (contactInput) currentPartner.contact = contactInput.value;
+                    const callRange = getPartnerCallHourRange();
+                    currentPartner.callEnabled = callEnabledInput ? !!callEnabledInput.checked : true;
+                    currentPartner.callAvailableStart = callRange.start;
+                    currentPartner.callAvailableEnd = callRange.end;
+                    currentPartner.callAvailableHours = `${callRange.start} ~ ${callRange.end}`;
                     if (addressInput) currentPartner.address = addressInput.value;
                     if (descInput) currentPartner.desc = descInput.value;
 
@@ -4749,6 +5748,10 @@ const filterSheet = document.getElementById('filter-sheet');
                     await firebase.firestore().collection('partners').doc(partnerDocId).update({
                         name: currentPartner.name,
                         phoneNumber: currentPartner.contact,
+                        callEnabled: !!currentPartner.callEnabled,
+                        callAvailableStart: currentPartner.callAvailableStart || '',
+                        callAvailableEnd: currentPartner.callAvailableEnd || '',
+                        callAvailableHours: currentPartner.callAvailableHours || '',
                         location: currentPartner.address,
                         catchphrase: currentPartner.desc,
                         tags: currentPartner.tags,
@@ -4776,7 +5779,12 @@ const filterSheet = document.getElementById('filter-sheet');
                             rating: currentPartner.rating || 5.0,
                             reviews: currentPartner.reviews || 0,
                             tier: data.ticketType || 'Premium',
-                            image: currentPartner.image || 'https://images.unsplash.com/photo-1544161515-4ab6ce6db874?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80'
+                            image: currentPartner.image || 'https://images.unsplash.com/photo-1544161515-4ab6ce6db874?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80',
+                            phoneNumber: currentPartner.contact || '',
+                            callEnabled: !!currentPartner.callEnabled,
+                            callAvailableStart: currentPartner.callAvailableStart || '',
+                            callAvailableEnd: currentPartner.callAvailableEnd || '',
+                            callAvailableHours: currentPartner.callAvailableHours || ''
                         };
 
                         if (existingIndex > -1) {
@@ -4853,12 +5861,9 @@ const filterSheet = document.getElementById('filter-sheet');
             function openSupportScreen() {
                 const supportModal = document.getElementById('support-modal');
                 supportModal.style.display = 'flex';
+                supportModal.style.zIndex = '260';
                 changeSupportTab('report'); // Default to Report
-
-                // 입력 필드 초기화
-                document.getElementById('support-content').value = '';
-                document.getElementById('support-file-input').value = '';
-                document.getElementById('support-file-name').innerText = '터치하여 이미지 첨부';
+                resetSupportDraftFields();
 
                 setTimeout(() => {
                     supportModal.classList.remove('translate-x-full');
@@ -4870,7 +5875,22 @@ const filterSheet = document.getElementById('filter-sheet');
                 supportModal.classList.add('translate-x-full');
                 setTimeout(() => {
                     supportModal.style.display = 'none';
+                    supportModal.style.zIndex = '';
+                    resetSupportDraftFields();
                 }, 300);
+            }
+
+            function openSupportFromPartnerDashboard() {
+                openSupportScreen();
+            }
+
+            function resetSupportDraftFields() {
+                const contentEl = document.getElementById('support-content');
+                const fileInputEl = document.getElementById('support-file-input');
+                const fileNameEl = document.getElementById('support-file-name');
+                if (contentEl) contentEl.value = '';
+                if (fileInputEl) fileInputEl.value = '';
+                if (fileNameEl) fileNameEl.innerText = '터치하여 이미지 첨부';
             }
 
             function changeSupportTab(tab) {
@@ -4935,6 +5955,7 @@ const filterSheet = document.getElementById('filter-sheet');
                     });
 
                     showCustomToast("정상적으로 접수되었습니다. 최대한 빠르게 답변드리겠습니다.");
+                    resetSupportDraftFields();
                     setTimeout(() => {
                         closeSupportScreen();
                     }, 1500);
@@ -4971,8 +5992,11 @@ const filterSheet = document.getElementById('filter-sheet');
                     'openMyPageModal': 'closeMyPageModal',
                     'openChatListModal': 'closeChatListModal',
                     'openFavoritesModal': 'closeFavoritesModal',
+                    'openNoticeModal': 'closeNoticeModal',
+                    'openNoticePage': 'closeNoticePage',
                     'openSecurityModal': 'closeSecurityModal',
                     'openSupportScreen': 'closeSupportScreen',
+                    'openSupportFromPartnerDashboard': 'closeSupportScreen',
                     'openListView': 'closeAllModals',
                     'openMyBanner': 'closeAllModals'
                 };

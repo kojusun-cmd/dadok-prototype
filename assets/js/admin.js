@@ -82,6 +82,7 @@ function adminLogout() {
 let currentUserCount = 0;
 let currentShopCount = 0;
 let categoriesList = [];
+let unsubscribeCallClickLogs = null;
 const SIDEBAR_BADGE_MAP = {
     users: 'users-badge',
     approvals: 'pending-badge',
@@ -541,7 +542,10 @@ function switchTab(tabId) {
         }
     }
     else if (tabId === 'messages') loadMessageCenter();
-    else if (tabId === 'dashboard') updateDashboardStats();
+    else if (tabId === 'dashboard') {
+        updateDashboardStats();
+        loadCallClickLogs();
+    }
     else if (tabId === 'cs') loadCSTickets();
 
     if (Object.prototype.hasOwnProperty.call(SIDEBAR_BADGE_MAP, tabId)) {
@@ -552,6 +556,67 @@ function switchTab(tabId) {
 function updateDashboardStats() {
     document.getElementById('stat-users').innerText = currentUserCount;
     document.getElementById('stat-shops').innerText = currentShopCount;
+}
+
+function formatAdminDateTime(value) {
+    if (!value) return '-';
+    let date = null;
+    if (typeof value.toDate === 'function') date = value.toDate();
+    else if (value instanceof Date) date = value;
+    else {
+        const parsed = new Date(value);
+        if (!Number.isNaN(parsed.getTime())) date = parsed;
+    }
+    if (!date) return '-';
+    return date.toLocaleString('ko-KR');
+}
+
+function loadCallClickLogs() {
+    const tbody = document.getElementById('call-log-table-body');
+    if (!tbody) return;
+    if (unsubscribeCallClickLogs) {
+        unsubscribeCallClickLogs();
+        unsubscribeCallClickLogs = null;
+    }
+    tbody.innerHTML = '<tr><td colspan="6" class="p-4 text-center text-[#A7B2AE]">불러오는 중...</td></tr>';
+
+    unsubscribeCallClickLogs = db
+        .collection('call_click_logs')
+        .orderBy('createdAt', 'desc')
+        .limit(80)
+        .onSnapshot(
+            (snap) => {
+                if (snap.empty) {
+                    tbody.innerHTML = '<tr><td colspan="6" class="p-4 text-center text-[#A7B2AE]">전화 클릭 로그가 없습니다.</td></tr>';
+                    return;
+                }
+                let html = '';
+                snap.forEach((doc) => {
+                    const d = doc.data() || {};
+                    html += `
+                        <tr class="hover:bg-white/5 transition-colors">
+                            <td class="p-4 text-[#A7B2AE]">${formatAdminDateTime(d.createdAt)}</td>
+                            <td class="p-4 text-white">${escapeHtml(d.partnerName || '-')}</td>
+                            <td class="p-4 font-mono text-[#A7B2AE]">${escapeHtml(d.phoneDigits || '-')}</td>
+                            <td class="p-4 text-white">${escapeHtml(d.callerName || d.callerUserId || '-')}</td>
+                            <td class="p-4 text-[#A7B2AE]">${escapeHtml(d.callerRole || '-')}</td>
+                            <td class="p-4">
+                                ${
+                                    d.isBusinessOpen
+                                        ? '<span class="px-2 py-1 rounded text-xs bg-green-900/40 text-green-300 border border-green-600/40">영업중</span>'
+                                        : '<span class="px-2 py-1 rounded text-xs bg-red-900/40 text-red-300 border border-red-600/40">영업외</span>'
+                                }
+                            </td>
+                        </tr>
+                    `;
+                });
+                tbody.innerHTML = html;
+            },
+            (err) => {
+                console.error('전화 클릭 로그 로드 실패:', err);
+                tbody.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-red-400">로드 실패: ${escapeHtml(err.message)}</td></tr>`;
+            },
+        );
 }
 
 // ─── Modal handling ───
@@ -711,6 +776,11 @@ function getLinkTypeLabel(linkType = 'none') {
     return labels[linkType] || labels.none;
 }
 
+function getDeliveryModeLabel(mode = 'notice') {
+    if (mode === 'chat') return '문의 채팅';
+    return '공지/안내함';
+}
+
 function getAudienceKeyByTargetType(targetType = '') {
     if (targetType === 'user_single' || targetType === 'users_all') return 'user';
     if (targetType === 'partner_single' || targetType === 'partners_all') return 'partner';
@@ -865,27 +935,81 @@ function buildMessageRecipients(targetType, recipientId = '') {
 
 async function fanoutNotificationsFromMessage(messageId, payload, recipients) {
     if (!recipients.length) return 0;
-    const chunkSize = 400;
+    const chunkSize = 180;
+    const deliveryMode = payload.deliveryMode || 'notice';
     for (let i = 0; i < recipients.length; i += chunkSize) {
         const chunk = recipients.slice(i, i + chunkSize);
         const batch = db.batch();
         chunk.forEach((r) => {
-            const ref = db.collection('user_notifications').doc();
-            batch.set(ref, {
-                messageId,
-                recipientType: r.type,
-                recipientDocId: r.docId,
-                recipientUserId: r.userId,
-                recipientName: r.name,
-                category: payload.category,
-                priority: payload.priority,
-                linkType: payload.linkType || 'none',
-                linkLabel: payload.linkLabel || getLinkTypeLabel(payload.linkType || 'none'),
-                title: payload.title,
-                body: payload.body,
-                isRead: false,
-                createdAt: firebase.firestore.FieldValue.serverTimestamp()
-            });
+            if (deliveryMode === 'notice') {
+                const ref = db.collection('user_notifications').doc();
+                batch.set(ref, {
+                    messageId,
+                    recipientType: r.type,
+                    recipientDocId: r.docId,
+                    recipientUserId: r.userId,
+                    recipientName: r.name,
+                    category: payload.category,
+                    priority: payload.priority,
+                    linkType: payload.linkType || 'none',
+                    linkLabel: payload.linkLabel || getLinkTypeLabel(payload.linkType || 'none'),
+                    title: payload.title,
+                    body: payload.body,
+                    isRead: false,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+            }
+
+            const isPartner = r.type === 'partner';
+            const chatThreadId = isPartner ? `admin__p_${r.docId}` : `admin__u_${r.docId}`;
+            const threadRef = db.collection('chat_threads').doc(chatThreadId);
+            const chatMessageRef = db.collection('chat_messages').doc();
+            const unreadField = isPartner ? 'unreadForPartner' : 'unreadForUser';
+
+            if (deliveryMode === 'chat') {
+                const threadPayload = isPartner
+                    ? {
+                        id: chatThreadId,
+                        participantPartnerDocId: r.docId,
+                        participantPartnerUserId: r.userId || '',
+                        partnerName: r.name || '업체',
+                        userName: '관리자',
+                        userId: 'admin',
+                        lastMessage: payload.body,
+                        lastSenderRole: 'admin',
+                        lastAt: firebase.firestore.FieldValue.serverTimestamp(),
+                        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                        [unreadField]: firebase.firestore.FieldValue.increment(1)
+                    }
+                    : {
+                        id: chatThreadId,
+                        participantUserDocId: r.docId,
+                        participantUserId: r.userId || '',
+                        userName: r.name || '고객',
+                        partnerName: '관리자',
+                        partnerUserId: 'admin',
+                        lastMessage: payload.body,
+                        lastSenderRole: 'admin',
+                        lastAt: firebase.firestore.FieldValue.serverTimestamp(),
+                        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                        [unreadField]: firebase.firestore.FieldValue.increment(1)
+                    };
+
+                batch.set(threadRef, threadPayload, { merge: true });
+                batch.set(chatMessageRef, {
+                    threadId: chatThreadId,
+                    senderRole: 'admin',
+                    senderDocId: 'admin',
+                    senderUserId: auth.currentUser?.email || 'admin',
+                    senderName: '관리자',
+                    text: payload.body,
+                    category: payload.category || 'notice',
+                    messageId,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+            }
         });
         await batch.commit();
     }
@@ -1073,6 +1197,7 @@ window.sendAdminMessage = async function () {
     const title = (document.getElementById('msg-title-input')?.value || '').trim();
     const body = (document.getElementById('msg-body-input')?.value || '').trim();
     const priority = document.getElementById('msg-priority')?.value || 'normal';
+    const deliveryMode = document.getElementById('msg-delivery-mode')?.value || 'notice';
     const linkType = document.getElementById('msg-link-type')?.value || 'none';
     const sendBtn = document.getElementById('msg-send-btn');
     const scheduleRaw = document.getElementById('msg-schedule-at')?.value || '';
@@ -1108,6 +1233,8 @@ window.sendAdminMessage = async function () {
             targetRecipientId: targetType === 'user_single' || targetType === 'partner_single' ? recipientId : '',
             category,
             priority,
+            deliveryMode,
+            deliveryLabel: getDeliveryModeLabel(deliveryMode),
             linkType,
             linkLabel: getLinkTypeLabel(linkType),
             title,
@@ -1136,10 +1263,12 @@ window.sendAdminMessage = async function () {
 
         const templateEl = document.getElementById('msg-template-select');
         const linkEl = document.getElementById('msg-link-type');
+        const deliveryEl = document.getElementById('msg-delivery-mode');
         document.getElementById('msg-title-input').value = '';
         document.getElementById('msg-body-input').value = '';
         if (templateEl) templateEl.value = '';
         if (linkEl) linkEl.value = 'none';
+        if (deliveryEl) deliveryEl.value = 'notice';
         window.clearMessageSchedule();
         loadAdminMessageHistory();
     } catch (err) {
@@ -1188,7 +1317,7 @@ async function loadAdminMessageHistory() {
                             <span class="text-[11px] text-[#A7B2AE] whitespace-nowrap">${formatMessageDate(data.createdAt)}</span>
                         </div>
                         <div class="text-[12px] text-[#A7B2AE] mt-1">
-                            ${escapeHtml(data.targetLabel || getMessageTargetLabel(data.targetType))} · ${escapeHtml(data.category || 'notice')} · ${escapeHtml(data.priority || 'normal')} · ${Number(data.recipientCount || 0)}명
+                            ${escapeHtml(data.targetLabel || getMessageTargetLabel(data.targetType))} · ${escapeHtml(data.deliveryLabel || getDeliveryModeLabel(data.deliveryMode || 'notice'))} · ${escapeHtml(data.category || 'notice')} · ${escapeHtml(data.priority || 'normal')} · ${Number(data.recipientCount || 0)}명
                         </div>
                         <div class="text-[11px] text-[#7F8E88] mt-1">관련 화면: ${escapeHtml(data.linkLabel || getLinkTypeLabel(data.linkType || 'none'))}</div>
                         <div class="mt-2">
@@ -1208,6 +1337,7 @@ async function loadAdminMessageHistory() {
 
 // ─── Initial Listeners ───
 window.addEventListener('DOMContentLoaded', () => {
+    loadCallClickLogs();
     db.collection('users').onSnapshot((snap) => {
         sidebarSnapshotCache.users = snap;
         currentUserCount = snap.size;
@@ -2068,14 +2198,14 @@ function selectApprovalReview(id) {
             }
 
             document.getElementById('approval-catchphrase').textContent = data.catchphrase || '-';
+            document.getElementById('approval-address').textContent =
+                data.address || data.location || '-';
+            document.getElementById('approval-description').textContent =
+                data.description || data.desc || '-';
+            document.getElementById('approval-hours').textContent =
+                data.hours || data.businessHours || data.operatingHours || '-';
             document.getElementById('approval-min-price').textContent =
                 data.minPrice || data.price || '-';
-            document.getElementById('approval-tier').value =
-                data.ticketType || data.tier || 'Normal';
-            document.getElementById('approval-biz-verified').value = data.bizVerified
-                ? 'true'
-                : 'false';
-            document.getElementById('approval-memo').value = data.adminMemo || '';
 
             document.getElementById('approval-cat-massage').textContent =
                 data.catMassage || data.massage || '-';
@@ -2092,56 +2222,12 @@ function selectApprovalReview(id) {
 function approvePartnerFromReview(e) {
     e.preventDefault();
     const id = document.getElementById('approval-id').value;
-
-    // 사업자 확인 여부가 false면 경고!
-    const bizVerified = document.getElementById('approval-biz-verified').value === 'true';
-    if (!bizVerified) {
-        if (!confirm('실명 및 사업자등록증이 아직 확인되지 않았습니다. 그래도 승인하시겠습니까?'))
-            return;
-    }
-
-    const tierValue = document.getElementById('approval-tier').value;
-
-    let ticketType = 'None';
-    let ticketPlan = 'none';
-    let monthsToAdd = 0;
-
-    if (tierValue === '1') {
-        ticketType = '1개월 입점권';
-        ticketPlan = 'standard';
-        monthsToAdd = 1;
-    } else if (tierValue === '3') {
-        ticketType = '3개월 입점권';
-        ticketPlan = 'standard';
-        monthsToAdd = 3;
-    } else if (tierValue === '6') {
-        ticketType = '6개월 입점권';
-        ticketPlan = 'premium';
-        monthsToAdd = 6;
-    } else if (tierValue === '12') {
-        ticketType = '12개월 입점권';
-        ticketPlan = 'VIP';
-        monthsToAdd = 12;
-    }
-
+    if (!id) return;
     const updateData = {
-        ticketType: ticketType,
-        ticketPlan: ticketPlan,
-        bizVerified: bizVerified,
-        adminMemo: document.getElementById('approval-memo').value.trim(),
         status: 'active',
+        approvedAt: firebase.firestore.FieldValue.serverTimestamp(),
         updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
     };
-
-    if (monthsToAdd > 0) {
-        const now = new Date();
-        now.setMonth(now.getMonth() + monthsToAdd);
-        updateData.ticketExpiryTimestamp = now.getTime();
-        updateData.ticketExpiry = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-    } else {
-        updateData.ticketExpiryTimestamp = 0;
-        updateData.ticketExpiry = '';
-    }
 
     db.collection('partners')
         .doc(id)
@@ -2156,7 +2242,7 @@ function approvePartnerFromReview(e) {
             notif.className =
                 'fixed top-4 right-4 bg-green-500/90 text-white px-6 py-3 rounded-xl shadow-lg z-50 transform transition-all translate-y-[-20px] opacity-0 flex items-center gap-3 backdrop-blur-sm';
             notif.innerHTML =
-                '<i class="fas fa-check-circle"></i> <span class="font-bold">성공적으로 입점 승인 완료되었습니다.</span>';
+                '<i class="fas fa-check-circle"></i> <span class="font-bold">가입 승인 처리가 완료되었습니다.</span>';
             document.body.appendChild(notif);
             setTimeout(() => {
                 notif.classList.remove('translate-y-[-20px]', 'opacity-0');
@@ -2320,6 +2406,8 @@ function filterShops() {
 
         // 2. Status check
         const opStatus = getShopOperationalStatus(s);
+        // 샵 관리 기본 목록은 승인 완료된 업체 중심(영업중/만료/제재)으로 운영
+        if (statusVal === 'all' && opStatus === 'pending') return false;
         if (statusVal !== 'all' && opStatus !== statusVal) return false;
 
         // 3. Plan check (ticketType matches premium/standard/none roughly)
@@ -2388,14 +2476,15 @@ function renderShopCards(shops) {
                 '<span class="absolute top-3 right-3 bg-gray-700/90 text-gray-200 text-xs font-bold px-2 py-1 rounded shadow">Standard</span>';
         }
 
-        // Action Buttons logic
-        let activateBtn = '';
-        if (data.status === 'pending') {
-            activateBtn = `<button onclick="event.stopPropagation(); activatePartner('${data.id}')" class="flex-1 py-2 bg-green-900/40 text-green-400 hover:bg-green-600 hover:text-white rounded-lg text-sm font-bold transition-colors">✔ 승인</button>`;
-        }
+        const ownerName = data.ownerName || '-';
+        const signupUserId = data.userId || '-';
+        const ticketLabel = data.ticketType || data.ticketPlan || '입점권 없음';
+        const ticketStatusText = data.ticketExpiryTimestamp
+            ? `${ticketLabel} / 만료 ${new Date(data.ticketExpiryTimestamp).toLocaleDateString('ko-KR')}`
+            : `${ticketLabel} / 만료일 없음`;
 
         html += `
-            <div class="bg-[#0A1B13] border border-[#2A3731] rounded-2xl overflow-hidden hover:border-[#3A4741] transition-all flex flex-col shadow-lg relative group" onclick="goToShopApprovalDetails('${data.id}')">
+            <div class="bg-[#0A1B13] border border-[#2A3731] rounded-2xl overflow-hidden hover:border-[#3A4741] transition-all flex flex-col shadow-lg relative group" onclick="openShopModal('${data.id}')">
                 
                 <!-- Card Image Header -->
                 <div class="h-32 bg-[#06110D] relative overflow-hidden flex-shrink-0 cursor-pointer">
@@ -2414,19 +2503,22 @@ function renderShopCards(shops) {
                     <div class="text-xs text-[#A7B2AE] mb-3 flex flex-col gap-1">
                         <div class="flex items-center gap-1.5"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg> <span class="truncate">${data.address || data.location || '주소 미등록'}</span></div>
                         <div class="flex items-center gap-1.5"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path></svg> <span>${data.phone || '연락처 미등록'}</span></div>
+                        <div class="flex items-center gap-1.5"><span class="text-[#7F8E88]">대표자:</span> <span>${ownerName}</span></div>
+                        <div class="flex items-center gap-1.5"><span class="text-[#7F8E88]">가입 ID:</span> <span>${signupUserId}</span></div>
                     </div>
 
                     <div class="mt-auto pt-3 border-t border-[#2A3731] flex flex-wrap gap-1.5 mb-3">
                         <span class="px-2 py-0.5 bg-[#11291D] border border-[#2A3731] rounded text-[10px] text-[#A7B2AE] whitespace-nowrap">가입: ${dateStr}</span>
+                        <span class="px-2 py-0.5 bg-[#11291D] border border-[#2A3731] rounded text-[10px] text-[#A7B2AE] whitespace-nowrap">${ticketStatusText}</span>
                         ${data.ticketExpiryTimestamp ? `<span class="px-2 py-0.5 bg-[#11291D] border ${isExpired ? 'border-red-500/50 text-red-400' : 'border-[#2A3731] text-[#A7B2AE]'} rounded text-[10px] whitespace-nowrap">만료: ${new Date(data.ticketExpiryTimestamp).toLocaleDateString('ko-KR')}</span>` : `<span class="px-2 py-0.5 bg-[#11291D] border border-[#2A3731] rounded text-[10px] text-[#A7B2AE] whitespace-nowrap">기한없음</span>`}
                     </div>
                 </div>
 
                 <!-- Footer Quick Actions -->
                 <div class="flex border-t border-[#2A3731] p-2 bg-[#06110D] gap-2">
-                    ${activateBtn}
-                    <button onclick="event.stopPropagation(); triggerManualSubAdjust('${data.id}', '${data.name || data.company || ''}')" class="flex-1 py-1.5 bg-[#11291D] hover:bg-[#183928] text-[#A7B2AE] hover:text-white rounded-lg text-sm transition-colors border border-[#2A3731]">권한 조정</button>
-                    ${data.status !== 'pending' ? `<button onclick="event.stopPropagation(); goToShopApprovalDetails('${data.id}')" class="flex-1 py-1.5 bg-[#11291D] hover:bg-[#183928] text-[#A7B2AE] hover:text-white rounded-lg text-sm transition-colors border border-[#2A3731]">상세/수정</button>` : ''}
+                    <button onclick="event.stopPropagation(); openShopModal('${data.id}')" class="flex-1 py-1.5 bg-[#11291D] hover:bg-[#183928] text-[#A7B2AE] hover:text-white rounded-lg text-sm transition-colors border border-[#2A3731]">상세/수정</button>
+                    <button onclick="event.stopPropagation(); cancelPartnerApproval('${data.id}')" class="flex-1 py-1.5 bg-[#2A1515] hover:bg-[#3B1D1D] text-[#FCA5A5] hover:text-white rounded-lg text-sm transition-colors border border-red-900/40">승인취소</button>
+                    <button onclick="event.stopPropagation(); deleteShop('${data.id}')" class="flex-1 py-1.5 bg-[#2A1515] hover:bg-red-900/40 text-red-400 hover:text-white rounded-lg text-sm transition-colors border border-red-900/40">계정삭제</button>
                 </div>
             </div>
         `;
@@ -2435,65 +2527,49 @@ function renderShopCards(shops) {
     container.innerHTML = html;
 }
 
-// 샵 관리자 페이지에서 상세/수정 클릭 혹은 카드 클릭 시 제휴 파트너 승인(Approvals) 탭으로 이동하고 해당 샵의 상세 내용을 표시하는 함수
-function goToShopApprovalDetails(id) {
-    switchTab('approvals');
-    selectApprovalReview(id);
-}
-
-// 퀵 액션으로 '강제 수동 조정'을 여는 함수 (기존 구현 연동)
-function triggerManualSubAdjust(id, name) {
-    const p = windowShops.find((x) => x.id === id);
-    let plan = '기본 입점';
-    let remainStr = '정보 없음';
-
-    if (p) {
-        plan =
-            p.ticketType === 'premium'
-                ? '프리미엄'
-                : p.ticketType === 'standard'
-                  ? '스탠다드'
-                  : '입점권 없음';
-        let expiry = p.ticketExpiryTimestamp || 0;
-        if (expiry > Date.now()) {
-            let diff = expiry - Date.now();
-            let days = Math.floor(diff / (1000 * 60 * 60 * 24));
-            let hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
-            remainStr = `잔여 ${days}일 ${hours}시간`;
-        } else {
-            remainStr = '만료/미이용';
-        }
-    }
-
-    selectedSubTargets = [{ id, name, plan, remainStr }];
-    renderSubTargets();
-    document.getElementById('manual-sub-search').value = '';
-
-    const resultsContainer = document.getElementById('manual-sub-search-results');
-    if (resultsContainer) resultsContainer.classList.add('hidden');
-
-    const form = document.getElementById('manual-sub-form');
-    if (form) form.reset();
-
-    toggleManualSubInput('add');
-    toggleManualSubMemo('reward_event');
-    openModal('modal-manual-sub');
-}
-
-function openShopModal() {
-    document.getElementById('shop-form').reset();
-    document.getElementById('shop-id').value = '';
-
+function buildShopCategoryCheckboxes(selected = []) {
     const cbContainer = document.getElementById('shop-category-checkboxes');
+    if (!cbContainer) return;
     cbContainer.innerHTML = '';
     categoriesList.forEach((cat) => {
+        const checked = selected.includes(cat.name) ? 'checked' : '';
         cbContainer.innerHTML += `
             <label class="inline-flex items-center gap-1.5 bg-[#11291D] px-3 py-1.5 rounded-lg border border-[#2A3731] cursor-pointer hover:bg-[#183928] transition-colors">
-                <input type="checkbox" value="\${cat.name}" class="shop-cat-checkbox w-4 h-4 text-[var(--point-color)] bg-[#06110D] border-[#2A3731]">
-                <span class="text-sm text-white/90">\${cat.name}</span>
+                <input type="checkbox" value="${cat.name}" ${checked} class="shop-cat-checkbox w-4 h-4 text-[var(--point-color)] bg-[#06110D] border-[#2A3731]">
+                <span class="text-sm text-white/90">${cat.name}</span>
             </label>
         `;
     });
+}
+
+async function openShopModal(partnerId = '') {
+    document.getElementById('shop-form').reset();
+    document.getElementById('shop-id').value = '';
+    const titleEl = document.getElementById('shop-modal-title');
+    buildShopCategoryCheckboxes([]);
+
+    if (partnerId) {
+        try {
+            const doc = await db.collection('partners').doc(partnerId).get();
+            if (doc.exists) {
+                const data = doc.data() || {};
+                if (titleEl) titleEl.textContent = '마사지 샵 운영 정보 상세/수정';
+                document.getElementById('shop-id').value = doc.id;
+                document.getElementById('shop-name').value = data.name || data.company || '';
+                document.getElementById('shop-location').value = data.location || data.address || '';
+                document.getElementById('shop-image').value = data.image || data.imageUrl || '';
+                document.getElementById('shop-tags').value = Array.isArray(data.tags)
+                    ? data.tags.join(', ')
+                    : '';
+                buildShopCategoryCheckboxes(Array.isArray(data.categories) ? data.categories : []);
+            }
+        } catch (err) {
+            alert('샵 상세 정보를 불러오지 못했습니다: ' + err.message);
+            return;
+        }
+    } else if (titleEl) {
+        titleEl.textContent = '마사지 샵 데이터 등록/수정';
+    }
 
     openModal('modal-shop');
 }
@@ -2504,8 +2580,6 @@ function handleShopSubmit(e) {
     const name = document.getElementById('shop-name').value.trim();
     const location = document.getElementById('shop-location').value.trim();
     const image = document.getElementById('shop-image').value.trim();
-    const ticketType = document.getElementById('shop-ticket-type').value;
-    const ticketExpiry = document.getElementById('shop-ticket-expiry').value;
     const tagsRaw = document.getElementById('shop-tags').value;
 
     const tags = tagsRaw
@@ -2516,7 +2590,7 @@ function handleShopSubmit(e) {
         (cb) => cb.value,
     );
 
-    const data = { name, location, image, ticketType, ticketExpiry, tags, categories: checkedCats };
+    const data = { name, location, image, tags, categories: checkedCats };
 
     if (id) {
         data.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
@@ -2539,6 +2613,21 @@ function activatePartner(id) {
     if (confirm('이 파트너의 가입을 승인하여 앱에 노출하시겠습니까?')) {
         db.collection('partners').doc(id).update({ status: 'active' });
     }
+}
+
+function cancelPartnerApproval(id) {
+    if (!id) return;
+    if (!confirm('이 업체의 가입 승인을 취소하시겠습니까? (승인 대기로 전환)')) return;
+    db.collection('partners')
+        .doc(id)
+        .update({
+            status: 'pending',
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        })
+        .then(() => {
+            alert('승인 취소 처리되었습니다. 제휴 파트너 승인 탭에서 다시 심사할 수 있습니다.');
+        })
+        .catch((err) => alert('승인 취소 중 오류 발생: ' + err.message));
 }
 
 function deleteShop(id) {
