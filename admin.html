@@ -172,16 +172,14 @@
 
         <!-- Shops Tab -->
         <div id="tab-shops" class="tab-content hidden">
-            <div class="flex justify-between items-center mb-6">
+            <div class="mb-6">
                 <h2 class="text-3xl font-bold text-white">마사지 샵(파트너) 관리</h2>
-                <button onclick="openShopModal()" class="px-5 py-2.5 bg-gradient-to-r from-[var(--point-color)] to-[#B59530] text-white font-bold rounded-xl hover:brightness-110 active:scale-95 transition-all shadow-[0_4px_12px_rgba(212,175,55,0.2)]">
-                    + 신규 샵 등록
-                </button>
+                <p class="text-[#A7B2AE] mt-2">가입 승인 완료된 업체의 운영 정보와 입점권 현황을 통합 조회하고, 승인취소/계정삭제를 관리합니다.</p>
             </div>
             <!-- KPI Dashboard -->
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                 <button id="kpi-filter-total" onclick="setShopStatusFilter('all')" class="text-left bg-[#0A1B13] border border-[#2A3731] rounded-2xl p-5 flex flex-col justify-center shadow-lg hover:border-[var(--point-color)]/60 transition-all">
-                    <span class="text-[#A7B2AE] text-sm font-medium mb-1">총 입점 업체</span>
+                    <span class="text-[#A7B2AE] text-sm font-medium mb-1">운영 대상 업체(승인완료)</span>
                     <span id="kpi-total-shops" class="text-3xl font-bold text-white">0</span>
                 </button>
                 <button id="kpi-filter-active" onclick="setShopStatusFilter('active')" class="text-left bg-[rgba(74,222,128,0.05)] border border-green-500/30 rounded-2xl p-5 flex flex-col justify-center shadow-lg hover:border-green-400 transition-all">
@@ -191,10 +189,6 @@
                 <button id="kpi-filter-expired" onclick="setShopStatusFilter('expired')" class="text-left bg-[rgba(248,113,113,0.05)] border border-red-500/30 rounded-2xl p-5 flex flex-col justify-center shadow-lg hover:border-red-400 transition-all">
                     <span class="text-red-400 text-sm font-medium mb-1">입점권 만료/제재</span>
                     <span id="kpi-expired-shops" class="text-3xl font-bold text-white">0</span>
-                </button>
-                <button id="kpi-filter-pending" onclick="setShopStatusFilter('pending')" class="text-left bg-[rgba(250,204,21,0.05)] border border-yellow-500/30 rounded-2xl p-5 flex flex-col justify-center shadow-lg hover:border-yellow-400 transition-all">
-                    <span class="text-yellow-400 text-sm font-medium mb-1">승인 대기중</span>
-                    <span id="kpi-pending-shops" class="text-3xl font-bold text-white">0</span>
                 </button>
             </div>
 
@@ -207,9 +201,8 @@
                     <input type="text" id="shop-filter-search" oninput="filterShops()" placeholder="상호명, 연락처, 지역 검색..." class="w-full bg-[#06110D] border border-[#2A3731] rounded-xl pl-10 pr-4 py-2.5 text-white focus:outline-none focus:border-[var(--point-color)] transition-colors">
                 </div>
                 <select id="shop-filter-status" onchange="filterShops()" class="bg-[#06110D] border border-[#2A3731] rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-[var(--point-color)] min-w-[140px] transition-colors">
-                    <option value="all">모든 상태</option>
+                    <option value="all">운영 대상 전체</option>
                     <option value="active">운영 중 (승인)</option>
-                    <option value="pending">승인 대기</option>
                     <option value="expired">입점권 만료</option>
                 </select>
                 <select id="shop-filter-plan" onchange="filterShops()" class="bg-[#06110D] border border-[#2A3731] rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-[var(--point-color)] min-w-[140px] transition-colors">
@@ -1085,7 +1078,7 @@
     </div>
 
     <!-- Scripts -->
-    <script src="./assets/js/admin.js?v=20260415_16"></script>
+    <script src="./assets/js/admin.js?v=20260415_17"></script>
     <style>
         .tab-link.active { background-color: #11291D; color: white; border-left: 3px solid var(--point-color); }
         .schedule-white-icon::-webkit-calendar-picker-indicator {

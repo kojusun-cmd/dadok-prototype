@@ -2293,7 +2293,6 @@ function refreshShopCategoryButtons(activeStatus = 'all') {
         ['kpi-filter-total', 'all'],
         ['kpi-filter-active', 'active'],
         ['kpi-filter-expired', 'expired'],
-        ['kpi-filter-pending', 'pending'],
     ];
 
     targets.forEach(([id, status]) => {
@@ -2367,25 +2366,22 @@ function loadShops() {
 
 function updateShopKpis() {
     let active = 0,
-        expired = 0,
-        pending = 0;
+        expired = 0;
 
     windowShops.forEach((s) => {
         const opStatus = getShopOperationalStatus(s);
-        if (opStatus === 'pending') pending++;
-        else if (opStatus === 'active') active++;
+        if (opStatus === 'pending') return;
+        if (opStatus === 'active') active++;
         else expired++;
     });
 
     const elTotal = document.getElementById('kpi-total-shops');
     const elActive = document.getElementById('kpi-active-shops');
     const elExpired = document.getElementById('kpi-expired-shops');
-    const elPending = document.getElementById('kpi-pending-shops');
 
-    if (elTotal) elTotal.innerText = windowShops.length;
+    if (elTotal) elTotal.innerText = active + expired;
     if (elActive) elActive.innerText = active;
     if (elExpired) elExpired.innerText = expired;
-    if (elPending) elPending.innerText = pending;
 }
 
 function filterShops() {
