@@ -1,0 +1,12 @@
+{
+    "editor.formatOnSave":  false,
+    "workbench.editorAssociations":  {
+                                         "*.png":  "imagePreview.previewEditor",
+                                         "*.jpg":  "imagePreview.previewEditor",
+                                         "*.jpeg":  "imagePreview.previewEditor",
+                                         "*.gif":  "imagePreview.previewEditor",
+                                         "*.webp":  "imagePreview.previewEditor"
+                                     },
+    "powershell.integratedConsole.showOnStartup":  false,
+    "powershell.promptToUpdateHelp":  false
+}

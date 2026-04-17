@@ -1,0 +1,15 @@
+node_modules/
+.env
+.env.*
+.DS_Store
+Thumbs.db
+*.log
+.firebase/
+dist/
+build/
+
+# Cursor / local
+.agents/
+
+# 로컬 백업(용량·중복 방지)
+backups/
