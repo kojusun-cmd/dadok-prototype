@@ -563,6 +563,8 @@ const filterSheet = document.getElementById('filter-sheet');
             let unsubscribeChatThreadMessages = null;
             let unsubscribeChatList = null;
             let unsubscribePartnerChatBadge = null;
+            let unsubscribeChatHeaderLive = null;
+            let lastChatThreadMessages = [];
             let chatListRows = [];
 
             function escapeChatHtml(value = '') {
@@ -688,6 +690,13 @@ const filterSheet = document.getElementById('filter-sheet');
                 return 0;
             }
 
+            /** 채팅 UI에서는 GIF 썸네일 대신 동일 경로의 JPG를 사용(Storage에 함께 올린 정적 JPG 가정). */
+            function normalizePartnerThumbnailForChat(url = '') {
+                const s = String(url || '').trim();
+                if (!s) return '';
+                return s.replace(/\.gif(?=$|[?#])/i, '.jpg');
+            }
+
             function getThreadDisplayName(thread = {}, actorRole = '') {
                 const tid = String(thread.id || '');
                 if (actorRole === 'partner') {
@@ -706,6 +715,10 @@ const filterSheet = document.getElementById('filter-sheet');
                 const tid = String(thread.id || '');
                 const defaultAvatar =
                     'https://images.unsplash.com/photo-1544435253-f0ead49638fa?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&q=80';
+                const partnerImgForUser = (raw) => {
+                    const n = normalizePartnerThumbnailForChat(String(raw || '').trim());
+                    return n || defaultAvatar;
+                };
                 if (actorRole === 'partner') {
                     if (tid.startsWith('admin__p_')) {
                         return thread.userImage || defaultAvatar;
@@ -713,9 +726,89 @@ const filterSheet = document.getElementById('filter-sheet');
                     return thread.userImage || defaultAvatar;
                 }
                 if (tid.startsWith('admin__u_')) {
-                    return thread.partnerImage || defaultAvatar;
+                    return partnerImgForUser(thread.partnerImage);
                 }
-                return thread.partnerImage || defaultAvatar;
+                return partnerImgForUser(thread.partnerImage);
+            }
+
+            function applyChatSheetHeader(actorRole = 'user') {
+                const chatName = document.getElementById('chat-profile-name');
+                const headerImg = document.getElementById('chat-header-img');
+                const defaultAvatar = document.getElementById('chat-default-avatar');
+                const meta = activeChatThreadMeta || {};
+                const imageUrl = getThreadDisplayImage(meta, actorRole);
+                if (chatName) chatName.innerText = getThreadDisplayName(meta, actorRole);
+                if (headerImg) headerImg.style.backgroundImage = `url('${imageUrl}')`;
+                if (defaultAvatar) defaultAvatar.style.backgroundImage = `url('${imageUrl}')`;
+            }
+
+            function stopChatHeaderLiveSync() {
+                if (typeof unsubscribeChatHeaderLive === 'function') {
+                    unsubscribeChatHeaderLive();
+                    unsubscribeChatHeaderLive = null;
+                }
+            }
+
+            function startChatHeaderLiveSync(threadMeta, actorRole) {
+                stopChatHeaderLiveSync();
+                if (typeof firebase === 'undefined' || !threadMeta) return;
+                const tid = String(threadMeta.id || '');
+                const unsubs = [];
+
+                if (actorRole === 'user' && !tid.startsWith('admin__u_')) {
+                    const partnerDocId = String(threadMeta.participantPartnerDocId || '').trim();
+                    if (!partnerDocId) return;
+                    const ref = firebase.firestore().collection('partners').doc(partnerDocId);
+                    const unsub = ref.onSnapshot(
+                        (snap) => {
+                            if (!snap.exists) return;
+                            const d = snap.data() || {};
+                            const name = String(d.name || d.companyName || d.shopName || '').trim();
+                            const imgRaw = getPartnerThumbImage(d);
+                            activeChatThreadMeta = {
+                                ...activeChatThreadMeta,
+                                partnerName: name || activeChatThreadMeta?.partnerName,
+                                partnerImage: imgRaw ? normalizePartnerThumbnailForChat(imgRaw) : '',
+                            };
+                            applyChatSheetHeader(actorRole);
+                            if (lastChatThreadMessages.length) {
+                                renderRealtimeChatMessages(lastChatThreadMessages, actorRole);
+                            }
+                            updateChatCallButtonState(actorRole);
+                        },
+                        (e) => console.error('채팅 헤더(업체) 실시간 동기화 실패:', e),
+                    );
+                    unsubs.push(unsub);
+                } else if (actorRole === 'partner' && !tid.startsWith('admin__p_')) {
+                    const userDocId = String(threadMeta.participantUserDocId || '').trim();
+                    if (!userDocId) return;
+                    const ref = firebase.firestore().collection('users').doc(userDocId);
+                    const unsub = ref.onSnapshot(
+                        (snap) => {
+                            if (!snap.exists) return;
+                            const d = snap.data() || {};
+                            const name = String(d.displayName || d.name || d.userId || d.username || '').trim();
+                            const img = String(d.profileImageUrl || d.photoURL || d.avatarUrl || d.image || '').trim();
+                            activeChatThreadMeta = {
+                                ...activeChatThreadMeta,
+                                userName: name || activeChatThreadMeta?.userName,
+                                userImage: img || activeChatThreadMeta?.userImage,
+                            };
+                            applyChatSheetHeader(actorRole);
+                            if (lastChatThreadMessages.length) {
+                                renderRealtimeChatMessages(lastChatThreadMessages, actorRole);
+                            }
+                        },
+                        (e) => console.error('채팅 헤더(고객) 실시간 동기화 실패:', e),
+                    );
+                    unsubs.push(unsub);
+                } else {
+                    return;
+                }
+
+                unsubscribeChatHeaderLive = () => {
+                    unsubs.forEach((u) => u());
+                };
             }
 
             function renderPartnerChatBadgeFromRows(rows = []) {
@@ -1432,6 +1525,7 @@ const filterSheet = document.getElementById('filter-sheet');
             }
 
             function stopChatThreadMessagesListener() {
+                stopChatHeaderLiveSync();
                 if (typeof unsubscribeChatThreadMessages === 'function') {
                     unsubscribeChatThreadMessages();
                     unsubscribeChatThreadMessages = null;
@@ -1488,6 +1582,7 @@ const filterSheet = document.getElementById('filter-sheet');
                 const canonicalThreadId = String(threadMeta.id).trim();
                 activeChatThreadId = canonicalThreadId;
                 activeChatThreadMeta = { ...threadMeta, id: canonicalThreadId };
+                lastChatThreadMessages = [];
                 const actor = await getCurrentChatActor();
                 const defaultIntro = document.getElementById('chat-default-intro');
                 const defaultGreeting = document.getElementById('chat-default-greeting');
@@ -1496,13 +1591,7 @@ const filterSheet = document.getElementById('filter-sheet');
                 if (defaultGreeting) defaultGreeting.style.display = 'none';
                 if (quickTemplateBox) quickTemplateBox.style.display = 'none';
 
-                const chatName = document.getElementById('chat-profile-name');
-                if (chatName) chatName.innerText = getThreadDisplayName(threadMeta, actor.role);
-                const headerImg = document.getElementById('chat-header-img');
-                const defaultAvatar = document.getElementById('chat-default-avatar');
-                const imageUrl = getThreadDisplayImage(threadMeta, actor.role);
-                if (headerImg) headerImg.style.backgroundImage = `url('${imageUrl}')`;
-                if (defaultAvatar) defaultAvatar.style.backgroundImage = `url('${imageUrl}')`;
+                applyChatSheetHeader(actor.role);
 
                 stopChatThreadMessagesListener();
                 unsubscribeChatThreadMessages = firebase
@@ -1527,6 +1616,7 @@ const filterSheet = document.getElementById('filter-sheet');
                                           : 0;
                                 return ta - tb;
                             });
+                            lastChatThreadMessages = rows;
                             renderRealtimeChatMessages(rows, actor.role);
                         },
                         (err) => {
@@ -1537,6 +1627,8 @@ const filterSheet = document.getElementById('filter-sheet');
                             }
                         },
                     );
+
+                startChatHeaderLiveSync(activeChatThreadMeta, actor.role);
 
                 await markThreadAsRead(canonicalThreadId, actor.role);
                 updateChatCallButtonState(actor.role);
@@ -2415,6 +2507,8 @@ const filterSheet = document.getElementById('filter-sheet');
             }
 
             // -- 데이터 필터링 적용 매칭 로직 --
+            // 동일 대카테고리(지역·마사지·공간·연령) 안: 고객이 고른 소카테고리 중 하나라도 업체 값과 맞으면 그 축 통과(OR).
+            // 고객이 여러 대카테고리에 조건을 둔 경우: 각 축을 모두 통과한 업체만 노출(대카테고리 간 AND).
             function matchFilter(partner) {
                 if (activeFilters.region.length > 0) {
                     let passed = false;
@@ -3557,6 +3651,39 @@ const filterSheet = document.getElementById('filter-sheet');
             }
 
             // 로그인 스크린 열기/닫기 (App Page Transition)
+            const DADOK_USER_GENDER_STORAGE_KEY = 'dadok_user_gender';
+            /** 일반고객 로그인 후 헤더·마이페이지 원형 프로필 (성별에 따라) */
+            const DADOK_USER_AVATAR_CACHE_BUST = '2';
+            const DADOK_USER_AVATAR_MALE_URL =
+                './assets/images/dadok_user_male_character.png?v=' + DADOK_USER_AVATAR_CACHE_BUST;
+            const DADOK_USER_AVATAR_FEMALE_URL =
+                './assets/images/dadok_user_female_character.png?v=' + DADOK_USER_AVATAR_CACHE_BUST;
+
+            function getCharacterAvatarImageUrl(isMale) {
+                return isMale ? DADOK_USER_AVATAR_MALE_URL : DADOK_USER_AVATAR_FEMALE_URL;
+            }
+
+            function resolveStoredCustomerGenderKey() {
+                const ls = localStorage.getItem(DADOK_USER_GENDER_STORAGE_KEY);
+                const ss = sessionStorage.getItem(DADOK_USER_GENDER_STORAGE_KEY);
+                const raw = ls || ss || 'female';
+                if (raw === 'male' || raw === '남성') return 'male';
+                if (raw === 'female' || raw === '여성') return 'female';
+                return 'female';
+            }
+
+            function persistCustomerGenderKey(genderKey) {
+                if (genderKey !== 'male' && genderKey !== 'female') return;
+                const keepBox = document.getElementById('keep-login-checkbox');
+                const keepLogin = keepBox ? keepBox.checked : true;
+                if (keepLogin) {
+                    localStorage.setItem(DADOK_USER_GENDER_STORAGE_KEY, genderKey);
+                    sessionStorage.removeItem(DADOK_USER_GENDER_STORAGE_KEY);
+                } else {
+                    sessionStorage.setItem(DADOK_USER_GENDER_STORAGE_KEY, genderKey);
+                    localStorage.removeItem(DADOK_USER_GENDER_STORAGE_KEY);
+                }
+            }
 
             function resetUserLoginFormFields() {
                 const idInput = document.getElementById('login-id-input');
@@ -4007,6 +4134,12 @@ const filterSheet = document.getElementById('filter-sheet');
             }
 
             function completeSignup(name, id) {
+                const genderRadio = document.querySelector('input[name="signup-gender"]:checked');
+                const signupGenderKey = genderRadio && (genderRadio.value === 'male' || genderRadio.value === 'female')
+                    ? genderRadio.value
+                    : 'female';
+                localStorage.setItem(DADOK_USER_GENDER_STORAGE_KEY, signupGenderKey);
+
                 alert(name + '님, 다독 회원이 되신 것을 환영합니다!');
                 resetSignupForm();
                 closeSignupModal();
@@ -4020,7 +4153,7 @@ const filterSheet = document.getElementById('filter-sheet');
 
                 // 헤더 UI 상태 업데이트 (메인 화면)
                 if (typeof updateHeaderToLoggedInState === 'function') {
-                    updateHeaderToLoggedInState(id);
+                    updateHeaderToLoggedInState(id, signupGenderKey);
                 }
             }
 
@@ -5429,7 +5562,10 @@ const filterSheet = document.getElementById('filter-sheet');
                                 lastLoginAt: firebase.firestore.FieldValue.serverTimestamp()
                             });
 
-                            completeLoginProcess(idValue, userDoc.id);
+                            let resolvedGenderKey = '';
+                            if (userData.gender === '남성') resolvedGenderKey = 'male';
+                            else if (userData.gender === '여성') resolvedGenderKey = 'female';
+                            completeLoginProcess(idValue, userDoc.id, resolvedGenderKey);
                             return;
                         }
                     }
@@ -5443,7 +5579,7 @@ const filterSheet = document.getElementById('filter-sheet');
                 }
             }
 
-            function completeLoginProcess(username, userDocId = '') {
+            function completeLoginProcess(username, userDocId = '', genderKey = '') {
                 isLoggedIn = true;
                 const idInput = document.getElementById('login-id-input');
                 const passwordInput = document.getElementById('login-password-input');
@@ -5452,7 +5588,6 @@ const filterSheet = document.getElementById('filter-sheet');
 
                 closeLoginFormModal();
                 closeLoginModal();
-                updateHeaderToLoggedInState(username);
 
                 const keepLoginBox = document.getElementById('keep-login-checkbox');
                 const keepLogin = keepLoginBox ? keepLoginBox.checked : false;
@@ -5467,24 +5602,36 @@ const filterSheet = document.getElementById('filter-sheet');
                     if (userDocId) sessionStorage.setItem('dadok_loggedInUserDocId', userDocId);
                     else sessionStorage.removeItem('dadok_loggedInUserDocId');
                 }
+
+                if (genderKey === 'male' || genderKey === 'female') {
+                    persistCustomerGenderKey(genderKey);
+                }
+                updateHeaderToLoggedInState(username, genderKey);
             }
 
-            function updateHeaderToLoggedInState(name) {
-                const selectedGender = document.querySelector('input[name="signup-gender"]:checked');
-                const genderVal = selectedGender ? selectedGender.value : 'female';
-                const avatarFileName = genderVal === 'male' ? 'cute_asian_male_avatar.png' : 'cute_asian_female_avatar.png';
+            function updateHeaderToLoggedInState(name, explicitGenderKey) {
+                const key =
+                    explicitGenderKey === 'male' || explicitGenderKey === 'female'
+                        ? explicitGenderKey
+                        : resolveStoredCustomerGenderKey();
+                const isMale = key === 'male';
+                const avatarUrl = getCharacterAvatarImageUrl(isMale);
 
                 const headerProfileBtn = document.getElementById('header-profile-btn');
                 if (headerProfileBtn) {
                     headerProfileBtn.setAttribute('onclick', "openMyPageModal()");
                     headerProfileBtn.innerHTML = `
-                <div class="w-[36px] h-[36px] rounded-full bg-cover bg-center border-[1.5px] border-[var(--point-color)] shadow-sm overflow-hidden" style="background-image: url('./assets/${avatarFileName}');"></div>
+                <div class="w-[36px] h-[36px] rounded-full bg-cover bg-center border-[1.5px] border-[var(--point-color)] shadow-sm overflow-hidden" style="background-image: url('${avatarUrl}');"></div>
             `;
                 }
 
                 const myPageProfileImg = document.getElementById('mypage-profile-img');
+                const myPageFallback = document.getElementById('mypage-profile-fallback');
                 if (myPageProfileImg) {
-                    myPageProfileImg.style.backgroundImage = `url('./assets/${avatarFileName}')`;
+                    myPageProfileImg.style.backgroundImage = `url('${avatarUrl}')`;
+                }
+                if (myPageFallback) {
+                    myPageFallback.style.display = 'none';
                 }
 
                 const mypageName = document.getElementById('mypage-user-name');
@@ -5966,6 +6113,15 @@ const filterSheet = document.getElementById('filter-sheet');
 
                 closeMyPageModal();
 
+                const myPageProfileImg = document.getElementById('mypage-profile-img');
+                const myPageFallback = document.getElementById('mypage-profile-fallback');
+                if (myPageProfileImg) {
+                    myPageProfileImg.style.backgroundImage = '';
+                }
+                if (myPageFallback) {
+                    myPageFallback.style.display = 'flex';
+                }
+
                 // 로그인 상태 초기화
                 localStorage.removeItem('dadok_isLoggedIn');
                 localStorage.removeItem('dadok_username');
@@ -5973,6 +6129,8 @@ const filterSheet = document.getElementById('filter-sheet');
                 sessionStorage.removeItem('dadok_isLoggedIn');
                 sessionStorage.removeItem('dadok_username');
                 sessionStorage.removeItem('dadok_loggedInUserDocId');
+                localStorage.removeItem(DADOK_USER_GENDER_STORAGE_KEY);
+                sessionStorage.removeItem(DADOK_USER_GENDER_STORAGE_KEY);
             }
 
             function scrollMainAppToTop() {

@@ -312,6 +312,12 @@
             <div class="flex-1 flex flex-col items-center justify-center px-8 pb-32">
                 <!-- Logo Area -->
                 <div class="mb-14 flex flex-col items-center">
+                    <!-- 사진 미등록 시: 헤더와 동일한 골드 실루엣(원래 기본 프로필 모양) -->
+                    <div class="w-[120px] h-[120px] rounded-full border-2 border-[var(--point-color)]/70 shadow-[0_8px_28px_rgba(212,175,55,0.2)] bg-[#06110D] mb-6 flex items-center justify-center" aria-hidden="true">
+                        <svg class="w-[70px] h-[70px] text-[var(--point-color)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                        </svg>
+                    </div>
                     <h1 class="font-black drop-shadow-sm leading-none mb-2"
                         style="font-family: serif; font-size: 50px; background: linear-gradient(135deg, #F3E5AB 10%, #D4AF37 100%); background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
                         다독
@@ -550,6 +556,13 @@
                 <div class="w-full max-w-sm mx-auto flex flex-col gap-6 mt-4">
                     <!-- 안내 문구 -->
                     <div class="mb-2">
+                        <div class="flex justify-center mb-5">
+                            <div class="w-[112px] h-[112px] rounded-full border-2 border-[var(--point-color)]/70 shadow-[0_8px_24px_rgba(212,175,55,0.18)] bg-[#06110D] flex items-center justify-center" aria-hidden="true">
+                                <svg class="w-[64px] h-[64px] text-[var(--point-color)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                                </svg>
+                            </div>
+                        </div>
                         <h2 class="text-[26px] font-bold text-[var(--text-main)] leading-snug tracking-tight">프라이빗
                             라운지에<br>오신 것을 환영합니다.</h2>
                         <p class="text-[var(--text-sub)] text-sm tracking-wide mt-3 leading-relaxed">다독의 프리미엄 서비스를 온전히
@@ -2284,8 +2297,13 @@
                 <div class="px-7 pt-10 pb-8 flex flex-col items-center border-b border-[var(--border-color)]">
                     <div class="mb-5">
                         <div id="mypage-profile-img"
-                            class="w-[100px] h-[100px] rounded-full bg-cover bg-center border-[2px] border-[var(--point-color)] shadow-[0_0_20px_rgba(212,175,55,0.2)]"
-                            style="background-image: url('./assets/images/cute_asian_female_avatar.png');"></div>
+                            class="w-[100px] h-[100px] rounded-full bg-cover bg-center border-[2px] border-[var(--point-color)] shadow-[0_0_20px_rgba(212,175,55,0.2)] overflow-hidden relative bg-[#06110D]">
+                            <div id="mypage-profile-fallback" class="absolute inset-0 flex items-center justify-center text-[var(--point-color)]">
+                                <svg class="w-[56px] h-[56px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                                </svg>
+                            </div>
+                        </div>
                     </div>
                     <h2 id="mypage-user-name" class="text-2xl font-bold text-[var(--text-main)] tracking-wide">프라이빗 회원님
                     </h2>
