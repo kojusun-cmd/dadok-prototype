@@ -131,6 +131,8 @@ let usersAllRows = [];
 let usersFilteredRows = [];
 let usersCurrentPage = 1;
 let usersSelectedId = null;
+const USERS_KPI_REFRESH_MS = 60 * 1000;
+let usersKpiRefreshTimer = null;
 const SIDEBAR_BADGE_MAP = {
     users: 'users-badge',
     approvals: 'pending-badge',
@@ -664,7 +666,7 @@ function renderCallLogRows() {
             <tr class="hover:bg-white/5 transition-colors">
                 <td class="p-4 text-[#A7B2AE]">${formatAdminDateTime(d.createdAtRaw)}</td>
                 <td class="p-4 text-white">${escapeHtml(d.partnerName || '-')}</td>
-                <td class="p-4 font-mono text-[#A7B2AE]">${escapeHtml(maskPhoneNumber(d.phoneDigits || '-'))}</td>
+                <td class="p-4 font-mono text-[#A7B2AE]">${escapeHtml(d.phoneDigits || '-')}</td>
                 <td class="p-4 text-white">${escapeHtml(d.callerName || d.callerUserId || '-')}</td>
                 <td class="p-4 text-[#A7B2AE]">${escapeHtml(normalizeCallRoleLabel(d.callerRole))}</td>
                 <td class="p-4">
@@ -692,14 +694,14 @@ function exportCallLogsCsv() {
         alert('내보낼 로그가 없습니다.');
         return;
     }
-    const header = ['시간', '업체', '전화번호(마스킹)', '발신자', '역할', '영업시간 여부'];
+    const header = ['시간', '업체', '전화번호', '발신자', '역할', '영업시간 여부'];
     const lines = [header.map(toCsvCell).join(',')];
     rows.forEach((row) => {
         lines.push(
             [
                 formatAdminDateTime(row.createdAtRaw),
                 row.partnerName || '-',
-                maskPhoneNumber(row.phoneDigits || '-'),
+                row.phoneDigits || '-',
                 row.callerName || row.callerUserId || '-',
                 normalizeCallRoleLabel(row.callerRole),
                 row.isBusinessOpen ? '영업중' : '영업외',
@@ -1073,6 +1075,7 @@ function resetMessageCenterUiState() {
         const el = document.getElementById(id);
         if (el) el.value = '';
     });
+    resetMessageAttachmentInput();
     const selectDefaults = [
         ['msg-template-select', ''],
         ['msg-link-type', 'none'],
@@ -1541,6 +1544,7 @@ async function markAdminThreadRead(threadId) {
 
 function loadAdminChatConsole() {
     cleanupAdminChatConsole();
+    backfillAdminUserChatThreadsMetadata().catch(() => {});
     const listEl = document.getElementById('admin-chat-thread-list');
     const msgEl = document.getElementById('admin-chat-messages');
     const headerEl = document.getElementById('admin-chat-header-title');
@@ -1680,6 +1684,16 @@ window.sendAdminConsoleMessage = async function () {
     if (!text || !id) return;
     const isP = id.startsWith('admin__p_');
     const unreadField = isP ? 'unreadForPartner' : 'unreadForUser';
+    const targetDocId = isP ? id.replace(/^admin__p_/, '') : id.replace(/^admin__u_/, '');
+    const threadMetaPatch = isP
+        ? {
+              isAdminChannel: true,
+              participantPartnerDocId: targetDocId,
+          }
+        : {
+              isAdminChannel: true,
+              participantUserDocId: targetDocId,
+          };
     try {
         await db.collection('chat_messages').add({
             threadId: id,
@@ -1695,6 +1709,7 @@ window.sendAdminConsoleMessage = async function () {
             .doc(id)
             .set(
                 {
+                    ...threadMetaPatch,
                     lastMessage: text,
                     lastSenderRole: 'admin',
                     lastAt: firebase.firestore.FieldValue.serverTimestamp(),
@@ -1889,7 +1904,8 @@ function recomputeSidebarUnreadFromCache() {
         sidebarBadgeUnreadCounts.shops = countUnreadDocsByTimestamp(
             sidebarSnapshotCache.partners,
             'shops',
-            ['updatedAt', 'createdAt'],
+            ['approvedAt'],
+            (data) => String(data?.status || '').toLowerCase() !== 'pending',
         );
         sidebarBadgeUnreadCounts.approvals = countUnreadDocsByTimestamp(
             sidebarSnapshotCache.partners,
@@ -1977,7 +1993,7 @@ function renderSidebarCategoryBadge(key) {
     const showUnread = unreadCount > 0;
 
     // 채팅 운영·회원 관리: 새로 갱신된 건수만 빨간 배지로 표시, 없으면 숨김
-    if (key === 'admin-chat' || key === 'users') {
+    if (key === 'admin-chat' || key === 'users' || key === 'shops') {
         if (!sidebarBadgeReadsLoaded || unreadCount <= 0) {
             badge.classList.add('hidden');
             return;
@@ -2251,6 +2267,9 @@ async function switchTab(tabId) {
     if (tabId !== 'messages') {
         resetMessageCenterUiState();
     }
+    if (tabId !== 'users') {
+        stopUsersKpiAutoRefresh();
+    }
 
     document.querySelectorAll('.tab-content').forEach((el) => el.classList.add('hidden'));
     document.querySelectorAll('.tab-link').forEach((el) => el.classList.remove('active'));
@@ -2352,7 +2371,12 @@ function closeModal(modalId) {
     if (overlay) overlay.classList.add('hidden');
 
     if (modalId === 'modal-shop') {
+        markShopChangesReviewed(shopModalCurrentPartnerId, shopModalLivePartnerData);
+        shopModalCurrentPartnerId = '';
         clearShopModalRealtimeListeners();
+        if (Array.isArray(shopFilteredRows) && shopFilteredRows.length > 0) {
+            renderShopCards(shopFilteredRows);
+        }
     }
 
     const targetModal = document.getElementById(modalId);
@@ -2365,6 +2389,8 @@ let messageCenterPartners = [];
 let unsubscribeAdminMessages = null;
 let messageSchedulerTimer = null;
 let isProcessingScheduledMessages = false;
+let adminUserThreadBackfillDone = false;
+let adminUserThreadBackfillPromise = null;
 
 const MESSAGE_TEMPLATES = {
     user_security_notice: {
@@ -2473,6 +2499,199 @@ function getLinkTypeLabel(linkType = 'none') {
 function getDeliveryModeLabel(mode = 'notice') {
     if (mode === 'chat') return '문의 채팅만';
     return '공지/안내함+채팅';
+}
+
+async function backfillAdminUserChatThreadsMetadata() {
+    if (adminUserThreadBackfillDone) {
+        return { scanned: 0, updated: 0, skipped: true };
+    }
+    if (adminUserThreadBackfillPromise) return adminUserThreadBackfillPromise;
+
+    adminUserThreadBackfillPromise = (async () => {
+        const FieldPath = firebase.firestore.FieldPath;
+        const limitSize = 200;
+        let cursorDoc = null;
+        let scanned = 0;
+        let updated = 0;
+
+        while (true) {
+            let query = db
+                .collection('chat_threads')
+                .orderBy(FieldPath.documentId())
+                .startAt('admin__u_')
+                .endAt('admin__u_\uf8ff')
+                .limit(limitSize);
+            if (cursorDoc) query = query.startAfter(cursorDoc);
+
+            const snap = await query.get();
+            if (snap.empty) break;
+            cursorDoc = snap.docs[snap.docs.length - 1];
+            const batch = db.batch();
+            let changedInBatch = 0;
+
+            snap.docs.forEach((doc) => {
+                scanned += 1;
+                const threadId = String(doc.id || '');
+                const data = doc.data() || {};
+                const expectedUserDocId = threadId.replace(/^admin__u_/, '');
+                if (!expectedUserDocId || expectedUserDocId === threadId) return;
+
+                const patch = {};
+                if (String(data.participantUserDocId || '').trim() !== expectedUserDocId) {
+                    patch.participantUserDocId = expectedUserDocId;
+                }
+                if (String(data.id || '').trim() !== threadId) {
+                    patch.id = threadId;
+                }
+                if (Object.keys(patch).length === 0) return;
+
+                batch.set(doc.ref, patch, { merge: true });
+                changedInBatch += 1;
+            });
+
+            if (changedInBatch > 0) {
+                await batch.commit();
+                updated += changedInBatch;
+            }
+            if (snap.size < limitSize) break;
+        }
+
+        adminUserThreadBackfillDone = true;
+        if (updated > 0) {
+            console.log(`[admin chat backfill] scanned=${scanned}, updated=${updated}`);
+        }
+        return { scanned, updated, skipped: false };
+    })()
+        .catch((err) => {
+            console.error('관리자 사용자 채팅 스레드 백필 실패:', err);
+            throw err;
+        })
+        .finally(() => {
+            adminUserThreadBackfillPromise = null;
+        });
+
+    return adminUserThreadBackfillPromise;
+}
+
+const MESSAGE_ATTACHMENT_MAX_COUNT = 3;
+const MESSAGE_ATTACHMENT_MAX_SIZE = 10 * 1024 * 1024;
+const MESSAGE_ATTACHMENT_ALLOWED_EXT = [
+    'jpg',
+    'jpeg',
+    'png',
+    'gif',
+    'webp',
+    'pdf',
+    'txt',
+    'doc',
+    'docx',
+    'xls',
+    'xlsx',
+    'ppt',
+    'pptx',
+    'zip',
+    'rar',
+];
+
+function formatMessageAttachmentSize(bytes = 0) {
+    const size = Number(bytes || 0);
+    if (!Number.isFinite(size) || size <= 0) return '0B';
+    if (size < 1024) return `${size}B`;
+    if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)}KB`;
+    return `${(size / (1024 * 1024)).toFixed(1)}MB`;
+}
+
+function getMessageAttachmentExt(fileName = '') {
+    const raw = String(fileName || '').trim().toLowerCase();
+    const dot = raw.lastIndexOf('.');
+    if (dot <= -1 || dot >= raw.length - 1) return '';
+    return raw.slice(dot + 1);
+}
+
+function validateMessageAttachmentFiles(files = []) {
+    if (!files.length) return { ok: true };
+    if (files.length > MESSAGE_ATTACHMENT_MAX_COUNT) {
+        return { ok: false, message: `첨부파일은 최대 ${MESSAGE_ATTACHMENT_MAX_COUNT}개까지 가능합니다.` };
+    }
+    for (const file of files) {
+        if (!file) continue;
+        if (Number(file.size || 0) > MESSAGE_ATTACHMENT_MAX_SIZE) {
+            return {
+                ok: false,
+                message: `파일당 최대 용량은 10MB입니다. (${file.name})`,
+            };
+        }
+        const ext = getMessageAttachmentExt(file.name);
+        if (!ext || !MESSAGE_ATTACHMENT_ALLOWED_EXT.includes(ext)) {
+            return {
+                ok: false,
+                message: `지원하지 않는 첨부파일 형식입니다. (${file.name})`,
+            };
+        }
+    }
+    return { ok: true };
+}
+
+function renderMessageAttachmentPreview(files = []) {
+    const preview = document.getElementById('msg-attachments-preview');
+    if (!preview) return;
+    if (!files.length) {
+        preview.innerHTML = '선택된 첨부파일 없음';
+        return;
+    }
+    preview.innerHTML = files
+        .map((file) => {
+            const name = escapeHtml(file?.name || '파일');
+            const size = formatMessageAttachmentSize(file?.size || 0);
+            return `<div class="text-[#C8D1CD]">${name} <span class="text-[#7F8E88]">(${size})</span></div>`;
+        })
+        .join('');
+}
+
+function resetMessageAttachmentInput() {
+    const input = document.getElementById('msg-attachments-input');
+    if (input) input.value = '';
+    renderMessageAttachmentPreview([]);
+}
+
+window.handleMessageAttachmentInput = function (inputEl) {
+    const files = Array.from(inputEl?.files || []);
+    const validation = validateMessageAttachmentFiles(files);
+    if (!validation.ok) {
+        alert(validation.message);
+        if (inputEl) inputEl.value = '';
+        renderMessageAttachmentPreview([]);
+        return;
+    }
+    renderMessageAttachmentPreview(files);
+};
+
+async function uploadMessageAttachments(messageId, files = []) {
+    if (!files.length) return [];
+    if (typeof firebase === 'undefined' || typeof firebase.storage !== 'function') {
+        throw new Error('파일 저장소 연결이 비활성화되어 첨부파일 업로드를 진행할 수 없습니다.');
+    }
+    const storage = firebase.storage();
+    const uploaded = [];
+    for (let i = 0; i < files.length; i += 1) {
+        const file = files[i];
+        if (!file) continue;
+        const safeName = String(file.name || `attachment-${i + 1}`)
+            .replace(/[^\w.\-]+/g, '_')
+            .slice(0, 120);
+        const filePath = `admin_message_attachments/${messageId}/${Date.now()}_${i + 1}_${safeName}`;
+        const ref = storage.ref().child(filePath);
+        await ref.put(file);
+        const downloadUrl = await ref.getDownloadURL();
+        uploaded.push({
+            name: file.name || safeName,
+            url: downloadUrl,
+            path: filePath,
+            size: Number(file.size || 0),
+            contentType: String(file.type || ''),
+        });
+    }
+    return uploaded;
 }
 
 function getAudienceKeyByTargetType(targetType = '') {
@@ -2649,6 +2868,8 @@ async function fanoutNotificationsFromMessage(messageId, payload, recipients) {
                     linkLabel: payload.linkLabel || getLinkTypeLabel(payload.linkType || 'none'),
                     title: payload.title,
                     body: payload.body,
+                    attachments: Array.isArray(payload.attachments) ? payload.attachments : [],
+                    attachmentCount: Number(payload.attachmentCount || 0),
                     isRead: false,
                     createdAt: firebase.firestore.FieldValue.serverTimestamp()
                 });
@@ -2705,6 +2926,8 @@ async function fanoutNotificationsFromMessage(messageId, payload, recipients) {
                 text: payload.body,
                 category: payload.category || 'notice',
                 messageId,
+                attachments: Array.isArray(payload.attachments) ? payload.attachments : [],
+                attachmentCount: Number(payload.attachmentCount || 0),
                 createdAt: firebase.firestore.FieldValue.serverTimestamp(),
             });
         });
@@ -2784,6 +3007,7 @@ async function processDueScheduledMessages() {
 }
 
 async function loadMessageCenter() {
+    backfillAdminUserChatThreadsMetadata().catch(() => {});
     await Promise.all([loadMessageCenterRecipients(), loadAdminMessageHistory()]);
     refreshMessageRecipientOptions();
     refreshMessageTemplateOptions();
@@ -2897,6 +3121,8 @@ window.sendAdminMessage = async function () {
     const deliveryMode = document.getElementById('msg-delivery-mode')?.value || 'notice';
     const linkType = document.getElementById('msg-link-type')?.value || 'none';
     const sendBtn = document.getElementById('msg-send-btn');
+    const attachmentInput = document.getElementById('msg-attachments-input');
+    const attachmentFiles = Array.from(attachmentInput?.files || []);
     const scheduleRaw = document.getElementById('msg-schedule-at')?.value || '';
     const parsedSchedule = parseScheduleDateTimeLocal(scheduleRaw);
     const scheduledDate = parsedSchedule && parsedSchedule.getTime() > Date.now() ? parsedSchedule : null;
@@ -2908,6 +3134,12 @@ window.sendAdminMessage = async function () {
 
     if ((targetType === 'user_single' || targetType === 'partner_single') && !recipientId) {
         alert('수신자를 선택해주세요.');
+        return;
+    }
+
+    const attachmentValidation = validateMessageAttachmentFiles(attachmentFiles);
+    if (!attachmentValidation.ok) {
+        alert(attachmentValidation.message);
         return;
     }
 
@@ -2936,6 +3168,8 @@ window.sendAdminMessage = async function () {
             linkLabel: getLinkTypeLabel(linkType),
             title,
             body,
+            attachments: [],
+            attachmentCount: 0,
             senderEmail: auth.currentUser?.email || 'admin',
             recipientCount: recipients.length,
             status: scheduledDate ? 'scheduled' : 'draft',
@@ -2947,10 +3181,24 @@ window.sendAdminMessage = async function () {
         }
 
         const messageRef = await db.collection('admin_messages').add(payload);
+        let uploadedAttachments = [];
+        if (attachmentFiles.length > 0) {
+            uploadedAttachments = await uploadMessageAttachments(messageRef.id, attachmentFiles);
+            await messageRef.update({
+                attachments: uploadedAttachments,
+                attachmentCount: uploadedAttachments.length,
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+            });
+        }
+        const payloadWithAttachments = {
+            ...payload,
+            attachments: uploadedAttachments,
+            attachmentCount: uploadedAttachments.length,
+        };
         if (scheduledDate) {
             alert(`예약 발송이 등록되었습니다.\n예정 시각: ${formatMessageDate(scheduledDate)}`);
         } else {
-            const result = await dispatchAdminMessage(messageRef, payload);
+            const result = await dispatchAdminMessage(messageRef, payloadWithAttachments);
             if (!result.ok) {
                 alert('메세지 발송에 실패했습니다. 수신자 목록을 확인해주세요.');
                 return;
@@ -2966,6 +3214,7 @@ window.sendAdminMessage = async function () {
         if (templateEl) templateEl.value = '';
         if (linkEl) linkEl.value = 'none';
         if (deliveryEl) deliveryEl.value = 'notice';
+        resetMessageAttachmentInput();
         window.clearMessageSchedule();
         loadAdminMessageHistory();
     } catch (err) {
@@ -3007,6 +3256,15 @@ async function loadAdminMessageHistory() {
                     : data.status === 'failed'
                         ? '실패'
                         : '발송완료';
+                const attachments = Array.isArray(data.attachments) ? data.attachments : [];
+                const attachmentsHtml = attachments.length
+                    ? `<div class="mt-2 flex flex-wrap gap-1.5">${attachments
+                          .map(
+                              (att, idx) =>
+                                  `<a href="${escapeHtml(att?.url || '#')}" target="_blank" rel="noopener" class="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-[#2A3731] text-[10px] text-[#C8D1CD] hover:border-[var(--point-color)] hover:text-[var(--point-color)] transition-colors">${escapeHtml(att?.name || `첨부파일 ${idx + 1}`)}</a>`,
+                          )
+                          .join('')}</div>`
+                    : '';
                 html += `
                     <div class="rounded-xl border border-[#2A3731] bg-[#06110D] p-4">
                         <div class="flex items-start justify-between gap-3">
@@ -3022,6 +3280,7 @@ async function loadAdminMessageHistory() {
                             ${data.failReason ? `<span class="text-[10px] text-red-300 ml-2">${escapeHtml(data.failReason)}</span>` : ''}
                         </div>
                         <p class="text-[13px] text-white/90 mt-2 leading-relaxed whitespace-pre-wrap">${escapeHtml(data.body || '')}</p>
+                        ${attachmentsHtml}
                     </div>
                 `;
             });
@@ -3083,18 +3342,13 @@ window.addEventListener('DOMContentLoaded', () => {
         updateCallLogSubjectSelectedLabel();
         renderChatLogSubjectList();
         updateChatLogSubjectSelectedLabel();
-        let operationalTargetCount = 0;
-        snap.forEach((doc) => {
-            const status = String(doc.data()?.status || '').toLowerCase();
-            if (status !== 'pending') operationalTargetCount++;
-        });
         const shopUnread = countUnreadDocsByTimestamp(
             snap,
             'shops',
-            ['updatedAt', 'createdAt', 'ticketExpiryTimestamp'],
+            ['approvedAt'],
             (data) => String(data?.status || '').toLowerCase() !== 'pending',
         );
-        setSidebarCategoryCount('shops', operationalTargetCount, shopUnread);
+        setSidebarCategoryCount('shops', 0, shopUnread);
 
         let pendingCount = 0;
         snap.forEach((doc) => {
@@ -3624,7 +3878,13 @@ function buildUserRow(doc) {
         name: data.name || '알수없음',
         gender: data.gender || '-',
         phone: data.phone || '-',
-        phoneMasked: maskPhoneNumber(data.phone || '-'),
+        phoneMasked: data.phone || '-',
+        profileImageUrl:
+            data.profileImageUrl ||
+            data.photoURL ||
+            data.avatarUrl ||
+            data.image ||
+            '',
         createdAtRaw: data.createdAt || null,
         createdAtMs,
         lastLoginAtRaw: data.lastLoginAt || null,
@@ -3637,6 +3897,7 @@ function buildUserRow(doc) {
 
 function updateUsersKpis(rows = []) {
     const total = rows.length;
+    const now = Date.now();
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
     const todayMs = todayStart.getTime();
@@ -3645,7 +3906,8 @@ function updateUsersKpis(rows = []) {
     let sanctioned = 0;
     rows.forEach((row) => {
         if (row.createdAtMs >= todayMs) today++;
-        if (row.dormant) dormant++;
+        const isDormant = row.status === 'active' && row.lastLoginMs > 0 && now - row.lastLoginMs > 30 * 24 * 60 * 60 * 1000;
+        if (isDormant) dormant++;
         if (row.status === 'sanctioned') sanctioned++;
     });
     const mapping = [
@@ -3658,6 +3920,21 @@ function updateUsersKpis(rows = []) {
         const el = document.getElementById(id);
         if (el) el.textContent = String(value);
     });
+}
+
+function stopUsersKpiAutoRefresh() {
+    if (usersKpiRefreshTimer) {
+        clearInterval(usersKpiRefreshTimer);
+        usersKpiRefreshTimer = null;
+    }
+}
+
+function startUsersKpiAutoRefresh() {
+    stopUsersKpiAutoRefresh();
+    updateUsersKpis(usersAllRows);
+    usersKpiRefreshTimer = setInterval(() => {
+        updateUsersKpis(usersAllRows);
+    }, USERS_KPI_REFRESH_MS);
 }
 
 function readUsersFilterInputs() {
@@ -3795,10 +4072,21 @@ function renderUserDetailPanel(userRow) {
               cls: 'bg-yellow-900/40 text-yellow-300 border border-yellow-700/50',
           }
         : getUserStatusMeta(userRow.status);
+    const profileImageUrl = String(userRow.profileImageUrl || '').trim();
+    const profileImageHtml = profileImageUrl
+        ? `<img src="${escapeHtml(profileImageUrl)}" alt="user profile" class="w-full h-full object-cover">`
+        : `<svg class="w-10 h-10 text-[var(--point-color)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+            </svg>`;
     panel.innerHTML = `
         <div class="space-y-3">
-            <div class="flex items-center justify-between">
-                <div class="text-white font-bold text-base">${escapeHtml(userRow.name)}</div>
+            <div class="flex items-center justify-between gap-3">
+                <div class="flex items-center gap-3 min-w-0">
+                    <div class="w-14 h-14 rounded-full overflow-hidden border border-[var(--point-color)]/50 bg-[#06110D] flex items-center justify-center shrink-0">
+                        ${profileImageHtml}
+                    </div>
+                    <div class="text-white font-bold text-base truncate">${escapeHtml(userRow.name)}</div>
+                </div>
                 <span class="px-2 py-1 rounded text-xs ${statusMeta.cls}">${statusMeta.label}</span>
             </div>
             <div class="text-xs text-[#A7B2AE]">아이디: <span class="text-white font-mono">${escapeHtml(userRow.userId)}</span></div>
@@ -3903,6 +4191,7 @@ function loadUsers() {
     const tbody = document.getElementById('user-table-body');
     if (!tbody) return;
     initializeUsersControls();
+    startUsersKpiAutoRefresh();
     if (usersUnsubscribe) {
         usersUnsubscribe();
         usersUnsubscribe = null;
@@ -4153,6 +4442,7 @@ function activatePartner(id) {
         .doc(id)
         .update({
             status: 'active',
+            approvedAt: firebase.firestore.FieldValue.serverTimestamp(),
             updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
         })
         .then(() => {
@@ -4237,7 +4527,8 @@ function selectApprovalReview(id) {
             document.getElementById('approval-userid').textContent = data.userId || '-';
             document.getElementById('approval-name').textContent = data.name || '-';
             document.getElementById('approval-owner').textContent = data.ownerName || '-';
-            document.getElementById('approval-phone').textContent = data.phone || '-';
+            document.getElementById('approval-phone').textContent =
+                data.phoneNumber || data.mobile || data.mobilePhone || data.contact || data.phone || '-';
             document.getElementById('approval-biz-type').textContent = data.bizType || '-';
             document.getElementById('approval-biz-no').textContent = data.bizNo || '-';
 
@@ -4254,37 +4545,6 @@ function selectApprovalReview(id) {
                 if (bizImgFail) bizImgFail.classList.remove('hidden');
             }
 
-            document.getElementById('approval-tags').textContent =
-                (data.categories || []).join(', ') || '-';
-
-            const imgPreview = document.getElementById('approval-image-preview');
-            const imgText = document.getElementById('approval-image-text');
-            const imageUrl = data.imageUrl || data.image;
-            if (imageUrl) {
-                imgPreview.src = imageUrl;
-                imgPreview.classList.remove('hidden');
-                if (imgText) imgText.textContent = imageUrl;
-            } else {
-                imgPreview.classList.add('hidden');
-                if (imgText) imgText.textContent = '이미지 없음';
-            }
-
-            document.getElementById('approval-catchphrase').textContent = data.catchphrase || '-';
-            document.getElementById('approval-address').textContent =
-                data.address || data.location || '-';
-            document.getElementById('approval-description').textContent =
-                data.description || data.desc || '-';
-            document.getElementById('approval-hours').textContent =
-                data.hours || data.businessHours || data.operatingHours || '-';
-            document.getElementById('approval-min-price').textContent =
-                data.minPrice || data.price || '-';
-
-            document.getElementById('approval-cat-massage').textContent =
-                data.catMassage || data.massage || '-';
-            document.getElementById('approval-cat-place').textContent =
-                data.catPlace || data.place || '-';
-            document.getElementById('approval-cat-age').textContent =
-                data.catAge || data.age || '-';
         })
         .catch((err) => {
             alert('정보를 불러오는 중 오류가 발생했습니다: ' + err.message);
@@ -4375,6 +4635,7 @@ let shopModalLivePartnerData = null;
 let shopModalLiveReqRows = [];
 let shopModalLiveLogRows = [];
 let shopModalLivePenaltyRows = [];
+let shopModalCurrentPartnerId = '';
 let shopModalSubscriptionExpanded = false;
 const SHOP_SUBSCRIPTION_HISTORY_COLLAPSED = 8;
 
@@ -4392,6 +4653,210 @@ function getDefaultShopFilterState() {
 
 let shopFilterDraft = getDefaultShopFilterState();
 let shopFilterApplied = getDefaultShopFilterState();
+let shopChangeBaselineMap = {};
+let shopChangeBaselineStorageKey = '';
+let shopChangeBaselineDirty = false;
+
+const SHOP_CHANGE_TRACKED_FIELDS = [
+    'basic_name',
+    'basic_owner',
+    'basic_mobile',
+    'basic_contact',
+    'basic_biz_type',
+    'basic_biz_no',
+    'ops_region',
+    'ops_massage',
+    'ops_place',
+    'ops_age',
+    'ops_call_enabled',
+    'ops_call_start',
+    'ops_call_end',
+    'ops_address',
+    'ops_description',
+    'menus_items',
+];
+
+const SHOP_CHANGE_FIELD_SECTION = {
+    basic_name: 'basic',
+    basic_owner: 'basic',
+    basic_mobile: 'basic',
+    basic_contact: 'basic',
+    basic_biz_type: 'basic',
+    basic_biz_no: 'basic',
+    ops_region: 'ops',
+    ops_massage: 'ops',
+    ops_place: 'ops',
+    ops_age: 'ops',
+    ops_call_enabled: 'ops',
+    ops_call_start: 'ops',
+    ops_call_end: 'ops',
+    ops_address: 'ops',
+    ops_description: 'ops',
+    menus_items: 'menus',
+};
+
+function getShopChangeBaselineStorageKey() {
+    const uid = auth?.currentUser?.uid || 'anonymous';
+    return `dadok_admin_shop_change_baseline_${uid}`;
+}
+
+function ensureShopChangeBaselineLoaded() {
+    const nextKey = getShopChangeBaselineStorageKey();
+    if (shopChangeBaselineStorageKey === nextKey) return;
+    shopChangeBaselineStorageKey = nextKey;
+    shopChangeBaselineDirty = false;
+    try {
+        const raw = localStorage.getItem(nextKey);
+        const parsed = raw ? JSON.parse(raw) : {};
+        shopChangeBaselineMap = parsed && typeof parsed === 'object' ? parsed : {};
+    } catch (err) {
+        console.warn('샵 변경 기준선 로드 실패:', err);
+        shopChangeBaselineMap = {};
+    }
+}
+
+function persistShopChangeBaselineIfDirty() {
+    if (!shopChangeBaselineDirty) return;
+    ensureShopChangeBaselineLoaded();
+    try {
+        localStorage.setItem(shopChangeBaselineStorageKey, JSON.stringify(shopChangeBaselineMap));
+        shopChangeBaselineDirty = false;
+    } catch (err) {
+        console.warn('샵 변경 기준선 저장 실패:', err);
+    }
+}
+
+function normalizeShopComparableText(value = '') {
+    return String(value == null ? '' : value).replace(/\s+/g, ' ').trim();
+}
+
+function normalizeShopComparableList(value = '') {
+    const list = String(value == null ? '' : value)
+        .split(/[\n,]/)
+        .map((item) => normalizeShopComparableText(item))
+        .filter(Boolean);
+    return Array.from(new Set(list)).sort((a, b) => a.localeCompare(b, 'ko')).join('|');
+}
+
+function normalizeShopComparableRegions(data = {}) {
+    if (Array.isArray(data.regionList) && data.regionList.length > 0) {
+        const list = data.regionList
+            .map((item) => normalizeShopComparableText(item))
+            .filter(Boolean);
+        return Array.from(new Set(list)).sort((a, b) => a.localeCompare(b, 'ko')).join('|');
+    }
+    return normalizeShopComparableList(data.region || '');
+}
+
+function normalizeShopComparableMenus(rawMenus) {
+    if (!Array.isArray(rawMenus)) return '';
+    const rows = rawMenus
+        .map((menu) => {
+            const m = menu && typeof menu === 'object' ? menu : {};
+            const name = normalizeShopComparableText(m.name || '');
+            const price = String(m.price == null ? '' : m.price).replace(/\D/g, '');
+            const theme = normalizeShopComparableText(m.theme || '');
+            const desc = normalizeShopComparableText(m.desc || '');
+            const composed = [name, price, theme, desc].join('||');
+            return composed === '||||||' ? '' : composed;
+        })
+        .filter(Boolean)
+        .sort((a, b) => a.localeCompare(b, 'ko'));
+    return rows.join('@@');
+}
+
+function buildShopComparableSnapshot(data = {}) {
+    return {
+        basic_name: normalizeShopComparableText(data.name || data.company || ''),
+        basic_owner: normalizeShopComparableText(data.ownerName || data.ceoName || ''),
+        basic_mobile: normalizeShopComparableText(
+            data.phoneNumber || data.mobile || data.mobilePhone || data.contact || data.phone || '',
+        ),
+        basic_contact: normalizeShopComparableText(
+            data.phoneNumber ||
+                data.contact ||
+                data.officePhone ||
+                data.mobile ||
+                data.mobilePhone ||
+                data.phone ||
+                '',
+        ),
+        basic_biz_type: normalizeShopComparableText(data.businessType || data.bizType || ''),
+        basic_biz_no: normalizeShopComparableText(data.businessNumber || data.bizNo || ''),
+        ops_region: normalizeShopComparableRegions(data),
+        ops_massage: normalizeShopComparableList(data.massage || ''),
+        ops_place: normalizeShopComparableList(data.place || ''),
+        ops_age: normalizeShopComparableList(data.age || ''),
+        ops_call_enabled: String(typeof data.callEnabled === 'boolean' ? data.callEnabled : true),
+        ops_call_start: normalizeShopComparableText(data.callAvailableStart || ''),
+        ops_call_end: normalizeShopComparableText(data.callAvailableEnd || ''),
+        ops_address: normalizeShopComparableText(data.address || data.location || ''),
+        ops_description: normalizeShopComparableText(
+            data.catchphrase != null && String(data.catchphrase).trim() !== ''
+                ? data.catchphrase
+                : data.description || data.desc || '',
+        ),
+        menus_items: normalizeShopComparableMenus(data.menus),
+    };
+}
+
+function getShopChangeSummary(partnerId = '', data = {}, options = {}) {
+    const { initializeIfMissing = true } = options;
+    ensureShopChangeBaselineLoaded();
+    const pid = String(partnerId || '').trim();
+    if (!pid) return { total: 0, sectionCounts: { basic: 0, ops: 0, menus: 0 } };
+    const current = buildShopComparableSnapshot(data);
+    const baseline = shopChangeBaselineMap[pid];
+    if (!baseline || typeof baseline !== 'object') {
+        if (initializeIfMissing) {
+            shopChangeBaselineMap[pid] = current;
+            shopChangeBaselineDirty = true;
+        }
+        return { total: 0, sectionCounts: { basic: 0, ops: 0, menus: 0 } };
+    }
+
+    const sectionCounts = { basic: 0, ops: 0, menus: 0 };
+    let total = 0;
+    SHOP_CHANGE_TRACKED_FIELDS.forEach((field) => {
+        const prev = normalizeShopComparableText(baseline[field] || '');
+        const next = normalizeShopComparableText(current[field] || '');
+        if (prev === next) return;
+        total++;
+        const section = SHOP_CHANGE_FIELD_SECTION[field] || 'ops';
+        sectionCounts[section] = (sectionCounts[section] || 0) + 1;
+    });
+    return { total, sectionCounts };
+}
+
+function renderShopModalChangeBadges(summary) {
+    const badgeMap = {
+        basic: document.getElementById('shop-change-basic-badge'),
+        ops: document.getElementById('shop-change-ops-badge'),
+        menus: document.getElementById('shop-change-menus-badge'),
+    };
+    ['basic', 'ops', 'menus'].forEach((section) => {
+        const el = badgeMap[section];
+        if (!el) return;
+        const n = Number(summary?.sectionCounts?.[section] || 0);
+        if (n > 0) {
+            el.textContent = `N ${n}`;
+            el.classList.remove('hidden');
+            return;
+        }
+        el.textContent = 'N';
+        el.classList.add('hidden');
+    });
+}
+
+function markShopChangesReviewed(partnerId = '', data = null) {
+    const pid = String(partnerId || '').trim();
+    if (!pid) return;
+    const source = data && typeof data === 'object' ? data : shopModalLivePartnerData || {};
+    ensureShopChangeBaselineLoaded();
+    shopChangeBaselineMap[pid] = buildShopComparableSnapshot(source);
+    shopChangeBaselineDirty = true;
+    persistShopChangeBaselineIfDirty();
+}
 
 function getShopOperationalStatus(shop, now = Date.now()) {
     const status = (shop?.status || '').toLowerCase();
@@ -5058,6 +5523,7 @@ function filterShops() {
 
 function renderShopCards(shops) {
     const container = document.getElementById('shop-cards-container');
+    ensureShopChangeBaselineLoaded();
     const total = shops.length;
     if (total === 0) {
         container.innerHTML =
@@ -5073,8 +5539,23 @@ function renderShopCards(shops) {
 
     visibleRows.forEach((data) => {
         const displayName = data.name || data.company || '샵 이름 없음';
+        const changeSummary = getShopChangeSummary(data.id || data.userId || '', data, {
+            initializeIfMissing: true,
+        });
+        const changedCountBadge =
+            changeSummary.total > 0
+                ? `<span class="inline-flex items-center justify-center min-w-[1.6rem] h-6 px-2 rounded-full bg-[#7C2D12] text-[#FDBA74] text-[12px] font-extrabold">${changeSummary.total}</span>`
+                : '';
         let imageUrl =
-            data.imageUrl || data.image || 'https://via.placeholder.com/300x200?text=No+Image';
+            data.imageThumb ||
+            data.thumbnailImage ||
+            data.thumbImage ||
+            data.imageDetail ||
+            data.detailImage ||
+            data.bannerImage ||
+            data.imageUrl ||
+            data.image ||
+            'https://via.placeholder.com/300x200?text=No+Image';
         const dateStr = data.createdAt
             ? typeof data.createdAt.toMillis === 'function'
                 ? new Date(data.createdAt.toMillis()).toLocaleDateString('ko-KR')
@@ -5137,14 +5618,17 @@ function renderShopCards(shops) {
                 <!-- Card Body -->
                 <div class="px-4 py-2 bg-[#0A1B13] flex flex-col flex-1 cursor-pointer relative z-10">
                     <div class="mb-1">
-                        <h3 class="text-[20px] font-extrabold text-white tracking-tight leading-tight truncate">${displayName}</h3>
+                        <h3 class="text-[20px] font-extrabold text-white tracking-tight leading-tight flex items-center gap-2">
+                            <span class="truncate">${displayName}</span>
+                            ${changedCountBadge}
+                        </h3>
                     </div>
                     <div class="text-[15px] text-[#C8D1CD] mb-1.5 truncate">
                         <span class="text-[#8C9A95]">대표자</span> <span class="text-white/90">${ownerName}</span>
                         <span class="mx-1.5 text-[#4B5A54]">|</span>
                         <span class="text-[#8C9A95]">가입ID</span> <span class="text-white/90">${signupUserId}</span>
                         <span class="mx-1.5 text-[#4B5A54]">|</span>
-                        <span class="text-[#8C9A95]">연락처</span> <span class="text-white/90">${data.phone || '미등록'}</span>
+                        <span class="text-[#8C9A95]">연락처</span> <span class="text-white/90">${data.phoneNumber || data.mobile || data.mobilePhone || data.contact || data.phone || '미등록'}</span>
                     </div>
                     <div class="text-[13px] text-[#A7B2AE] mt-1 mb-0.5">
                         찐리뷰 <span class="text-white/90 font-semibold">${(() => {
@@ -5181,6 +5665,7 @@ function renderShopCards(shops) {
     });
 
     container.innerHTML = html;
+    persistShopChangeBaselineIfDirty();
     updateShopListMeta(total, visibleCount);
     updateShopTicketCountdowns();
 }
@@ -5423,6 +5908,11 @@ function setShopModalReadonlyMode() {
     if (!form) return;
     form.querySelectorAll('input, textarea, select').forEach((el) => {
         if (el.id === 'shop-id') return;
+        if (el.id === 'shop-admin-placement') {
+            el.disabled = false;
+            el.classList.remove('opacity-90', 'cursor-not-allowed');
+            return;
+        }
         const tag = String(el.tagName || '').toLowerCase();
         if (tag === 'select') {
             el.disabled = true;
@@ -5532,6 +6022,8 @@ function formatPartnerMenusForAdminField(data = {}) {
 function renderShopModalRealtimeView(partnerId = '') {
     const data = shopModalLivePartnerData || {};
     if (!partnerId) return;
+    const changeSummary = getShopChangeSummary(partnerId, data, { initializeIfMissing: true });
+    renderShopModalChangeBadges(changeSummary);
 
     const titleEl = document.getElementById('shop-modal-title');
     const summaryStatusEl = document.getElementById('shop-summary-status');
@@ -5545,9 +6037,10 @@ function renderShopModalRealtimeView(partnerId = '') {
     document.getElementById('shop-name').value = data.name || data.company || '';
     document.getElementById('shop-location').value = formatPartnerActivityRegionsForAdmin(data);
     document.getElementById('shop-owner-name').value = data.ownerName || data.ceoName || '';
-    document.getElementById('shop-mobile').value = data.mobile || data.mobilePhone || data.phone || '';
+    document.getElementById('shop-mobile').value =
+        data.phoneNumber || data.mobile || data.mobilePhone || data.contact || data.phone || '';
     document.getElementById('shop-contact').value =
-        data.contact || data.officePhone || data.phone || '';
+        data.phoneNumber || data.contact || data.officePhone || data.mobile || data.mobilePhone || data.phone || '';
     document.getElementById('shop-business-type').value = data.businessType || data.bizType || '';
     document.getElementById('shop-business-number').value =
         data.businessNumber || data.bizNo || '';
@@ -5556,6 +6049,13 @@ function renderShopModalRealtimeView(partnerId = '') {
     document.getElementById('shop-age').value = formatPartnerCommaOrMultilineField(data.age);
     document.getElementById('shop-call-enabled').value =
         (typeof data.callEnabled === 'boolean' ? data.callEnabled : true) ? 'on' : 'off';
+    const adminPlacementSelect = document.getElementById('shop-admin-placement');
+    if (adminPlacementSelect) {
+        const placementRaw = String(data.adminPlacement || '').trim().toLowerCase();
+        const placement =
+            placementRaw === 'choice' || placementRaw === 'recommend' ? placementRaw : 'auto';
+        adminPlacementSelect.value = placement;
+    }
     document.getElementById('shop-call-start').value = data.callAvailableStart || '';
     document.getElementById('shop-call-end').value = data.callAvailableEnd || '';
     document.getElementById('shop-address-detail').value = data.address || data.location || '';
@@ -5608,6 +6108,35 @@ function renderShopModalRealtimeView(partnerId = '') {
     renderShopSubscriptionHistory(subscriptionRows);
 }
 
+window.saveShopPlacementOverride = async function () {
+    const partnerId = String(document.getElementById('shop-id')?.value || '').trim();
+    if (!partnerId) {
+        alert('업체 정보를 찾을 수 없습니다. 다시 열어서 시도해주세요.');
+        return;
+    }
+    const placementRaw = String(document.getElementById('shop-admin-placement')?.value || 'auto')
+        .trim()
+        .toLowerCase();
+    const placement =
+        placementRaw === 'choice' || placementRaw === 'recommend' ? placementRaw : 'auto';
+    const payload = {
+        adminPlacement: placement,
+        adminPlacementUpdatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        adminPlacementUpdatedBy: auth.currentUser?.email || 'admin',
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    };
+    try {
+        await db.collection('partners').doc(partnerId).update(payload);
+        if (shopModalLivePartnerData && typeof shopModalLivePartnerData === 'object') {
+            shopModalLivePartnerData = { ...shopModalLivePartnerData, ...payload };
+        }
+        alert('메인 노출 분류가 저장되었습니다.');
+    } catch (err) {
+        console.error('노출 분류 저장 실패:', err);
+        alert('노출 분류 저장 중 오류가 발생했습니다: ' + (err.message || 'unknown'));
+    }
+};
+
 async function openShopModal(partnerId = '') {
     if (!partnerId) {
         alert('읽기전용 상세 화면은 승인된 업체를 선택해서만 확인할 수 있습니다.');
@@ -5615,10 +6144,12 @@ async function openShopModal(partnerId = '') {
     }
 
     clearShopModalRealtimeListeners();
+    shopModalCurrentPartnerId = partnerId;
     document.getElementById('shop-form').reset();
     document.getElementById('shop-id').value = partnerId;
     renderShopSubscriptionHistory([]);
     renderShopPenaltyHistory([]);
+    renderShopModalChangeBadges({ sectionCounts: { basic: 0, ops: 0, menus: 0 } });
     setShopModalReadonlyMode();
     openModal('modal-shop');
 
@@ -6677,7 +7208,7 @@ function searchPartnersForSub(query) {
     let matches = [];
     sourcePartners.forEach((data) => {
         const n = data.name || data.company || '';
-        const p = data.phone || data.managerPhone || '';
+        const p = data.phoneNumber || data.mobile || data.mobilePhone || data.contact || data.phone || data.managerPhone || '';
 
         let plan =
             data.ticketPlan === 'premium'

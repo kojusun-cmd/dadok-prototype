@@ -236,16 +236,14 @@
                                     massage: setupPartnerDashboardCategoryPicker(
                                         'massage',
                                         PARTNER_DASHBOARD_MASSAGE_OPTIONS,
-                                        ['스웨디시'],
+                                        [],
                                     ),
                                     space: setupPartnerDashboardCategoryPicker(
                                         'space',
                                         PARTNER_DASHBOARD_SPACE_OPTIONS,
-                                        ['상관없음(전체)'],
+                                        [],
                                     ),
-                                    age: setupPartnerDashboardCategoryPicker('age', PARTNER_DASHBOARD_AGE_OPTIONS, [
-                                        '연령 무관 (전체)',
-                                    ]),
+                                    age: setupPartnerDashboardCategoryPicker('age', PARTNER_DASHBOARD_AGE_OPTIONS, []),
                                 };
 
                                 window.applyPartnerDashboardCategoriesFromPartner = function (partner) {
@@ -267,9 +265,6 @@
                                                 rSet.add(rk),
                                             );
                                         }
-                                        if (!rSet.size) {
-                                            rSet.add('서울 강남/서초');
-                                        }
                                         const first = Array.from(rSet)[0];
                                         if (first) {
                                             const prov = first.split(' ')[0];
@@ -290,8 +285,6 @@
                                             .map((x) => x.trim())
                                             .filter((x) => PARTNER_DASHBOARD_MASSAGE_OPTIONS.includes(x));
                                     }
-                                    if (!mSel.length) mSel = ['스웨디시'];
-
                                     let sSel = [...tagsS];
                                     if (!sSel.length && partner.place) {
                                         sSel = String(partner.place)
@@ -299,8 +292,6 @@
                                             .map((x) => x.trim())
                                             .filter((x) => PARTNER_DASHBOARD_SPACE_OPTIONS.includes(x));
                                     }
-                                    if (!sSel.length) sSel = ['상관없음(전체)'];
-
                                     let aSel = [...tagsA];
                                     if (!aSel.length && partner.age) {
                                         aSel = String(partner.age)
@@ -308,8 +299,6 @@
                                             .map((x) => x.trim())
                                             .filter((x) => PARTNER_DASHBOARD_AGE_OPTIONS.includes(x));
                                     }
-                                    if (!aSel.length) aSel = ['연령 무관 (전체)'];
-
                                     pick.massage.setSelections(mSel);
                                     pick.space.setSelections(sSel);
                                     pick.age.setSelections(aSel);
@@ -560,12 +549,33 @@ const filterSheet = document.getElementById('filter-sheet');
             let currentPartner = null;
             let activeChatThreadId = null;
             let activeChatThreadMeta = null;
+            let activeChatActor = { role: 'user', docId: '', userId: '' };
             let unsubscribeChatThreadMessages = null;
             let unsubscribeChatList = null;
+            let unsubscribeUserChatUnread = null;
+            let userChatUnreadTargetDocId = '';
             let unsubscribePartnerChatBadge = null;
             let unsubscribeChatHeaderLive = null;
+            let unsubscribePartnerDashboardLive = null;
             let lastChatThreadMessages = [];
             let chatListRows = [];
+            let pendingChatAttachmentFiles = [];
+            let chatAttachmentPreviewUrls = [];
+            let pendingChatAttachmentUploadPromise = null;
+            let pendingChatUploadedAttachments = [];
+            let pendingChatAttachmentUploadState = 'idle'; // idle | uploading | done | error
+            let pendingChatAttachmentUploadError = '';
+            let pendingChatAttachmentUploadToken = 0;
+            let isChatSending = false;
+            let chatAttachmentPreviewHistoryPushed = false;
+            const USER_FAVORITES_STORAGE_KEY = 'dadok_user_favorites_v1';
+            const CHAT_ATTACHMENT_MAX_COUNT = 3;
+            const CHAT_ATTACHMENT_MAX_SIZE = 10 * 1024 * 1024;
+            const CHAT_ATTACHMENT_ALLOWED_EXT = [
+                'jpg', 'jpeg', 'png', 'webp', 'gif', 'jfif', 'heic', 'heif', 'avif',
+                'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx',
+                'txt', 'zip', 'hwp', 'hwpx'
+            ];
 
             function escapeChatHtml(value = '') {
                 return String(value || '')
@@ -574,6 +584,525 @@ const filterSheet = document.getElementById('filter-sheet');
                     .replace(/>/g, '&gt;')
                     .replace(/"/g, '&quot;')
                     .replace(/'/g, '&#39;');
+            }
+
+            function getFavoritesOwnerKey() {
+                const userDocId =
+                    localStorage.getItem('dadok_loggedInUserDocId') ||
+                    sessionStorage.getItem('dadok_loggedInUserDocId') ||
+                    '';
+                const username =
+                    localStorage.getItem('dadok_username') ||
+                    sessionStorage.getItem('dadok_username') ||
+                    '';
+                if (userDocId) return `doc:${userDocId}`;
+                if (username) return `id:${username}`;
+                return 'guest';
+            }
+
+            function normalizeFavoriteEntry(raw = {}) {
+                const data = raw || {};
+                const id = String(data.id || '').trim();
+                if (!id) return null;
+                return {
+                    id,
+                    name: String(data.name || '').trim(),
+                    desc: String(data.desc || '').trim(),
+                    region: String(data.region || '').trim(),
+                    massage: String(data.massage || '').trim(),
+                    place: String(data.place || '').trim(),
+                    age: String(data.age || '').trim(),
+                    image: String(data.image || '').trim(),
+                    ticketType: String(data.ticketType || '').trim(),
+                    ticketExpiry: String(data.ticketExpiry || '').trim(),
+                    rating: Number(data.rating || 0),
+                    reviews: Number(data.reviews || 0),
+                };
+            }
+
+            function persistUserFavorites() {
+                try {
+                    const owner = getFavoritesOwnerKey();
+                    const raw = localStorage.getItem(USER_FAVORITES_STORAGE_KEY);
+                    const all = raw ? JSON.parse(raw) : {};
+                    if (!all || typeof all !== 'object') return;
+                    const normalized = userFavorites
+                        .map((item) => normalizeFavoriteEntry(item))
+                        .filter(Boolean);
+                    all[owner] = normalized;
+                    localStorage.setItem(USER_FAVORITES_STORAGE_KEY, JSON.stringify(all));
+                } catch (e) {
+                    console.warn('찜 목록 저장 실패:', e);
+                }
+            }
+
+            function loadUserFavorites() {
+                try {
+                    const owner = getFavoritesOwnerKey();
+                    const raw = localStorage.getItem(USER_FAVORITES_STORAGE_KEY);
+                    const legacyRaw = localStorage.getItem('dadok_user_favorites');
+                    const all = raw ? JSON.parse(raw) : {};
+                    if (all && typeof all === 'object' && Array.isArray(all[owner])) {
+                        userFavorites = all[owner]
+                            .map((item) => normalizeFavoriteEntry(item))
+                            .filter(Boolean);
+                    } else if (legacyRaw) {
+                        const legacyArr = JSON.parse(legacyRaw);
+                        userFavorites = Array.isArray(legacyArr)
+                            ? legacyArr.map((item) => normalizeFavoriteEntry(item)).filter(Boolean)
+                            : [];
+                        persistUserFavorites();
+                    } else {
+                        userFavorites = [];
+                    }
+                } catch (e) {
+                    console.warn('찜 목록 불러오기 실패:', e);
+                    userFavorites = [];
+                }
+            }
+
+            function getChatAttachmentExt(att = {}) {
+                const byName = String(att?.name || '').toLowerCase();
+                const byUrl = String(att?.url || '').toLowerCase();
+                const source = byName || byUrl;
+                const match = source.match(/\.([a-z0-9]+)(?:$|\?)/i);
+                return match ? match[1].toLowerCase() : '';
+            }
+
+            function renderChatAttachmentInline(att = {}, idx = 0) {
+                const fileName = escapeChatHtml(att?.name || `첨부파일 ${idx + 1}`);
+                const fileUrlRaw = String(att?.url || '').trim();
+                const fileUrl = escapeChatHtml(fileUrlRaw || '#');
+                const ext = getChatAttachmentExt(att);
+                const isImage = ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext);
+                if (isImage) {
+                    return `
+                        <a href="${fileUrl}" target="_blank" rel="noopener" class="mt-2 block rounded-xl border border-[#2A3731] bg-[#06110D] overflow-hidden hover:border-[var(--point-color)]/50 transition-colors">
+                            <img src="${fileUrl}" alt="${fileName}" class="w-full h-auto max-h-[260px] object-contain bg-[#020806]">
+                        </a>
+                    `;
+                }
+                if (ext === 'pdf') {
+                    return `
+                        <div class="mt-2 rounded-xl border border-[#2A3731] bg-[#06110D] overflow-hidden">
+                            <iframe src="${fileUrl}" class="w-full h-[300px] bg-white" loading="lazy"></iframe>
+                            <div class="px-3 py-2 text-[11px] text-[#A7B2AE] truncate">${fileName}</div>
+                        </div>
+                    `;
+                }
+                return `
+                    <div class="mt-2 px-3 py-2 rounded-lg border border-[#2A3731] bg-[#06110D] text-[11px] text-[#C8D1CD] truncate">
+                        첨부파일: ${fileName}
+                    </div>
+                `;
+            }
+
+            function getChatAttachmentExtByName(name = '') {
+                const base = String(name || '').toLowerCase();
+                const m = base.match(/\.([a-z0-9]+)$/i);
+                return m ? m[1].toLowerCase() : '';
+            }
+
+            function validateChatAttachmentFiles(files = []) {
+                if (!Array.isArray(files) || files.length === 0) {
+                    return { ok: true };
+                }
+                if (files.length > CHAT_ATTACHMENT_MAX_COUNT) {
+                    return {
+                        ok: false,
+                        message: `첨부파일은 최대 ${CHAT_ATTACHMENT_MAX_COUNT}개까지 가능합니다.`,
+                    };
+                }
+                for (const file of files) {
+                    const ext = getChatAttachmentExtByName(file?.name || '');
+                    const mime = String(file?.type || '').toLowerCase();
+                    const isImageMime = mime.startsWith('image/');
+                    if (!isImageMime && (!ext || !CHAT_ATTACHMENT_ALLOWED_EXT.includes(ext))) {
+                        return {
+                            ok: false,
+                            message: '지원하지 않는 파일 형식이 포함되어 있습니다.',
+                        };
+                    }
+                    const isImage = isImageMime || ['jpg', 'jpeg', 'png', 'webp', 'gif', 'jfif', 'heic', 'heif', 'avif'].includes(ext);
+                    // 요청사항: 사진 첨부는 용량 제한 없음. (문서류는 기존 제한 유지)
+                    if (!isImage && Number(file?.size || 0) > CHAT_ATTACHMENT_MAX_SIZE) {
+                        return {
+                            ok: false,
+                            message: '문서 파일은 1개당 최대 10MB까지 첨부할 수 있습니다.',
+                        };
+                    }
+                }
+                return { ok: true };
+            }
+
+            function renderChatAttachmentPreview() {
+                const preview = document.getElementById('chat-attachment-preview');
+                if (!preview) return;
+                if (!pendingChatAttachmentFiles.length) {
+                    preview.classList.add('hidden');
+                    preview.textContent = '';
+                    return;
+                }
+                const labels = pendingChatAttachmentFiles.map((f) => String(f?.name || 'file'));
+                if (pendingChatAttachmentUploadState === 'uploading') {
+                    preview.textContent = `첨부 업로드 준비 중... (${labels.length}개)`;
+                } else if (pendingChatAttachmentUploadState === 'done') {
+                    preview.textContent = `첨부 업로드 완료 (${labels.length}개) - 전송 버튼만 누르면 됩니다.`;
+                } else if (pendingChatAttachmentUploadState === 'error') {
+                    preview.textContent = `첨부 업로드 실패 - 다시 선택해주세요.`;
+                } else {
+                    preview.textContent = `첨부 예정 (${labels.length}개): ${labels.join(', ')}`;
+                }
+                preview.classList.remove('hidden');
+            }
+
+            function releaseChatAttachmentPreviewUrls() {
+                chatAttachmentPreviewUrls.forEach((url) => {
+                    try {
+                        URL.revokeObjectURL(url);
+                    } catch (_) {
+                        // no-op
+                    }
+                });
+                chatAttachmentPreviewUrls = [];
+            }
+
+            function formatChatAttachmentSize(size = 0) {
+                const n = Number(size || 0);
+                if (!Number.isFinite(n) || n <= 0) return '0 B';
+                if (n < 1024) return `${n} B`;
+                if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+                return `${(n / (1024 * 1024)).toFixed(1)} MB`;
+            }
+
+            function renderChatAttachmentScreen() {
+                const list = document.getElementById('chat-attachment-screen-list');
+                if (!list) return;
+                releaseChatAttachmentPreviewUrls();
+                if (!pendingChatAttachmentFiles.length) {
+                    list.innerHTML = '<div class="text-[13px] text-[var(--text-sub)]">첨부파일이 선택되지 않았습니다.</div>';
+                    return;
+                }
+                const html = pendingChatAttachmentFiles
+                    .map((file, idx) => {
+                        const name = escapeChatHtml(file?.name || `첨부파일 ${idx + 1}`);
+                        const ext = getChatAttachmentExtByName(file?.name || '');
+                        const sizeText = formatChatAttachmentSize(file?.size || 0);
+                        const typeText = ext ? ext.toUpperCase() : 'FILE';
+                        const isImage = ['jpg', 'jpeg', 'png', 'webp', 'gif'].includes(ext);
+                        if (isImage) {
+                            const objectUrl = URL.createObjectURL(file);
+                            chatAttachmentPreviewUrls.push(objectUrl);
+                            return `
+                                <div class="rounded-xl border border-[#2A3731] bg-[#06110D] overflow-hidden">
+                                    <img src="${objectUrl}" alt="${name}" class="w-full h-auto max-h-[72vh] object-contain bg-[#020806]">
+                                </div>
+                            `;
+                        }
+                        return `
+                            <div class="rounded-xl border border-[#2A3731] bg-[#06110D] px-3 py-3">
+                                <div class="text-[12px] text-white truncate">${name}</div>
+                                <div class="text-[11px] text-[var(--text-sub)] mt-1">${typeText} · ${sizeText}</div>
+                            </div>
+                        `;
+                    })
+                    .join('');
+                list.innerHTML = html;
+            }
+
+            function openChatAttachmentPreviewScreen() {
+                const screen = document.getElementById('chat-attachment-screen');
+                if (!screen) return;
+                const wasHidden = screen.classList.contains('hidden');
+                renderChatAttachmentScreen();
+                screen.classList.remove('hidden');
+                if (wasHidden && !chatAttachmentPreviewHistoryPushed) {
+                    if (typeof appModalStack !== 'undefined' && Array.isArray(appModalStack)) {
+                        appModalStack.push('closeChatAttachmentPreviewStep');
+                        chatAttachmentPreviewHistoryPushed = true;
+                        history.pushState(
+                            { modalOpen: true, stackDepth: appModalStack.length, chatAttachmentPreview: true },
+                            '',
+                            location.href,
+                        );
+                    }
+                }
+            }
+
+            function closeChatAttachmentPreviewScreen(clearFiles = false, fromPopstate = false) {
+                const screen = document.getElementById('chat-attachment-screen');
+                if (screen) screen.classList.add('hidden');
+                releaseChatAttachmentPreviewUrls();
+                if (chatAttachmentPreviewHistoryPushed) {
+                    if (fromPopstate) {
+                        chatAttachmentPreviewHistoryPushed = false;
+                    } else {
+                        chatAttachmentPreviewHistoryPushed = false;
+                        if (typeof appModalStack !== 'undefined' && Array.isArray(appModalStack) && appModalStack.length > 0) {
+                            appModalStack.pop();
+                        }
+                        if (typeof isClickClosing !== 'undefined') {
+                            isClickClosing = true;
+                            setTimeout(() => {
+                                if (history.state && history.state.modalOpen) history.back();
+                                setTimeout(() => {
+                                    isClickClosing = false;
+                                }, 50);
+                            }, 10);
+                        } else if (history.state && history.state.modalOpen) {
+                            history.back();
+                        }
+                    }
+                }
+                if (clearFiles) {
+                    resetChatAttachmentInput();
+                }
+            }
+
+            window.closeChatAttachmentPreviewStep = function () {
+                closeChatAttachmentPreviewScreen(false, true);
+            };
+
+            function setChatSendingState(isSending, message = '전송 중...') {
+                isChatSending = !!isSending;
+                const statusEl = document.getElementById('chat-send-status');
+                const sendBtn = document.getElementById('chat-send-btn');
+                const attachBtn = document.getElementById('chat-attach-btn');
+                const inputEl = document.getElementById('chat-input');
+                const previewSendBtn = document.getElementById('chat-attachment-send-btn');
+                if (statusEl) {
+                    statusEl.textContent = message;
+                    statusEl.classList.toggle('hidden', !isSending);
+                }
+                if (sendBtn) sendBtn.disabled = !!isSending;
+                if (attachBtn) attachBtn.disabled = !!isSending;
+                if (inputEl) inputEl.disabled = !!isSending;
+                if (previewSendBtn) previewSendBtn.disabled = !!isSending;
+            }
+
+            function setChatUploadLoadingState(mode = 'idle') {
+                if (isChatSending) return;
+                const statusEl = document.getElementById('chat-send-status');
+                const previewSendBtn = document.getElementById('chat-attachment-send-btn');
+                if (!statusEl) return;
+                if (mode === 'uploading') {
+                    statusEl.textContent = '첨부파일 로딩중...';
+                    statusEl.classList.remove('hidden');
+                    if (previewSendBtn) previewSendBtn.disabled = true;
+                    return;
+                }
+                if (mode === 'done') {
+                    statusEl.textContent = '첨부파일 준비 완료';
+                    statusEl.classList.remove('hidden');
+                    if (previewSendBtn) previewSendBtn.disabled = false;
+                    return;
+                }
+                if (mode === 'error') {
+                    statusEl.textContent = '첨부파일 로딩 실패. 다시 선택해주세요.';
+                    statusEl.classList.remove('hidden');
+                    if (previewSendBtn) previewSendBtn.disabled = false;
+                    return;
+                }
+                statusEl.textContent = '전송 중...';
+                statusEl.classList.add('hidden');
+                if (previewSendBtn) previewSendBtn.disabled = false;
+            }
+
+            function resetChatAttachmentInput() {
+                pendingChatAttachmentFiles = [];
+                pendingChatAttachmentUploadPromise = null;
+                pendingChatUploadedAttachments = [];
+                pendingChatAttachmentUploadState = 'idle';
+                pendingChatAttachmentUploadError = '';
+                pendingChatAttachmentUploadToken = 0;
+                const input = document.getElementById('chat-attachment-input');
+                if (input) input.value = '';
+                renderChatAttachmentPreview();
+                setChatUploadLoadingState('idle');
+            }
+
+            function beginChatAttachmentPreupload() {
+                if (!pendingChatAttachmentFiles.length) return;
+                const files = [...pendingChatAttachmentFiles];
+                const token = ++pendingChatAttachmentUploadToken;
+                pendingChatUploadedAttachments = [];
+                pendingChatAttachmentUploadError = '';
+                pendingChatAttachmentUploadState = 'uploading';
+                renderChatAttachmentPreview();
+                setChatUploadLoadingState('uploading');
+                const uploadThreadId =
+                    activeChatThreadId || `chat_pre_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+                pendingChatAttachmentUploadPromise = uploadChatAttachments(uploadThreadId, files)
+                    .then((rows) => {
+                        if (token !== pendingChatAttachmentUploadToken) return rows;
+                        pendingChatUploadedAttachments = Array.isArray(rows) ? rows : [];
+                        pendingChatAttachmentUploadState = 'done';
+                        renderChatAttachmentPreview();
+                        setChatUploadLoadingState('done');
+                        return rows;
+                    })
+                    .catch((err) => {
+                        if (token !== pendingChatAttachmentUploadToken) throw err;
+                        pendingChatAttachmentUploadState = 'error';
+                        pendingChatAttachmentUploadError = err?.message || 'upload_failed';
+                        renderChatAttachmentPreview();
+                        setChatUploadLoadingState('error');
+                        throw err;
+                    });
+            }
+
+            window.triggerChatAttachmentPicker = function () {
+                const input = document.getElementById('chat-attachment-input');
+                if (input) input.click();
+            };
+
+            window.handleChatAttachmentInput = function (inputEl) {
+                const files = Array.from(inputEl?.files || []);
+                const validation = validateChatAttachmentFiles(files);
+                if (!validation.ok) {
+                    showCustomToast(validation.message);
+                    pendingChatAttachmentFiles = [];
+                    if (inputEl) inputEl.value = '';
+                    renderChatAttachmentPreview();
+                    setChatUploadLoadingState('idle');
+                    return;
+                }
+                pendingChatAttachmentFiles = files;
+                pendingChatAttachmentUploadPromise = null;
+                pendingChatUploadedAttachments = [];
+                pendingChatAttachmentUploadState = 'idle';
+                pendingChatAttachmentUploadError = '';
+                renderChatAttachmentPreview();
+                openChatAttachmentPreviewScreen();
+                beginChatAttachmentPreupload();
+            };
+
+            window.cancelChatAttachmentPreview = function () {
+                closeChatAttachmentPreviewScreen(true);
+            };
+
+            window.sendChatAttachmentFromPreview = async function () {
+                await sendUserMessage();
+            };
+
+            async function uploadChatAttachments(threadId = '', files = []) {
+                if (!Array.isArray(files) || files.length === 0) return [];
+                if (typeof firebase === 'undefined' || typeof firebase.storage !== 'function') {
+                    throw new Error('Firebase Storage를 사용할 수 없습니다.');
+                }
+                const mimeToExt = (mime = '') => {
+                    const m = String(mime || '').toLowerCase();
+                    if (m === 'image/jpeg') return 'jpg';
+                    if (m === 'image/png') return 'png';
+                    if (m === 'image/webp') return 'webp';
+                    if (m === 'image/gif') return 'gif';
+                    if (m === 'image/heic') return 'heic';
+                    if (m === 'image/heif') return 'heif';
+                    if (m === 'image/avif') return 'avif';
+                    if (m === 'application/pdf') return 'pdf';
+                    return '';
+                };
+
+                const readFileAsDataUrl = (file) =>
+                    new Promise((resolve, reject) => {
+                        const reader = new FileReader();
+                        reader.onload = () => resolve(String(reader.result || ''));
+                        reader.onerror = () => reject(new Error('파일 읽기에 실패했습니다.'));
+                        reader.readAsDataURL(file);
+                    });
+
+                const loadImageElement = (dataUrl) =>
+                    new Promise((resolve, reject) => {
+                        const img = new Image();
+                        img.onload = () => resolve(img);
+                        img.onerror = () => reject(new Error('이미지 로드에 실패했습니다.'));
+                        img.src = dataUrl;
+                    });
+
+                const compressChatImageFile = async (file) => {
+                    const ext = getChatAttachmentExtByName(file?.name || '');
+                    const type = String(file?.type || '').toLowerCase();
+                    const isGif = ext === 'gif' || type === 'image/gif';
+                    const canDecodeOnCanvas =
+                        ['image/jpeg', 'image/png', 'image/webp'].includes(type) ||
+                        ['jpg', 'jpeg', 'png', 'webp', 'jfif'].includes(ext);
+                    const isCompressibleImage = canDecodeOnCanvas && !isGif;
+                    if (!isCompressibleImage) return file;
+
+                    const dataUrl = await readFileAsDataUrl(file);
+                    const img = await loadImageElement(dataUrl);
+                    const maxSide = 1080;
+                    const srcW = Number(img.naturalWidth || img.width || 0) || 1;
+                    const srcH = Number(img.naturalHeight || img.height || 0) || 1;
+                    const scale = Math.min(1, maxSide / Math.max(srcW, srcH));
+                    const targetW = Math.max(1, Math.round(srcW * scale));
+                    const targetH = Math.max(1, Math.round(srcH * scale));
+
+                    const canvas = document.createElement('canvas');
+                    canvas.width = targetW;
+                    canvas.height = targetH;
+                    const ctx = canvas.getContext('2d');
+                    if (!ctx) return file;
+                    ctx.drawImage(img, 0, 0, targetW, targetH);
+
+                    const outputMime = 'image/webp';
+                    const outputQuality = 0.68;
+                    const blob = await new Promise((resolve) =>
+                        canvas.toBlob(resolve, outputMime, outputQuality),
+                    );
+                    if (!blob) return file;
+                    if (blob.size >= Number(file?.size || 0)) return file;
+
+                    const originalBaseName = String(file?.name || 'image').replace(/\.[^.]+$/, '');
+                    const optimizedName = `${originalBaseName || 'image'}_opt.webp`;
+                    return new File([blob], optimizedName, {
+                        type: outputMime,
+                        lastModified: Date.now(),
+                    });
+                };
+
+                const storageRoot = firebase.storage().ref();
+                const baseThreadId = String(threadId || 'thread').replace(/[^\w\-]/g, '_');
+                const uploadId = `${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+                const uploadTasks = files.map(async (rawFile, i) => {
+                    let optimizedFile = rawFile;
+                    try {
+                        optimizedFile = await compressChatImageFile(rawFile);
+                    } catch (compressErr) {
+                        // 압축 불가 포맷(예: 일부 기기 HEIC)은 원본 그대로 업로드
+                        optimizedFile = rawFile;
+                    }
+                    let safeName = String(optimizedFile?.name || `attachment-${i + 1}`)
+                        .replace(/[^\w.\-]/g, '_')
+                        .slice(-120);
+                    if (!getChatAttachmentExtByName(safeName)) {
+                        const extByMime = mimeToExt(optimizedFile?.type || rawFile?.type || '');
+                        if (extByMime) safeName = `${safeName}.${extByMime}`;
+                    }
+                    const ext = getChatAttachmentExtByName(safeName);
+                    const filePath = `chat_attachments/${baseThreadId}/${uploadId}_${i + 1}_${safeName}`;
+                    let snap = null;
+                    try {
+                        snap = await storageRoot.child(filePath).put(optimizedFile, {
+                            contentType: optimizedFile?.type || 'application/octet-stream',
+                        });
+                    } catch (uploadErr) {
+                        const canRetryWithRaw = optimizedFile !== rawFile;
+                        if (!canRetryWithRaw) throw uploadErr;
+                        snap = await storageRoot.child(filePath).put(rawFile, {
+                            contentType: rawFile?.type || 'application/octet-stream',
+                        });
+                    }
+                    const url = await snap.ref.getDownloadURL();
+                    return {
+                        name: safeName,
+                        url,
+                        size: Number(optimizedFile?.size || 0),
+                        ext,
+                        contentType: String(optimizedFile?.type || ''),
+                    };
+                });
+                return Promise.all(uploadTasks);
             }
 
             function formatChatTimestamp(value) {
@@ -651,7 +1180,10 @@ const filterSheet = document.getElementById('filter-sheet');
 
             async function getCurrentChatActor() {
                 const partnerDocId = getLoggedInPartnerDocId();
-                if (partnerDocId) {
+                const partnerSessionActive =
+                    localStorage.getItem('dadok_isPartnerLoggedIn') === 'true' ||
+                    sessionStorage.getItem('dadok_isPartnerLoggedIn') === 'true';
+                if (partnerDocId && partnerSessionActive) {
                     return {
                         role: 'partner',
                         docId: partnerDocId,
@@ -823,6 +1355,75 @@ const filterSheet = document.getElementById('filter-sheet');
                 }
             }
 
+            function renderUserChatUnreadBadgeFromRows(rows = []) {
+                const badge = document.getElementById('user-chat-unread-badge');
+                if (!badge) return;
+                const totalUnread = rows.reduce((sum, row) => sum + Number(row.unreadForUser || 0), 0);
+                badge.textContent = totalUnread > 99 ? '99+' : String(totalUnread);
+                badge.classList.toggle('hidden', totalUnread <= 0);
+            }
+
+            function stopUserChatUnreadListener() {
+                if (typeof unsubscribeUserChatUnread === 'function') {
+                    unsubscribeUserChatUnread();
+                }
+                unsubscribeUserChatUnread = null;
+                userChatUnreadTargetDocId = '';
+            }
+
+            async function startUserChatUnreadListener() {
+                if (typeof firebase === 'undefined') return;
+                const actor = await getCurrentChatActor();
+                if (actor.role !== 'user' || !actor.docId) {
+                    stopUserChatUnreadListener();
+                    renderUserChatUnreadBadgeFromRows([]);
+                    return;
+                }
+                if (
+                    userChatUnreadTargetDocId === actor.docId &&
+                    typeof unsubscribeUserChatUnread === 'function'
+                ) {
+                    return;
+                }
+                stopUserChatUnreadListener();
+                userChatUnreadTargetDocId = actor.docId;
+
+                let queryRows = [];
+                let adminThreadRow = null;
+                const renderMergedUnread = () => {
+                    const merged = [...queryRows];
+                    if (adminThreadRow) {
+                        const exists = merged.some((row) => String(row.id || '') === String(adminThreadRow.id || ''));
+                        if (!exists) merged.push(adminThreadRow);
+                    }
+                    renderUserChatUnreadBadgeFromRows(merged);
+                };
+
+                const queryUnsub = firebase
+                    .firestore()
+                    .collection('chat_threads')
+                    .where('participantUserDocId', '==', actor.docId)
+                    .onSnapshot((snap) => {
+                        queryRows = snap.docs.map((doc) => ({ ...(doc.data() || {}), id: doc.id }));
+                        renderMergedUnread();
+                    });
+
+                const adminThreadId = `admin__u_${actor.docId}`;
+                const adminDocUnsub = firebase
+                    .firestore()
+                    .collection('chat_threads')
+                    .doc(adminThreadId)
+                    .onSnapshot((doc) => {
+                        adminThreadRow = doc.exists ? { ...(doc.data() || {}), id: doc.id } : null;
+                        renderMergedUnread();
+                    });
+
+                unsubscribeUserChatUnread = () => {
+                    if (typeof queryUnsub === 'function') queryUnsub();
+                    if (typeof adminDocUnsub === 'function') adminDocUnsub();
+                };
+            }
+
             let currentChatCallState = {
                 phone: '',
                 canCall: false,
@@ -885,8 +1486,8 @@ const filterSheet = document.getElementById('filter-sheet');
                 const start = normalizeTimeValue(startInput?.value || '');
                 const end = normalizeTimeValue(endInput?.value || '');
                 return {
-                    start: start || '10:00',
-                    end: end || '22:00'
+                    start: start || '',
+                    end: end || ''
                 };
             }
 
@@ -916,8 +1517,8 @@ const filterSheet = document.getElementById('filter-sheet');
                 const start = normalizeTimeValue(startInput?.value || '');
                 const end = normalizeTimeValue(endInput?.value || '');
                 return {
-                    start: start || '10:00',
-                    end: end || '22:00',
+                    start: start || '',
+                    end: end || '',
                 };
             }
 
@@ -1480,10 +2081,13 @@ const filterSheet = document.getElementById('filter-sheet');
                 if (!threadId) return null;
 
                 const threadRef = firebase.firestore().collection('chat_threads').doc(threadId);
+                const userImageForThread =
+                    currentUserProfileImageUrl || resolveStoredUserProfileImageUrl() || '';
                 const baseData = {
                     id: threadId,
                     participantUserDocId: actor.docId,
                     participantUserId: actor.userId || '',
+                    userImage: userImageForThread,
                     participantPartnerDocId: partnerDocId,
                     participantPartnerUserId: currentPartner.userId || '',
                     userName: actor.name || actor.userId || '고객',
@@ -1532,6 +2136,23 @@ const filterSheet = document.getElementById('filter-sheet');
                 }
             }
 
+            function scrollChatToBottom(forceRepeat = false) {
+                const container = document.getElementById('chat-messages-container');
+                if (!container) return;
+                const scrollArea = container.parentElement;
+                if (!scrollArea) return;
+                const moveBottom = () => {
+                    scrollArea.scrollTop = scrollArea.scrollHeight;
+                };
+                moveBottom();
+                requestAnimationFrame(moveBottom);
+                if (forceRepeat) {
+                    setTimeout(moveBottom, 80);
+                    setTimeout(moveBottom, 180);
+                    setTimeout(moveBottom, 320);
+                }
+            }
+
             function renderRealtimeChatMessages(messages = [], actorRole = 'user') {
                 const container = document.getElementById('chat-messages-container');
                 if (!container) return;
@@ -1543,9 +2164,23 @@ const filterSheet = document.getElementById('filter-sheet');
                 container.innerHTML = messages
                     .map((msg) => {
                         const senderRole = msg.senderRole || 'user';
-                        const isMine = senderRole === actorRole;
-                        const safeText = escapeChatHtml(msg.text || '').replace(/\n/g, '<br>');
+                        const senderDocId = String(msg.senderDocId || '').trim();
+                        const actorDocId = String(activeChatActor?.docId || '').trim();
+                        const senderUserId = String(msg.senderUserId || '').trim();
+                        const actorUserId = String(activeChatActor?.userId || '').trim();
+                        const isMine =
+                            (actorDocId && senderDocId && senderDocId === actorDocId) ||
+                            (actorUserId && senderUserId && senderUserId === actorUserId);
+                        const rawText = String(msg.text || '').trim();
+                        const safeText = escapeChatHtml(rawText).replace(/\n/g, '<br>');
+                        const hasText = !!rawText;
                         const timeLabel = formatChatTimestamp(msg.createdAt);
+                        const attachments = Array.isArray(msg.attachments) ? msg.attachments : [];
+                        const attachmentsHtml = attachments.length
+                            ? `<div class="mt-2">${attachments
+                                  .map((att, idx) => renderChatAttachmentInline(att, idx))
+                                  .join('')}</div>`
+                            : '';
                         const adminTag =
                             senderRole === 'admin' && !isMine
                                 ? '<span class="text-[10px] text-[var(--point-color)] font-bold mb-1 block">다독 관리자</span>'
@@ -1554,7 +2189,8 @@ const filterSheet = document.getElementById('filter-sheet');
                             return `
                                 <div class="flex justify-end mb-2">
                                     <div class="max-w-[80%]">
-                                        <div class="bg-[var(--point-color)] text-[#06110D] p-3 rounded-2xl rounded-tr-sm text-[15px] leading-relaxed shadow-sm font-medium">${safeText}</div>
+                                        ${hasText ? `<div class="bg-[var(--point-color)] text-[#06110D] p-3 rounded-2xl rounded-tr-sm text-[15px] leading-relaxed shadow-sm font-medium">${safeText}</div>` : ''}
+                                        ${attachmentsHtml}
                                         <div class="text-[10px] text-[var(--text-sub)] text-right mt-1">${timeLabel}</div>
                                     </div>
                                 </div>
@@ -1565,7 +2201,8 @@ const filterSheet = document.getElementById('filter-sheet');
                                 <div class="w-8 h-8 rounded-full bg-cover bg-center border border-[var(--point-color)] shrink-0 shadow-sm" style="background-image: url('${getThreadDisplayImage(activeChatThreadMeta || {}, actorRole)}');"></div>
                                 <div class="max-w-[80%]">
                                     ${adminTag}
-                                    <div class="bg-[var(--surface-color)] border border-[var(--border-color)] text-[var(--text-main)] p-3 rounded-2xl rounded-tl-sm text-[15px] leading-relaxed shadow-sm">${safeText}</div>
+                                    ${hasText ? `<div class="bg-[var(--surface-color)] border border-[var(--border-color)] text-[var(--text-main)] p-3 rounded-2xl rounded-tl-sm text-[15px] leading-relaxed shadow-sm">${safeText}</div>` : ''}
+                                    ${attachmentsHtml}
                                     <div class="text-[10px] text-[var(--text-sub)] mt-1">${timeLabel}</div>
                                 </div>
                             </div>
@@ -1573,8 +2210,21 @@ const filterSheet = document.getElementById('filter-sheet');
                     })
                     .join('');
 
-                const scrollArea = container.parentElement;
-                if (scrollArea) scrollArea.scrollTop = scrollArea.scrollHeight;
+                scrollChatToBottom(true);
+                const mediaEls = container.querySelectorAll('img, iframe');
+                mediaEls.forEach((el) => {
+                    const bump = () => scrollChatToBottom(true);
+                    if (el.tagName === 'IMG') {
+                        if (el.complete) {
+                            bump();
+                        } else {
+                            el.addEventListener('load', bump, { once: true });
+                            el.addEventListener('error', bump, { once: true });
+                        }
+                    } else {
+                        el.addEventListener('load', bump, { once: true });
+                    }
+                });
             }
 
             async function openChatByThread(threadMeta) {
@@ -1584,12 +2234,18 @@ const filterSheet = document.getElementById('filter-sheet');
                 activeChatThreadMeta = { ...threadMeta, id: canonicalThreadId };
                 lastChatThreadMessages = [];
                 const actor = await getCurrentChatActor();
+                activeChatActor = {
+                    role: actor.role || 'user',
+                    docId: actor.docId || '',
+                    userId: actor.userId || '',
+                };
                 const defaultIntro = document.getElementById('chat-default-intro');
                 const defaultGreeting = document.getElementById('chat-default-greeting');
                 const quickTemplateBox = document.getElementById('chat-quick-template-box');
                 if (defaultIntro) defaultIntro.style.display = 'none';
                 if (defaultGreeting) defaultGreeting.style.display = 'none';
                 if (quickTemplateBox) quickTemplateBox.style.display = 'none';
+                closeChatAttachmentPreviewScreen(true);
 
                 applyChatSheetHeader(actor.role);
 
@@ -1640,10 +2296,22 @@ const filterSheet = document.getElementById('filter-sheet');
                     chatSheet.classList.add('open');
                 }
                 if (overlay) overlay.classList.add('show');
+                scrollChatToBottom(true);
+            }
+
+            function setChatSheetFullscreenMode(enabled) {
+                const chatSheet = document.getElementById('chat-sheet');
+                if (!chatSheet) return;
+                if (enabled) {
+                    chatSheet.classList.add('chat-sheet-fullscreen');
+                    return;
+                }
+                chatSheet.classList.remove('chat-sheet-fullscreen');
             }
 
             window.removeFavorite = function (id) {
                 userFavorites = userFavorites.filter(p => p.id !== id);
+                persistUserFavorites();
                 renderFavoritesList();
                 if (currentPartner && currentPartner.id === id) {
                     isFavorite = false;
@@ -1674,6 +2342,11 @@ const filterSheet = document.getElementById('filter-sheet');
                 const thread = chatListRows.find((row) => row.id === id);
                 if (!thread) return;
                 chatOpenedFromModal = true;
+                if (typeof appModalStack !== 'undefined' && Array.isArray(appModalStack)) {
+                    appModalStack.push('closeChatSheet');
+                    history.pushState({ modalOpen: true, stackDepth: appModalStack.length }, '', location.href);
+                }
+                setChatSheetFullscreenMode(true);
                 setTimeout(() => {
                     document.getElementById('chat-sheet').style.zIndex = '250';
                     document.getElementById('overlay').style.zIndex = '240';
@@ -1794,8 +2467,6 @@ const filterSheet = document.getElementById('filter-sheet');
                 }
 
                 document.getElementById('profile-name').innerText = currentPartner.name;
-                const introForHeader = getPartnerIntroText(currentPartner);
-                document.getElementById('profile-desc').innerText = introForHeader || '';
                 const detailBannerUrl = getPartnerDetailImage(currentPartner || {});
                 if (detailBannerUrl) {
                     document.getElementById('profile-img').style.backgroundImage = `url('${detailBannerUrl}')`;
@@ -1880,6 +2551,8 @@ const filterSheet = document.getElementById('filter-sheet');
             // --- 파트너 실시간 동기화 배열 ---
             let DB_CHOICE = [];
             let DB_RECOMMEND = [];
+            const APP_BANNER_EXPOSURE_REFRESH_MS = 10000;
+            let appBannerExposureTimer = null;
 
             // 랜덤 풀에 사용될 전체 옵션 데이터 설정
             const ALL_MASSAGES = ['스웨디시', '스포츠 마사지', '타이 마사지', '커플마사지'];
@@ -2130,11 +2803,15 @@ const filterSheet = document.getElementById('filter-sheet');
                 if (!priceTable) return;
                 let menus = normalizePartnerMenusFromDoc(partner || {});
                 if (!menus.length) {
-                    menus = [
-                        { name: 'A 코스', theme: '스웨디시 & 스포츠 케어', desc: '건식 및 소프트 아로마 60분', price: '100000' },
-                        { name: 'B 코스 (BEST)', theme: '시그니처 감성 테라피', desc: '프리미엄 슈 감성 케어 90분', price: '140000' },
-                        { name: 'C 코스 (VIP)', theme: '로얄 딥티슈 & VIP 케어', desc: '전신 딥티슈 + 집중 감성 케어 120분', price: '180000' },
-                    ];
+                    priceTable.innerHTML = `
+                    <tr>
+                        <td class="course-name text-[16px] border-none pb-0 text-[var(--text-sub)]">
+                            등록된 테라피 코스가 없습니다.
+                        </td>
+                        <td class="course-price text-[16px] border-none pb-0 text-[var(--text-sub)]">-</td>
+                    </tr>
+                `;
+                    return;
                 }
                 priceTable.innerHTML = menus
                     .map((menu, index) => {
@@ -2201,7 +2878,7 @@ const filterSheet = document.getElementById('filter-sheet');
             }
 
             function isPartnerApproved(rawData = {}) {
-                return (rawData?.status || '') === 'active';
+                return normalizePartnerStatus(rawData?.status || '') === 'active';
             }
 
             function normalizePartnerStatus(rawStatus = '') {
@@ -2321,10 +2998,30 @@ const filterSheet = document.getElementById('filter-sheet');
             // 앱 배너 노출은 "관리자 승인 + 입점권 부여 + 유효기간 내"를 모두 충족해야 함
             function canExposePartnerBanner(rawData = {}) {
                 const data = rawData || {};
-                const hasTicketType = !!data.ticketType && data.ticketType !== 'None';
+                const ticketLabel = String(data.ticketType || data.tier || '').trim();
+                const normalizedTicket = ticketLabel.toLowerCase();
+                const hasTicketLabel =
+                    !!ticketLabel &&
+                    normalizedTicket !== 'none' &&
+                    normalizedTicket !== 'null' &&
+                    normalizedTicket !== 'undefined';
                 const expiryMs = getPartnerTicketExpiryMs(data);
                 const now = Date.now();
-                return isPartnerApproved(data) && hasTicketType && expiryMs > now;
+                const hasExpiry = Number(expiryMs || 0) > 0;
+                // 과거/혼합 데이터에서는 ticketType 라벨 없이 만료일만 저장된 케이스가 있어 둘 중 하나만 있어도 입점권 보유로 본다.
+                const hasTicketEvidence = hasTicketLabel || hasExpiry;
+                // 레거시 데이터(만료일 미보유)는 노출 유지, 만료일이 있는 데이터만 시간 만료 검사
+                const ticketValid = hasExpiry ? expiryMs > now : true;
+                return isPartnerApproved(data) && hasTicketEvidence && ticketValid;
+            }
+
+            // 메인 분류 우선순위: 관리자 수동 분류(adminPlacement) > 기존 티어 기반 자동
+            function resolveMainPlacement(rawData = {}) {
+                const data = rawData || {};
+                const forced = String(data.adminPlacement || '').trim().toLowerCase();
+                if (forced === 'choice' || forced === 'recommend') return forced;
+                const tierRaw = String(data.tier || data.ticketType || '').trim().toLowerCase();
+                return tierRaw.includes('vip') ? 'choice' : 'recommend';
             }
 
             // Firebase 실시간 연동 (onSnapshot)
@@ -2346,9 +3043,9 @@ const filterSheet = document.getElementById('filter-sheet');
                         }
 
                         const thumbImage =
-                            data.imageThumb || data.thumbnailImage || data.thumbImage || data.image || `https://picsum.photos/seed/dadok_${index}/400/400`;
+                            data.imageThumb || data.thumbnailImage || data.thumbImage || data.image || '';
                         const detailImage =
-                            data.imageDetail || data.detailImage || data.bannerImage || data.image || thumbImage;
+                            data.imageDetail || data.detailImage || data.bannerImage || data.image || thumbImage || '';
 
                         const regionCandidates = normalizePartnerRegionListForBanner(data);
                         const regionListForApp = regionCandidates.length ? regionCandidates : ['서울 강남/서초'];
@@ -2370,7 +3067,10 @@ const filterSheet = document.getElementById('filter-sheet');
 
                         let appPartner = {
                             id: doc.id,
+                            userId: data.userId || '',
                             name: data.name || '무명 업체',
+                            status: data.status || '',
+                            adminPlacement: String(data.adminPlacement || '').trim().toLowerCase() || 'auto',
                             regionList: regionListForApp,
                             massageList: partnerCategoryCandidatesArray(data.massage, ALL_MASSAGES),
                             placeList: cleanPlaceArray,
@@ -2414,7 +3114,7 @@ const filterSheet = document.getElementById('filter-sheet');
                         };
 
                         // 파티셔닝
-                        if (appPartner.tier === 'VIP') {
+                        if (resolveMainPlacement(appPartner) === 'choice') {
                             fetchedChoice.push(appPartner);
                         } else {
                             fetchedRecommend.push(appPartner);
@@ -2433,6 +3133,30 @@ const filterSheet = document.getElementById('filter-sheet');
                         if (savedProfile) {
                             let savedPartner = JSON.parse(savedProfile);
                             currentPartner = savedPartner;
+                            const savedPartnerId = String(savedPartner.id || '').trim();
+                            const savedPartnerUserId = String(savedPartner.userId || '').trim();
+                            const savedPartnerName = String(savedPartner.name || '').trim();
+                            const savedPartnerPhone = String(
+                                savedPartner.phoneNumber ||
+                                    savedPartner.phone ||
+                                    savedPartner.contact ||
+                                    '',
+                            ).trim();
+                            const existsInSyncedPartners = [...DB_CHOICE, ...DB_RECOMMEND].some((p) => {
+                                const pid = String(p.id || '').trim();
+                                const pUserId = String(p.userId || '').trim();
+                                const pName = String(p.name || '').trim();
+                                const pPhone = String(p.phoneNumber || p.phone || p.contact || '').trim();
+                                if (savedPartnerId && pid && savedPartnerId === pid) return true;
+                                if (savedPartnerUserId && pUserId && savedPartnerUserId === pUserId) return true;
+                                if (savedPartnerName && savedPartnerPhone && pName && pPhone) {
+                                    return savedPartnerName === pName && savedPartnerPhone === pPhone;
+                                }
+                                return false;
+                            });
+                            if (existsInSyncedPartners) {
+                                return;
+                            }
                             if (!canExposePartnerBanner(savedPartner)) {
                                 return;
                             }
@@ -2444,7 +3168,7 @@ const filterSheet = document.getElementById('filter-sheet');
                                 (cleanLocalPlaceArray.length ? cleanLocalPlaceArray.join(', ') : '');
 
                             const localThumbImage =
-                                savedPartner.imageThumb || savedPartner.thumbnailImage || savedPartner.thumbImage || savedPartner.image || 'https://images.unsplash.com/photo-1544161515-4ab6ce6db874?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80';
+                                savedPartner.imageThumb || savedPartner.thumbnailImage || savedPartner.thumbImage || savedPartner.image || '';
                             const localDetailImage =
                                 savedPartner.imageDetail || savedPartner.detailImage || savedPartner.bannerImage || savedPartner.image || localThumbImage;
 
@@ -2455,7 +3179,9 @@ const filterSheet = document.getElementById('filter-sheet');
 
                             let myPartnerMock = {
                                 id: savedPartner.id || `local_${Date.now()}`,
+                                userId: savedPartner.userId || '',
                                 name: savedPartner.name,
+                                adminPlacement: String(savedPartner.adminPlacement || '').trim().toLowerCase() || 'auto',
                                 regionList: localRegionListForApp,
                                 massageList: partnerCategoryCandidatesArray(savedPartner.massage, ALL_MASSAGES),
                                 placeList: cleanLocalPlaceArray,
@@ -2490,7 +3216,11 @@ const filterSheet = document.getElementById('filter-sheet');
                                 callAvailableStart: savedPartner.callAvailableStart || '',
                                 callAvailableEnd: savedPartner.callAvailableEnd || ''
                             };
-                            DB_CHOICE.unshift(myPartnerMock);
+                            if (resolveMainPlacement(myPartnerMock) === 'choice') {
+                                DB_CHOICE.unshift(myPartnerMock);
+                            } else {
+                                DB_RECOMMEND.unshift(myPartnerMock);
+                            }
                         }
                     };
                     
@@ -2614,6 +3344,28 @@ const filterSheet = document.getElementById('filter-sheet');
                 }
             }
 
+            function refreshAppExposureByTicketExpiry() {
+                const beforeChoice = DB_CHOICE.length;
+                const beforeRecommend = DB_RECOMMEND.length;
+                DB_CHOICE = DB_CHOICE.filter((partner) => canExposePartnerBanner(partner || {}));
+                DB_RECOMMEND = DB_RECOMMEND.filter((partner) => canExposePartnerBanner(partner || {}));
+                const changed =
+                    beforeChoice !== DB_CHOICE.length || beforeRecommend !== DB_RECOMMEND.length;
+                if (!changed) return;
+                applyFiltersToData();
+            }
+
+            function startAppBannerExposureAutoRefresh() {
+                if (appBannerExposureTimer) {
+                    clearInterval(appBannerExposureTimer);
+                    appBannerExposureTimer = null;
+                }
+                refreshAppExposureByTicketExpiry();
+                appBannerExposureTimer = setInterval(() => {
+                    refreshAppExposureByTicketExpiry();
+                }, APP_BANNER_EXPOSURE_REFRESH_MS);
+            }
+
             function openListView(type) {
                 const listSheet = document.getElementById('list-sheet');
                 const listContent = document.getElementById('list-content');
@@ -2647,7 +3399,7 @@ const filterSheet = document.getElementById('filter-sheet');
                         const rb = getPartnerProfileReviewBaselines(partner);
                         html += `
                 <div class="card p-4 flex gap-4 mb-4 items-center relative" onclick="openProfile('${partner.name}', '${rndRegion} · ${rndPlace}', '${partner.id}', ${rb.reviews}, ${rb.rating}, '${rndMassage}', '${rndPlace}', '${rndAge}', '${partner.image}', '${partner.ticketType || '일반 입점'}', '${partner.ticketExpiry || ''}')">
-                    <div class="w-[108px] h-[108px] rounded-2xl bg-cover bg-center flex-shrink-0 relative border border-[var(--point-color)]" style="background-image: url('${partner.image}'); filter: grayscale(15%) sepia(20%);">
+                    <div class="w-[108px] h-[108px] rounded-2xl bg-cover bg-center flex-shrink-0 relative border border-white" style="background-image: url('${partner.image}'); filter: grayscale(15%) sepia(20%);">
                         ${badgeHtml}
                     </div>
                     <div class="flex-1 py-1">
@@ -3297,7 +4049,7 @@ const filterSheet = document.getElementById('filter-sheet');
                             const rb = getPartnerProfileReviewBaselines(partner);
                             html += `
                     <div class="card p-4 flex gap-4 mb-4 items-center transition-all duration-500 ease-in-out" onclick="openProfile('${partner.name}', '${rndRegion} · ${rndPlace}', '${partner.id}', ${rb.reviews}, ${rb.rating}, '${rndMassage}', '${rndPlace}', '${rndAge}', '${partner.image}', '${partner.ticketType || '일반 입점'}', '${partner.ticketExpiry || ''}')">
-                        <div class="w-[108px] h-[108px] rounded-2xl bg-cover bg-center flex-shrink-0 relative border border-[var(--point-color)]" style="background-image: url('${partner.image}'); filter: grayscale(10%) sepia(10%);"></div>
+                        <div class="w-[108px] h-[108px] rounded-2xl bg-cover bg-center flex-shrink-0 relative border border-white" style="background-image: url('${partner.image}'); filter: grayscale(10%) sepia(10%);"></div>
                         <div class="flex-1 py-1">
                             <h3 class="font-bold text-[16px] mb-0.5 tracking-tight" style="color: var(--text-main);">${partner.name}</h3>
                             <p class="text-[13px] mt-0.5" style="color: var(--text-sub);">${rndRegion ?? ''}</p>
@@ -3364,7 +4116,11 @@ const filterSheet = document.getElementById('filter-sheet');
                 if (filteredChoiceDB.length === 0) {
                     sliderTrack.innerHTML = `<div class="p-5 text-sm w-full h-[180px] flex items-center justify-center" style="color:var(--text-sub);">조건에 맞는 업체가 없습니다.</div>`;
                 } else {
-                    sliderTrack.innerHTML = generateChoiceItems() + generateChoiceItems();
+                    // 업체 수가 적을 때는 동일 카드가 즉시 반복되어 "중복"처럼 보이므로 1회만 렌더링
+                    const shouldDuplicateForLoop = filteredChoiceDB.length >= 4;
+                    sliderTrack.innerHTML = shouldDuplicateForLoop
+                        ? generateChoiceItems() + generateChoiceItems()
+                        : generateChoiceItems();
                 }
 
                 // 추천 파트너 랜덤 로테이션 렌더링 (5개씩 변경)
@@ -3397,7 +4153,7 @@ const filterSheet = document.getElementById('filter-sheet');
                         const rb = getPartnerProfileReviewBaselines(partner);
                         recHtml += `
                 <div class="card p-4 flex gap-4 mb-4 items-center transition-all duration-500 ease-in-out opacity-0 translate-y-2" style="animation: fadeInUp 0.5s ease forwards;" onclick="openProfile('${partner.name}', '${rndRegion} · ${rndPlace}', '${partner.id}', ${rb.reviews}, ${rb.rating}, '${rndMassage}', '${rndPlace}', '${rndAge}', '${partner.image}', '${partner.ticketType || '일반 입점'}', '${partner.ticketExpiry || ''}')">
-                    <div class="w-[108px] h-[108px] rounded-2xl bg-cover bg-center flex-shrink-0 relative border border-[var(--point-color)]" style="background-image: url('${partner.image}'); filter: grayscale(10%) sepia(10%);">
+                    <div class="w-[108px] h-[108px] rounded-2xl bg-cover bg-center flex-shrink-0 relative border border-white" style="background-image: url('${partner.image}'); filter: grayscale(10%) sepia(10%);">
                         ${badgeHtml}
                     </div>
                     <div class="flex-1 py-1">
@@ -3437,6 +4193,7 @@ const filterSheet = document.getElementById('filter-sheet');
 
             // 앱 구동 시 렌더링
             initializeDynamicContent();
+            startAppBannerExposureAutoRefresh();
 
             // 관심업체 (하트) 및 채팅 기능
             function toggleFavorite() {
@@ -3450,16 +4207,19 @@ const filterSheet = document.getElementById('filter-sheet');
                     heartIcon.setAttribute('fill', 'none');
                     heartIcon.classList.remove('drop-shadow-[0_0_8px_rgba(212,175,55,0.8)]', 'scale-110');
                 } else {
-                    userFavorites.push({ ...currentPartner });
+                    const normalized = normalizeFavoriteEntry(currentPartner);
+                    if (normalized) userFavorites.push(normalized);
                     isFavorite = true;
                     heartIcon.setAttribute('fill', 'currentColor');
                     heartIcon.classList.add('drop-shadow-[0_0_8px_rgba(212,175,55,0.8)]', 'scale-110');
                 }
 
+                persistUserFavorites();
                 renderFavoritesList();
             }
 
             async function openChatSheet() {
+                setChatSheetFullscreenMode(true);
                 const actor = await getCurrentChatActor();
                 if (actor.role === 'user') {
                     const thread = await ensureThreadForCurrentPartnerProfile();
@@ -3480,6 +4240,7 @@ const filterSheet = document.getElementById('filter-sheet');
             function closeChatSheet() {
                 const chatSheet = document.getElementById('chat-sheet');
                 chatSheet.classList.remove('open');
+                closeChatAttachmentPreviewScreen(true);
                 const actorRole = getLoggedInPartnerDocId() ? 'partner' : 'user';
                 if (activeChatThreadId) {
                     markThreadAsRead(activeChatThreadId, actorRole);
@@ -3501,19 +4262,45 @@ const filterSheet = document.getElementById('filter-sheet');
                 } else {
                     // 메인 프로필 등에서 열었을 경우만 오버레이를 지운다
                 }
+                setChatSheetFullscreenMode(false);
             }
 
             async function sendUserMessage() {
+                if (isChatSending) return;
                 const input = document.getElementById('chat-input');
                 const text = input.value.trim();
-                if (!text) return;
+                const filesToUpload = [...pendingChatAttachmentFiles];
+                if (!text && filesToUpload.length === 0) return;
                 if (!activeChatThreadId || typeof firebase === 'undefined') {
                     showCustomToast('채팅방 연결 중입니다. 잠시 후 다시 시도해주세요.');
+                    return;
+                }
+                const attachmentValidation = validateChatAttachmentFiles(filesToUpload);
+                if (!attachmentValidation.ok) {
+                    showCustomToast(attachmentValidation.message);
                     return;
                 }
                 const actor = await getCurrentChatActor();
                 const senderName = actor.name || actor.userId || actor.role;
                 const dbRef = firebase.firestore();
+                let uploadedAttachments = [];
+                setChatSendingState(true, filesToUpload.length > 0 ? '첨부파일 전송 중...' : '메시지 전송 중...');
+                if (filesToUpload.length > 0) {
+                    try {
+                        if (pendingChatAttachmentUploadState === 'done' && pendingChatUploadedAttachments.length) {
+                            uploadedAttachments = [...pendingChatUploadedAttachments];
+                        } else if (pendingChatAttachmentUploadPromise) {
+                            uploadedAttachments = await pendingChatAttachmentUploadPromise;
+                        } else {
+                            uploadedAttachments = await uploadChatAttachments(activeChatThreadId, filesToUpload);
+                        }
+                    } catch (uploadErr) {
+                        console.error('채팅 첨부파일 업로드 실패:', uploadErr);
+                        showCustomToast('첨부파일 업로드에 실패했습니다. 잠시 후 다시 시도해주세요.');
+                        setChatSendingState(false);
+                        return;
+                    }
+                }
                 const messagePayload = {
                     threadId: activeChatThreadId,
                     senderRole: actor.role,
@@ -3521,18 +4308,21 @@ const filterSheet = document.getElementById('filter-sheet');
                     senderUserId: actor.userId || '',
                     senderName,
                     text,
+                    attachments: uploadedAttachments,
+                    attachmentCount: uploadedAttachments.length,
                     createdAt: firebase.firestore.FieldValue.serverTimestamp()
                 };
 
                 const threadRef = dbRef.collection('chat_threads').doc(activeChatThreadId);
                 const incrementTargetField = actor.role === 'partner' ? 'unreadForUser' : 'unreadForPartner';
                 const resetField = actor.role === 'partner' ? 'unreadForPartner' : 'unreadForUser';
+                const lastMessageText = text || `첨부파일 ${uploadedAttachments.length}개`;
 
                 try {
                     await dbRef.collection('chat_messages').add(messagePayload);
                     await threadRef.set(
                         {
-                            lastMessage: text,
+                            lastMessage: lastMessageText,
                             lastSenderRole: actor.role,
                             lastAt: firebase.firestore.FieldValue.serverTimestamp(),
                             [incrementTargetField]: firebase.firestore.FieldValue.increment(1),
@@ -3542,9 +4332,13 @@ const filterSheet = document.getElementById('filter-sheet');
                         { merge: true }
                     );
                     input.value = '';
+                    closeChatAttachmentPreviewScreen(false);
+                    resetChatAttachmentInput();
                 } catch (e) {
                     console.error('메시지 전송 실패:', e);
                     showCustomToast('메시지 전송 중 오류가 발생했습니다.');
+                } finally {
+                    setChatSendingState(false);
                 }
             }
 
@@ -3658,9 +4452,69 @@ const filterSheet = document.getElementById('filter-sheet');
                 './assets/images/dadok_user_male_character.png?v=' + DADOK_USER_AVATAR_CACHE_BUST;
             const DADOK_USER_AVATAR_FEMALE_URL =
                 './assets/images/dadok_user_female_character.png?v=' + DADOK_USER_AVATAR_CACHE_BUST;
+            const DADOK_USER_PROFILE_IMAGE_STORAGE_KEY = 'dadok_user_profile_image_url';
+            const USER_PROFILE_MAX_SIZE = 5 * 1024 * 1024;
+            let currentUserProfileImageUrl = '';
 
             function getCharacterAvatarImageUrl(isMale) {
                 return isMale ? DADOK_USER_AVATAR_MALE_URL : DADOK_USER_AVATAR_FEMALE_URL;
+            }
+
+            function resolveStoredUserProfileImageUrl() {
+                const ls = localStorage.getItem(DADOK_USER_PROFILE_IMAGE_STORAGE_KEY);
+                const ss = sessionStorage.getItem(DADOK_USER_PROFILE_IMAGE_STORAGE_KEY);
+                const raw = String(ls || ss || '').trim();
+                return raw || '';
+            }
+
+            function persistUserProfileImageUrl(url = '') {
+                const value = String(url || '').trim();
+                const keepLogin = localStorage.getItem('dadok_isLoggedIn') === 'true';
+                if (keepLogin) {
+                    if (value) localStorage.setItem(DADOK_USER_PROFILE_IMAGE_STORAGE_KEY, value);
+                    else localStorage.removeItem(DADOK_USER_PROFILE_IMAGE_STORAGE_KEY);
+                    sessionStorage.removeItem(DADOK_USER_PROFILE_IMAGE_STORAGE_KEY);
+                    return;
+                }
+                if (value) sessionStorage.setItem(DADOK_USER_PROFILE_IMAGE_STORAGE_KEY, value);
+                else sessionStorage.removeItem(DADOK_USER_PROFILE_IMAGE_STORAGE_KEY);
+                localStorage.removeItem(DADOK_USER_PROFILE_IMAGE_STORAGE_KEY);
+            }
+
+            function getResolvedUserAvatarUrl(genderKey = 'female', explicitProfileImageUrl = '') {
+                const customUrl = String(explicitProfileImageUrl || '').trim() || resolveStoredUserProfileImageUrl();
+                if (customUrl) return customUrl;
+                return getCharacterAvatarImageUrl(genderKey === 'male');
+            }
+
+            function triggerUserProfileImagePicker() {
+                const input = document.getElementById('mypage-profile-file-input');
+                if (input) input.click();
+            }
+
+            window.triggerUserProfileImagePicker = triggerUserProfileImagePicker;
+
+            async function syncLoggedInUserProfileImageFromFirestore() {
+                if (typeof firebase === 'undefined') return;
+                const userDocId = await ensureLoggedInUserDocId();
+                if (!userDocId) return;
+                try {
+                    const doc = await firebase.firestore().collection('users').doc(userDocId).get();
+                    if (!doc.exists) return;
+                    const data = doc.data() || {};
+                    const profileUrl = String(
+                        data.profileImageUrl || data.photoURL || data.avatarUrl || data.image || '',
+                    ).trim();
+                    if (profileUrl) {
+                        updateHeaderToLoggedInState(
+                            localStorage.getItem('dadok_username') || sessionStorage.getItem('dadok_username') || '',
+                            resolveStoredCustomerGenderKey(),
+                            profileUrl,
+                        );
+                    }
+                } catch (e) {
+                    console.error('사용자 프로필 이미지 동기화 실패:', e);
+                }
             }
 
             function resolveStoredCustomerGenderKey() {
@@ -3688,8 +4542,16 @@ const filterSheet = document.getElementById('filter-sheet');
             function resetUserLoginFormFields() {
                 const idInput = document.getElementById('login-id-input');
                 const passwordInput = document.getElementById('login-password-input');
+                const idError = document.getElementById('login-id-error');
+                const pwError = document.getElementById('login-password-error');
+                const mismatchError = document.getElementById('login-mismatch-error');
                 if (idInput) idInput.value = '';
                 if (passwordInput) passwordInput.value = '';
+                if (idInput) idInput.classList.remove('!border-[#ef4444]');
+                if (passwordInput) passwordInput.classList.remove('!border-[#ef4444]');
+                if (idError) idError.classList.add('hidden');
+                if (pwError) pwError.classList.add('hidden');
+                if (mismatchError) mismatchError.classList.add('hidden');
             }
 
             function openLoginModal() {
@@ -4258,6 +5120,10 @@ const filterSheet = document.getElementById('filter-sheet');
             }
 
             function openPartnerLoginScreen() {
+                if (typeof isLoggedIn !== 'undefined' && isLoggedIn) {
+                    showCustomToast('업체회원 전용입니다.');
+                    return;
+                }
                 if (typeof isPartnerLoggedIn !== 'undefined' && isPartnerLoggedIn) {
                     openPartnerDashboard();
                     return;
@@ -4718,6 +5584,7 @@ const filterSheet = document.getElementById('filter-sheet');
                 refreshNoticeUnreadBadges();
                 bindPartnerDashboardChatBadgeListener();
                 await setPartnerDashboardAccessMode(currentPartner);
+                startPartnerDashboardLiveSync();
                 const modal = document.getElementById('partner-dashboard-modal');
                 if (modal) {
                     const resetPartnerDashboardTop = () => {
@@ -4737,6 +5604,7 @@ const filterSheet = document.getElementById('filter-sheet');
             }
 
             function closePartnerDashboardToLogin() {
+                stopPartnerDashboardLiveSync();
                 const loginModal = document.getElementById('partner-login-modal');
                 if (loginModal) {
                     loginModal.style.display = 'flex';
@@ -4771,6 +5639,7 @@ const filterSheet = document.getElementById('filter-sheet');
             }
 
             function closePartnerDashboardToMain() {
+                stopPartnerDashboardLiveSync();
                 const modal = document.getElementById('partner-dashboard-modal');
                 if (modal) {
                     modal.classList.add('translate-x-full');
@@ -4861,6 +5730,14 @@ const filterSheet = document.getElementById('filter-sheet');
                 if (loginSuccess) {
                     const keepLogin = document.getElementById('partner-keep-login-checkbox').checked;
                     isPartnerLoggedIn = true;
+                    // 파트너 로그인 시 일반회원 세션을 함께 정리해 동시 로그인 상태를 방지
+                    isLoggedIn = false;
+                    localStorage.removeItem('dadok_isLoggedIn');
+                    localStorage.removeItem('dadok_username');
+                    localStorage.removeItem('dadok_loggedInUserDocId');
+                    sessionStorage.removeItem('dadok_isLoggedIn');
+                    sessionStorage.removeItem('dadok_username');
+                    sessionStorage.removeItem('dadok_loggedInUserDocId');
                     if (loggedInPartnerDocId) {
                         if (keepLogin) {
                             localStorage.setItem('dadok_loggedInPartnerDocId', loggedInPartnerDocId);
@@ -4907,13 +5784,14 @@ const filterSheet = document.getElementById('filter-sheet');
                     mismatchError.classList.remove('hidden');
                     idInput.classList.add('!border-[#ef4444]');
                     passwordInput.classList.add('!border-[#ef4444]');
-                    setTimeout(() => {
-                        resetPartnerLoginFormFields();
-                    }, 0);
                 }
             }
 
             function openPartnerSignupModal() {
+                if (typeof isLoggedIn !== 'undefined' && isLoggedIn) {
+                    showCustomToast('업체회원 전용입니다.');
+                    return;
+                }
                 const modal = document.getElementById('partner-signup-modal');
                 if (modal) forcePartnerSignupTop();
                 modal.style.display = 'flex';
@@ -4943,6 +5821,8 @@ const filterSheet = document.getElementById('filter-sheet');
                 modal.classList.add('translate-x-full');
                 setTimeout(() => {
                     modal.style.display = 'none';
+                    // 뒤로가기/닫기 시 작성 중인 내용이 남지 않도록 항상 초기화
+                    resetPartnerSignupForm();
                 }, 300);
             }
 
@@ -4985,6 +5865,26 @@ const filterSheet = document.getElementById('filter-sheet');
             function isValidKoreanMobilePhone(value = '') {
                 const digits = normalizePhoneDigits(value);
                 return /^010\d{8}$/.test(digits);
+            }
+
+            function formatFirebaseError(error) {
+                const code = String(error?.code || '').trim();
+                const message = String(error?.message || '').trim();
+                if (code && message) return `${code} - ${message}`;
+                if (code) return code;
+                if (message) return message;
+                return '알 수 없는 오류';
+            }
+
+            function setPartnerSignupSubmitButtonLabel(label = '가입하기') {
+                const btn = document.getElementById('partner-signup-submit-btn');
+                if (!btn) return;
+                const labelSpan = btn.querySelector('span');
+                if (labelSpan) {
+                    labelSpan.innerText = label;
+                } else {
+                    btn.innerText = label;
+                }
             }
 
             function setPartnerAgreeCheckboxState(checkbox, checked) {
@@ -5047,8 +5947,7 @@ const filterSheet = document.getElementById('filter-sheet');
                 setIdStatusMessage(document.getElementById('partner-signup-pw-confirm-status-msg'), 'idle', '');
                 setIdStatusMessage(document.getElementById('partner-signup-phone-status-msg'), 'idle', '');
 
-                const btn = document.getElementById('partner-signup-submit-btn');
-                if (btn) btn.innerText = '파트너 가입 제출하기';
+                setPartnerSignupSubmitButtonLabel('가입하기');
 
                 checkPartnerSignupForm();
             }
@@ -5111,7 +6010,6 @@ const filterSheet = document.getElementById('filter-sheet');
 
                 const checkedRadio = document.querySelector('input[name="business_type"]:checked');
                 let bizType = checkedRadio ? checkedRadio.value : '개인사업자';
-                const legalConsent = buildLegalConsentPayload('partner');
 
                 if (bizType === '개인사업자' || bizType === '법인사업자') {
                     const bizNo = document.getElementById('partner-signup-biz-no')?.value?.trim();
@@ -5154,6 +6052,7 @@ const filterSheet = document.getElementById('filter-sheet');
 
                 const checkedRadio = document.querySelector('input[name="business_type"]:checked');
                 let bizType = checkedRadio ? checkedRadio.value : '개인사업자';
+                const legalConsent = buildLegalConsentPayload('partner');
                 
                 if (id.length < SIGNUP_ID_MIN_LENGTH) {
                     alert('아이디는 4자리 이상 입력해주세요.');
@@ -5199,31 +6098,35 @@ const filterSheet = document.getElementById('filter-sheet');
                         checkPartnerSignupForm();
                         return;
                     }
+                } catch (error) {
+                    console.error('파트너 아이디 중복 확인 실패:', error);
+                    alert(`아이디 중복 확인 중 오류가 발생했습니다.\n${formatFirebaseError(error)}`);
+                    setPartnerSignupSubmitButtonLabel('가입하기');
+                    return;
+                }
 
-                    const now = firebase.firestore.FieldValue.serverTimestamp();
-                    
-                    const btn = document.getElementById('partner-signup-submit-btn');
-                    if (btn) btn.innerText = '서류 업로드 중...';
+                const now = firebase.firestore.FieldValue.serverTimestamp();
+                setPartnerSignupSubmitButtonLabel('서류 업로드 중...');
 
-                    let bizDocUrl = '';
-                    const fileInput = document.getElementById('partner-signup-file');
-                    if (fileInput && fileInput.files && fileInput.files[0]) {
-                        const file = fileInput.files[0];
-                        try {
-                            const storageRef = firebase.storage().ref();
-                            const fileRef = storageRef.child('partners_biz/' + Date.now() + '_' + file.name);
-                            const snapshot = await fileRef.put(file);
-                            bizDocUrl = await snapshot.ref.getDownloadURL();
-                        } catch (uploadObjError) {
-                            console.error('이미지 업로드 중 실패:', uploadObjError);
-                            alert('증빙 서류 업로드에 실패했습니다. 관리자에게 문의바랍니다.');
-                            if (btn) btn.innerText = '파트너 가입 완료하기';
-                            return;
-                        }
+                let bizDocUrl = '';
+                const fileInput = document.getElementById('partner-signup-file');
+                if (fileInput && fileInput.files && fileInput.files[0]) {
+                    const file = fileInput.files[0];
+                    try {
+                        const storageRef = firebase.storage().ref();
+                        const fileRef = storageRef.child('partners_biz/' + Date.now() + '_' + file.name);
+                        const snapshot = await fileRef.put(file);
+                        bizDocUrl = await snapshot.ref.getDownloadURL();
+                    } catch (uploadObjError) {
+                        console.error('이미지 업로드 중 실패:', uploadObjError);
+                        alert(`증빙 서류 업로드에 실패했습니다.\n${formatFirebaseError(uploadObjError)}`);
+                        setPartnerSignupSubmitButtonLabel('가입하기');
+                        return;
                     }
+                }
 
-                    if (btn) btn.innerText = '데이터 저장 중...';
-
+                setPartnerSignupSubmitButtonLabel('데이터 저장 중...');
+                try {
                     // 파트너 컬렉션에 새 문서 저장
                     await firestoreDb.collection('partners').add({
                         userId: id,
@@ -5239,13 +6142,14 @@ const filterSheet = document.getElementById('filter-sheet');
                         createdAt: now,
                         updatedAt: now
                     });
-                    
-                    if (btn) btn.innerText = '파트너 가입 완료하기';
                 } catch (error) {
-                    console.error('파트너 등록 중 오류 발생:', error);
-                    alert('가입 처리 중 문제가 발생했습니다. 관리자에게 문의하세요.');
+                    console.error('파트너 문서 저장 실패:', error);
+                    alert(`가입 데이터 저장 중 오류가 발생했습니다.\n${formatFirebaseError(error)}`);
+                    setPartnerSignupSubmitButtonLabel('가입하기');
                     return;
                 }
+
+                setPartnerSignupSubmitButtonLabel('가입하기');
 
                 // 모달 전환 로직
                 resetPartnerSignupForm();
@@ -5303,10 +6207,71 @@ const filterSheet = document.getElementById('filter-sheet');
                     document.getElementById('app-company-name-error').classList.add('hidden');
                     document.getElementById('app-depositor-name-error').classList.add('hidden');
                     document.getElementById('app-contact-error').classList.add('hidden');
+                    document.getElementById('app-contact-error').innerText = '연락처를 입력해주세요.';
                     document.getElementById('app-company-name').classList.remove('!border-[#ef4444]');
                     document.getElementById('app-depositor-name').classList.remove('!border-[#ef4444]');
                     document.getElementById('app-contact').classList.remove('!border-[#ef4444]');
                 }, 300);
+            }
+
+            function getPartnerApplicationContactValidation(contactRaw = '') {
+                const digits = normalizePhoneDigits(contactRaw).slice(0, 11);
+                if (!digits) {
+                    return { digits, isEmpty: true, isValid: false, message: '연락처를 입력해주세요.' };
+                }
+                if (!digits.startsWith('010')) {
+                    return {
+                        digits,
+                        isEmpty: false,
+                        isValid: false,
+                        message: '연락처는 010으로 시작해야 합니다.',
+                    };
+                }
+                if (!/^010\d{8}$/.test(digits)) {
+                    return {
+                        digits,
+                        isEmpty: false,
+                        isValid: false,
+                        message: '010으로 시작하는 11자리 숫자로 입력해주세요.',
+                    };
+                }
+                return { digits, isEmpty: false, isValid: true, message: '' };
+            }
+
+            function applyPartnerApplicationContactValidation(contactInput, { showEmptyError = false } = {}) {
+                if (!contactInput) return false;
+                const errorEl = document.getElementById('app-contact-error');
+                const result = getPartnerApplicationContactValidation(contactInput.value || '');
+                contactInput.value = result.digits;
+
+                if (result.isValid) {
+                    contactInput.classList.remove('!border-[#ef4444]');
+                    if (errorEl) {
+                        errorEl.classList.add('hidden');
+                        errorEl.innerText = '연락처를 입력해주세요.';
+                    }
+                    return true;
+                }
+
+                if (result.isEmpty && !showEmptyError) {
+                    contactInput.classList.remove('!border-[#ef4444]');
+                    if (errorEl) {
+                        errorEl.classList.add('hidden');
+                        errorEl.innerText = '연락처를 입력해주세요.';
+                    }
+                    return false;
+                }
+
+                contactInput.classList.add('!border-[#ef4444]');
+                if (errorEl) {
+                    errorEl.classList.remove('hidden');
+                    errorEl.innerText = result.message;
+                }
+                return false;
+            }
+
+            function handlePartnerApplicationContactInput(inputEl) {
+                applyPartnerApplicationContactValidation(inputEl, { showEmptyError: false });
             }
 
             async function submitPartnerApplication() {
@@ -5345,19 +6310,21 @@ const filterSheet = document.getElementById('filter-sheet');
 
                 if (!contact) {
                     document.getElementById('app-contact-error').classList.remove('hidden');
+                    document.getElementById('app-contact-error').innerText = '연락처를 입력해주세요.';
                     contactInput.classList.add('!border-[#ef4444]');
                     isValid = false;
                 } else {
-                    document.getElementById('app-contact-error').classList.add('hidden');
-                    contactInput.classList.remove('!border-[#ef4444]');
+                    const isValidContact = applyPartnerApplicationContactValidation(contactInput, {
+                        showEmptyError: true,
+                    });
+                    if (!isValidContact) isValid = false;
                 }
 
                 if (!isValid) {
                     return;
                 }
 
-                if (!isValidKoreanMobilePhone(contact)) {
-                    alert('연락처 양식이 맞지 않습니다. (010으로 시작하는 11자리)');
+                if (!applyPartnerApplicationContactValidation(contactInput, { showEmptyError: true })) {
                     return;
                 }
 
@@ -5492,6 +6459,7 @@ const filterSheet = document.getElementById('filter-sheet');
                     document.getElementById('app-company-name-error').classList.add('hidden');
                     document.getElementById('app-depositor-name-error').classList.add('hidden');
                     document.getElementById('app-contact-error').classList.add('hidden');
+                    document.getElementById('app-contact-error').innerText = '연락처를 입력해주세요.';
                     document.getElementById('app-company-name').classList.remove('!border-[#ef4444]');
                     document.getElementById('app-depositor-name').classList.remove('!border-[#ef4444]');
                     document.getElementById('app-contact').classList.remove('!border-[#ef4444]');
@@ -5533,13 +6501,30 @@ const filterSheet = document.getElementById('filter-sheet');
             async function handleMockLogin() {
                 const idInput = document.getElementById('login-id-input');
                 const passwordInput = document.getElementById('login-password-input');
+                const idError = document.getElementById('login-id-error');
+                const pwError = document.getElementById('login-password-error');
+                const mismatchError = document.getElementById('login-mismatch-error');
                 const idValue = idInput.value.trim();
                 const pwValue = passwordInput.value.trim();
 
-                if (!idValue || !pwValue) {
-                    alert('아이디와 비밀번호를 입력해주세요.');
-                    return;
+                if (idError) idError.classList.add('hidden');
+                if (pwError) pwError.classList.add('hidden');
+                if (mismatchError) mismatchError.classList.add('hidden');
+                if (idInput) idInput.classList.remove('!border-[#ef4444]');
+                if (passwordInput) passwordInput.classList.remove('!border-[#ef4444]');
+
+                let hasError = false;
+                if (!idValue) {
+                    if (idError) idError.classList.remove('hidden');
+                    if (idInput) idInput.classList.add('!border-[#ef4444]');
+                    hasError = true;
                 }
+                if (!pwValue) {
+                    if (pwError) pwError.classList.remove('hidden');
+                    if (passwordInput) passwordInput.classList.add('!border-[#ef4444]');
+                    hasError = true;
+                }
+                if (hasError) return;
 
                 if (typeof firebase === 'undefined') {
                     alert('서버 연결 실패. 페이지를 강력 새로고침(Ctrl + F5) 후 다시 시도해주세요.');
@@ -5565,22 +6550,40 @@ const filterSheet = document.getElementById('filter-sheet');
                             let resolvedGenderKey = '';
                             if (userData.gender === '남성') resolvedGenderKey = 'male';
                             else if (userData.gender === '여성') resolvedGenderKey = 'female';
-                            completeLoginProcess(idValue, userDoc.id, resolvedGenderKey);
+                            const resolvedProfileImage =
+                                userData.profileImageUrl ||
+                                userData.photoURL ||
+                                userData.avatarUrl ||
+                                userData.image ||
+                                '';
+                            completeLoginProcess(
+                                idValue,
+                                userDoc.id,
+                                resolvedGenderKey,
+                                resolvedProfileImage,
+                            );
                             return;
                         }
                     }
                     
                     // ID 없거나 비밀번호 불일치
-                    alert('아이디 또는 비밀번호가 일치하지 않습니다.');
-                    resetUserLoginFormFields();
+                    if (mismatchError) mismatchError.classList.remove('hidden');
+                    if (idInput) idInput.classList.add('!border-[#ef4444]');
+                    if (passwordInput) passwordInput.classList.add('!border-[#ef4444]');
                 } catch (error) {
                     console.error("Login Error: ", error);
                     alert("로그인 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
                 }
             }
 
-            function completeLoginProcess(username, userDocId = '', genderKey = '') {
+            function completeLoginProcess(
+                username,
+                userDocId = '',
+                genderKey = '',
+                profileImageUrl = '',
+            ) {
                 isLoggedIn = true;
+                isPartnerLoggedIn = false;
                 const idInput = document.getElementById('login-id-input');
                 const passwordInput = document.getElementById('login-password-input');
                 if(idInput) idInput.value = '';
@@ -5606,16 +6609,30 @@ const filterSheet = document.getElementById('filter-sheet');
                 if (genderKey === 'male' || genderKey === 'female') {
                     persistCustomerGenderKey(genderKey);
                 }
-                updateHeaderToLoggedInState(username, genderKey);
+
+                // 일반회원 로그인 시 파트너 세션 잔존값 제거(채팅 actor 오판 방지)
+                localStorage.removeItem('dadok_isPartnerLoggedIn');
+                sessionStorage.removeItem('dadok_isPartnerLoggedIn');
+                localStorage.removeItem('dadok_loggedInPartnerDocId');
+                sessionStorage.removeItem('dadok_loggedInPartnerDocId');
+                localStorage.removeItem('dadok_loggedInPartnerUserId');
+                sessionStorage.removeItem('dadok_loggedInPartnerUserId');
+                currentPartner = null;
+
+                updateHeaderToLoggedInState(username, genderKey, profileImageUrl);
+                loadUserFavorites();
             }
 
-            function updateHeaderToLoggedInState(name, explicitGenderKey) {
+            function updateHeaderToLoggedInState(name, explicitGenderKey, explicitProfileImageUrl = '') {
                 const key =
                     explicitGenderKey === 'male' || explicitGenderKey === 'female'
                         ? explicitGenderKey
                         : resolveStoredCustomerGenderKey();
-                const isMale = key === 'male';
-                const avatarUrl = getCharacterAvatarImageUrl(isMale);
+                const avatarUrl = getResolvedUserAvatarUrl(key, explicitProfileImageUrl);
+                currentUserProfileImageUrl = String(explicitProfileImageUrl || '').trim()
+                    ? String(explicitProfileImageUrl || '').trim()
+                    : resolveStoredUserProfileImageUrl();
+                persistUserProfileImageUrl(currentUserProfileImageUrl);
 
                 const headerProfileBtn = document.getElementById('header-profile-btn');
                 if (headerProfileBtn) {
@@ -5644,6 +6661,9 @@ const filterSheet = document.getElementById('filter-sheet');
             function openMyPageModal() {
                 const myPageModal = document.getElementById('mypage-modal');
                 myPageModal.style.display = 'flex';
+                syncLoggedInUserProfileImageFromFirestore();
+                startNoticeRealtimeListener('user');
+                startUserChatUnreadListener();
                 refreshNoticeUnreadBadges();
                 void myPageModal.offsetWidth; // force reflow
                 setTimeout(() => {
@@ -5652,10 +6672,109 @@ const filterSheet = document.getElementById('filter-sheet');
                 }, 10);
             }
 
+            async function handleUserProfileImageSelected(inputEl) {
+                const file = inputEl?.files?.[0];
+                if (!file) return;
+                const lowerName = String(file.name || '').toLowerCase();
+                const isImage =
+                    lowerName.endsWith('.jpg') ||
+                    lowerName.endsWith('.jpeg') ||
+                    lowerName.endsWith('.png') ||
+                    lowerName.endsWith('.webp');
+                if (!isImage) {
+                    showCustomToast('JPG/PNG/WEBP 이미지 파일만 업로드할 수 있습니다.');
+                    if (inputEl) inputEl.value = '';
+                    return;
+                }
+                if (Number(file.size || 0) > USER_PROFILE_MAX_SIZE) {
+                    showCustomToast('프로필 이미지는 5MB 이하만 업로드할 수 있습니다.');
+                    if (inputEl) inputEl.value = '';
+                    return;
+                }
+                if (typeof firebase === 'undefined') {
+                    showCustomToast('서버 연결에 실패했습니다. 잠시 후 다시 시도해주세요.');
+                    if (inputEl) inputEl.value = '';
+                    return;
+                }
+
+                const userDocId = await ensureLoggedInUserDocId();
+                if (!userDocId) {
+                    showCustomToast('로그인 정보를 확인할 수 없습니다. 다시 로그인해주세요.');
+                    if (inputEl) inputEl.value = '';
+                    return;
+                }
+
+                try {
+                    const ext = lowerName.split('.').pop() || 'jpg';
+                    const path = `users_profile_avatars/${userDocId}/${Date.now()}.${ext}`;
+                    const storageRef = firebase.storage().ref();
+                    await storageRef.child(path).put(file);
+                    const downloadUrl = await storageRef.child(path).getDownloadURL();
+
+                    await firebase.firestore().collection('users').doc(userDocId).update({
+                        profileImageUrl: downloadUrl,
+                        photoURL: downloadUrl,
+                        avatarUrl: downloadUrl,
+                        image: downloadUrl,
+                        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    });
+
+                    const threadsSnap = await firebase
+                        .firestore()
+                        .collection('chat_threads')
+                        .where('participantUserDocId', '==', userDocId)
+                        .get();
+                    if (!threadsSnap.empty) {
+                        const batch = firebase.firestore().batch();
+                        threadsSnap.forEach((doc) => {
+                            batch.set(
+                                doc.ref,
+                                {
+                                    userImage: downloadUrl,
+                                    updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                                },
+                                { merge: true },
+                            );
+                        });
+                        await batch.commit();
+                    }
+
+                    const userName =
+                        localStorage.getItem('dadok_username') ||
+                        sessionStorage.getItem('dadok_username') ||
+                        '';
+                    updateHeaderToLoggedInState(
+                        userName,
+                        resolveStoredCustomerGenderKey(),
+                        downloadUrl,
+                    );
+
+                    const actorRole = getLoggedInPartnerDocId() ? 'partner' : 'user';
+                    if (activeChatThreadMeta && actorRole === 'partner') {
+                        activeChatThreadMeta = {
+                            ...(activeChatThreadMeta || {}),
+                            userImage: downloadUrl,
+                        };
+                        applyChatSheetHeader(actorRole);
+                    }
+
+                    showSuccessToast('프로필 사진이 변경되었습니다.');
+                } catch (e) {
+                    console.error('프로필 이미지 업로드 실패:', e);
+                    showCustomToast('프로필 사진 변경 중 오류가 발생했습니다.');
+                } finally {
+                    if (inputEl) inputEl.value = '';
+                }
+            }
+
+            window.handleUserProfileImageSelected = handleUserProfileImageSelected;
+
             function closeMyPageModal() {
                 const myPageModal = document.getElementById('mypage-modal');
                 myPageModal.classList.remove('translate-x-0');
                 myPageModal.classList.add('translate-x-full');
+                stopNoticeRealtimeListener('user');
+                stopUserChatUnreadListener();
                 setTimeout(() => {
                     myPageModal.style.display = 'none';
                 }, 300);
@@ -5689,19 +6808,46 @@ const filterSheet = document.getElementById('filter-sheet');
                 }
 
                 if (actor.role === 'user' && actor.docId) {
-                    unsubscribeChatList = firebase
+                    let queryRows = [];
+                    let adminThreadRow = null;
+                    const renderMergedRows = () => {
+                        const merged = [...queryRows];
+                        if (adminThreadRow) {
+                            const exists = merged.some((row) => String(row.id || '') === String(adminThreadRow.id || ''));
+                            if (!exists) merged.push(adminThreadRow);
+                        }
+                        merged.sort((a, b) => {
+                            const aMs = a.updatedAt?.toMillis ? a.updatedAt.toMillis() : 0;
+                            const bMs = b.updatedAt?.toMillis ? b.updatedAt.toMillis() : 0;
+                            return bMs - aMs;
+                        });
+                        chatListRows = merged;
+                        renderChatList();
+                    };
+
+                    const queryUnsub = firebase
                         .firestore()
                         .collection('chat_threads')
                         .where('participantUserDocId', '==', actor.docId)
                         .onSnapshot((snap) => {
-                            chatListRows = snap.docs.map((doc) => ({ ...(doc.data() || {}), id: doc.id }));
-                            chatListRows.sort((a, b) => {
-                                const aMs = a.updatedAt?.toMillis ? a.updatedAt.toMillis() : 0;
-                                const bMs = b.updatedAt?.toMillis ? b.updatedAt.toMillis() : 0;
-                                return bMs - aMs;
-                            });
-                            renderChatList();
+                            queryRows = snap.docs.map((doc) => ({ ...(doc.data() || {}), id: doc.id }));
+                            renderMergedRows();
                         });
+
+                    const adminThreadId = `admin__u_${actor.docId}`;
+                    const adminDocUnsub = firebase
+                        .firestore()
+                        .collection('chat_threads')
+                        .doc(adminThreadId)
+                        .onSnapshot((doc) => {
+                            adminThreadRow = doc.exists ? { ...(doc.data() || {}), id: doc.id } : null;
+                            renderMergedRows();
+                        });
+
+                    unsubscribeChatList = () => {
+                        if (typeof queryUnsub === 'function') queryUnsub();
+                        if (typeof adminDocUnsub === 'function') adminDocUnsub();
+                    };
                     return;
                 }
 
@@ -5837,9 +6983,151 @@ const filterSheet = document.getElementById('filter-sheet');
                 return `${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
             }
 
+            function getNoticeAttachmentExt(name = '') {
+                const raw = String(name || '').trim().toLowerCase();
+                const dot = raw.lastIndexOf('.');
+                if (dot <= -1 || dot >= raw.length - 1) return '';
+                return raw.slice(dot + 1);
+            }
+
+            function renderNoticeAttachmentInline(att = {}, idx = 0) {
+                const fileName = escapeNoticeText(att?.name || `첨부파일 ${idx + 1}`);
+                const fileUrl = escapeNoticeText(att?.url || '#');
+                const ext = getNoticeAttachmentExt(att?.name || '');
+                const imageExts = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+                if (imageExts.includes(ext)) {
+                    return `
+                        <div class="mt-2 rounded-xl border border-[#2A3731] bg-[#06110D] overflow-hidden">
+                            <img src="${fileUrl}" alt="${fileName}" class="w-full h-auto max-h-[260px] object-contain bg-[#020806]">
+                        </div>
+                    `;
+                }
+                if (ext === 'pdf') {
+                    return `
+                        <div class="mt-2 rounded-xl border border-[#2A3731] bg-[#06110D] overflow-hidden">
+                            <iframe src="${fileUrl}" class="w-full h-[300px] bg-white" loading="lazy"></iframe>
+                            <div class="px-3 py-2 text-[11px] text-[#A7B2AE] truncate">${fileName}</div>
+                        </div>
+                    `;
+                }
+                return `
+                    <div class="mt-2 px-3 py-2 rounded-lg border border-[#2A3731] bg-[#06110D] text-[11px] text-[#C8D1CD]">
+                        첨부파일: ${fileName}
+                    </div>
+                `;
+            }
+
             let currentNoticeAudience = 'user';
             let currentNoticeRecipient = { type: '', docId: '' };
             let currentNoticeRows = [];
+            const noticeRealtimeUnsubs = { user: null, partner: null };
+            const noticeRealtimeTargets = { user: '', partner: '' };
+            const noticeRealtimeRows = { user: [], partner: [] };
+
+            function sortNoticeRows(rows = []) {
+                const getTs = (x) => {
+                    if (x?.createdAt && typeof x.createdAt.toMillis === 'function') return x.createdAt.toMillis();
+                    return 0;
+                };
+                return [...rows].sort((a, b) => getTs(b) - getTs(a));
+            }
+
+            function renderNoticeRowsToContainer(rows = []) {
+                const container = document.getElementById('notice-list-container');
+                if (!container) return;
+                if (!rows.length) {
+                    container.innerHTML =
+                        '<div class="text-[var(--text-sub)] text-sm p-4">도착한 관리자 알림이 없습니다.</div>';
+                    return;
+                }
+                let html = '<div class="space-y-3">';
+                rows.forEach((row) => {
+                    const priorityBadge =
+                        row.priority === 'important'
+                            ? '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-500/20 text-red-300 border border-red-500/30">중요</span>'
+                            : '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#11291D] text-[var(--point-color)] border border-[#2A3731]">일반</span>';
+                    const unreadDot = row.isRead
+                        ? ''
+                        : '<span class="inline-flex w-2.5 h-2.5 rounded-full bg-red-400"></span>';
+                    const linkBtn =
+                        row.linkType && row.linkType !== 'none'
+                            ? `<button onclick="openNoticeLinkedScreen('${row.id}', '${row.linkType}')" class="px-2 py-1 text-[10px] font-bold rounded-lg border border-[#2A3731] text-white hover:border-[var(--point-color)] hover:text-[var(--point-color)] transition-colors">관련 화면 이동</button>`
+                            : '';
+                    const readBtn = row.isRead
+                        ? '<span class="text-[10px] text-[#6C7A74]">읽음</span>'
+                        : `<button onclick="markNoticeAsRead('${row.id}')" class="px-2 py-1 text-[10px] font-bold rounded-lg border border-[var(--point-color)]/40 text-[var(--point-color)] hover:bg-[var(--point-color)]/15 transition-colors">읽음 처리</button>`;
+                    const attachments = Array.isArray(row.attachments) ? row.attachments : [];
+                    const attachmentsHtml = attachments.length
+                        ? `<div class="mt-2">${attachments
+                              .map((att, idx) => renderNoticeAttachmentInline(att, idx))
+                              .join('')}</div>`
+                        : '';
+                    html += `
+                        <div class="bg-[#0A1B13] border ${row.isRead ? 'border-[#2A3731]' : 'border-[var(--point-color)]/35'} rounded-2xl p-4">
+                            <div class="flex items-start justify-between gap-2 mb-2">
+                                <div class="flex items-center gap-2 text-white font-bold text-[15px]">${unreadDot}${escapeNoticeText(row.title || '(제목 없음)')}</div>
+                                <div class="flex items-center gap-2">${priorityBadge}${readBtn}${linkBtn}</div>
+                            </div>
+                            <div class="text-[11px] text-[var(--text-sub)] mb-2">${escapeNoticeText(row.category || 'notice')} · ${formatNoticeDate(row.createdAt)} · ${escapeNoticeText(row.linkLabel || '이동 없음')}</div>
+                            <p class="text-[13px] text-white/85 leading-relaxed whitespace-pre-wrap">${escapeNoticeText(row.body || '')}</p>
+                            ${attachmentsHtml}
+                        </div>
+                    `;
+                });
+                html += '</div>';
+                container.innerHTML = html;
+            }
+
+            function stopNoticeRealtimeListener(audience = 'user') {
+                if (typeof noticeRealtimeUnsubs[audience] === 'function') {
+                    noticeRealtimeUnsubs[audience]();
+                }
+                noticeRealtimeUnsubs[audience] = null;
+                noticeRealtimeTargets[audience] = '';
+            }
+
+            async function startNoticeRealtimeListener(audience = 'user', target = null) {
+                if (typeof firebase === 'undefined') return;
+                const resolvedTarget = target || (await resolveNotificationRecipient(audience));
+                const nextKey = resolvedTarget?.docId
+                    ? `${resolvedTarget.type}:${resolvedTarget.docId}`
+                    : '';
+                if (!nextKey) {
+                    stopNoticeRealtimeListener(audience);
+                    noticeRealtimeRows[audience] = [];
+                    refreshNoticeUnreadBadges();
+                    return;
+                }
+                if (
+                    noticeRealtimeTargets[audience] === nextKey &&
+                    typeof noticeRealtimeUnsubs[audience] === 'function'
+                ) {
+                    return;
+                }
+                stopNoticeRealtimeListener(audience);
+                noticeRealtimeTargets[audience] = nextKey;
+                noticeRealtimeUnsubs[audience] = firebase
+                    .firestore()
+                    .collection('user_notifications')
+                    .where('recipientType', '==', resolvedTarget.type)
+                    .where('recipientDocId', '==', resolvedTarget.docId)
+                    .onSnapshot(
+                        (snap) => {
+                            const rows = [];
+                            snap.forEach((doc) => rows.push({ id: doc.id, ...doc.data() }));
+                            const sortedRows = sortNoticeRows(rows);
+                            noticeRealtimeRows[audience] = sortedRows;
+                            if (currentNoticeAudience === audience) {
+                                currentNoticeRows = sortedRows;
+                                renderNoticeRowsToContainer(sortedRows);
+                            }
+                            refreshNoticeUnreadBadges();
+                        },
+                        (err) => {
+                            console.error('알림 실시간 동기화 실패:', err);
+                        },
+                    );
+            }
 
             async function resolveNotificationRecipient(audience) {
                 if (audience === 'partner') {
@@ -5871,9 +7159,11 @@ const filterSheet = document.getElementById('filter-sheet');
                     currentNoticeAudience = audience;
                     currentNoticeRecipient = target;
                     if (!target.docId) {
+                        noticeRealtimeRows[audience] = [];
                         container.innerHTML = '<div class="text-[var(--text-sub)] text-sm">수신자 정보를 찾을 수 없습니다.</div>';
                         return;
                     }
+                    await startNoticeRealtimeListener(audience, target);
 
                     const snap = await firebase.firestore().collection('user_notifications')
                         .where('recipientType', '==', target.type)
@@ -5882,49 +7172,20 @@ const filterSheet = document.getElementById('filter-sheet');
 
                     const rows = [];
                     snap.forEach((doc) => rows.push({ id: doc.id, ...doc.data() }));
-                    rows.sort((a, b) => {
-                        const getTs = (x) => {
-                            if (x?.createdAt && typeof x.createdAt.toMillis === 'function') return x.createdAt.toMillis();
-                            return 0;
-                        };
-                        return getTs(b) - getTs(a);
-                    });
+                    const sortedRows = sortNoticeRows(rows);
 
-                    if (!rows.length) {
+                    if (!sortedRows.length) {
                         currentNoticeRows = [];
+                        noticeRealtimeRows[audience] = [];
                         refreshNoticeUnreadBadges();
-                        container.innerHTML = '<div class="text-[var(--text-sub)] text-sm p-4">도착한 관리자 알림이 없습니다.</div>';
+                        renderNoticeRowsToContainer([]);
                         return;
                     }
 
-                    currentNoticeRows = rows;
+                    currentNoticeRows = sortedRows;
+                    noticeRealtimeRows[audience] = sortedRows;
                     refreshNoticeUnreadBadges();
-
-                    let html = '<div class="space-y-3">';
-                    rows.forEach((row) => {
-                        const priorityBadge = row.priority === 'important'
-                            ? '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-500/20 text-red-300 border border-red-500/30">중요</span>'
-                            : '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#11291D] text-[var(--point-color)] border border-[#2A3731]">일반</span>';
-                        const unreadDot = row.isRead ? '' : '<span class="inline-flex w-2.5 h-2.5 rounded-full bg-red-400"></span>';
-                        const linkBtn = row.linkType && row.linkType !== 'none'
-                            ? `<button onclick="openNoticeLinkedScreen('${row.id}', '${row.linkType}')" class="px-2 py-1 text-[10px] font-bold rounded-lg border border-[#2A3731] text-white hover:border-[var(--point-color)] hover:text-[var(--point-color)] transition-colors">관련 화면 이동</button>`
-                            : '';
-                        const readBtn = row.isRead
-                            ? '<span class="text-[10px] text-[#6C7A74]">읽음</span>'
-                            : `<button onclick="markNoticeAsRead('${row.id}')" class="px-2 py-1 text-[10px] font-bold rounded-lg border border-[var(--point-color)]/40 text-[var(--point-color)] hover:bg-[var(--point-color)]/15 transition-colors">읽음 처리</button>`;
-                        html += `
-                            <div class="bg-[#0A1B13] border ${row.isRead ? 'border-[#2A3731]' : 'border-[var(--point-color)]/35'} rounded-2xl p-4">
-                                <div class="flex items-start justify-between gap-2 mb-2">
-                                    <div class="flex items-center gap-2 text-white font-bold text-[15px]">${unreadDot}${escapeNoticeText(row.title || '(제목 없음)')}</div>
-                                    <div class="flex items-center gap-2">${priorityBadge}${readBtn}${linkBtn}</div>
-                                </div>
-                                <div class="text-[11px] text-[var(--text-sub)] mb-2">${escapeNoticeText(row.category || 'notice')} · ${formatNoticeDate(row.createdAt)} · ${escapeNoticeText(row.linkLabel || '이동 없음')}</div>
-                                <p class="text-[13px] text-white/85 leading-relaxed whitespace-pre-wrap">${escapeNoticeText(row.body || '')}</p>
-                            </div>
-                        `;
-                    });
-                    html += '</div>';
-                    container.innerHTML = html;
+                    renderNoticeRowsToContainer(sortedRows);
                 } catch (e) {
                     console.error('알림함 로드 실패:', e);
                     container.innerHTML = `<div class="text-[#F87171] text-sm p-4">알림 로드 실패: ${escapeNoticeText(e.message || 'Unknown error')}</div>`;
@@ -5947,7 +7208,22 @@ const filterSheet = document.getElementById('filter-sheet');
                     setNoticeBadge(targetBadge, unread);
                 }
 
-                if (typeof firebase === 'undefined') return;
+                const hasUserRealtime = typeof noticeRealtimeUnsubs.user === 'function';
+                const hasPartnerRealtime = typeof noticeRealtimeUnsubs.partner === 'function';
+                if (hasUserRealtime) {
+                    setNoticeBadge(
+                        userBadge,
+                        (noticeRealtimeRows.user || []).filter((r) => !r.isRead).length,
+                    );
+                }
+                if (hasPartnerRealtime) {
+                    setNoticeBadge(
+                        partnerBadge,
+                        (noticeRealtimeRows.partner || []).filter((r) => !r.isRead).length,
+                    );
+                }
+
+                if ((hasUserRealtime && hasPartnerRealtime) || typeof firebase === 'undefined') return;
                 try {
                     const [userTarget, partnerTarget] = await Promise.all([
                         resolveNotificationRecipient('user'),
@@ -5965,9 +7241,12 @@ const filterSheet = document.getElementById('filter-sheet');
                         });
                         return unread;
                     };
-                    const [userUnread, partnerUnread] = await Promise.all([loadUnread(userTarget), loadUnread(partnerTarget)]);
-                    setNoticeBadge(userBadge, userUnread);
-                    setNoticeBadge(partnerBadge, partnerUnread);
+                    const [userUnread, partnerUnread] = await Promise.all([
+                        hasUserRealtime ? Promise.resolve((noticeRealtimeRows.user || []).filter((r) => !r.isRead).length) : loadUnread(userTarget),
+                        hasPartnerRealtime ? Promise.resolve((noticeRealtimeRows.partner || []).filter((r) => !r.isRead).length) : loadUnread(partnerTarget)
+                    ]);
+                    if (!hasUserRealtime) setNoticeBadge(userBadge, userUnread);
+                    if (!hasPartnerRealtime) setNoticeBadge(partnerBadge, partnerUnread);
                 } catch (e) {
                     console.error('알림 뱃지 갱신 실패:', e);
                 }
@@ -6131,6 +7410,12 @@ const filterSheet = document.getElementById('filter-sheet');
                 sessionStorage.removeItem('dadok_loggedInUserDocId');
                 localStorage.removeItem(DADOK_USER_GENDER_STORAGE_KEY);
                 sessionStorage.removeItem(DADOK_USER_GENDER_STORAGE_KEY);
+                localStorage.removeItem(DADOK_USER_PROFILE_IMAGE_STORAGE_KEY);
+                sessionStorage.removeItem(DADOK_USER_PROFILE_IMAGE_STORAGE_KEY);
+                currentUserProfileImageUrl = '';
+                stopUserChatUnreadListener();
+                renderUserChatUnreadBadgeFromRows([]);
+                loadUserFavorites();
             }
 
             function scrollMainAppToTop() {
@@ -6175,16 +7460,54 @@ const filterSheet = document.getElementById('filter-sheet');
 
             // 페이지 로드 시 로그인 상태 복원
             function checkLoginState() {
+                const partnerLoggedInPersisted =
+                    localStorage.getItem('dadok_isPartnerLoggedIn') === 'true' ||
+                    sessionStorage.getItem('dadok_isPartnerLoggedIn') === 'true';
+                const userLoggedInPersisted =
+                    localStorage.getItem('dadok_isLoggedIn') === 'true' ||
+                    sessionStorage.getItem('dadok_isLoggedIn') === 'true';
+
+                // 과거 버전에서 남은 동시 로그인 잔존값 정리
+                if (partnerLoggedInPersisted && userLoggedInPersisted) {
+                    const partnerDocId =
+                        localStorage.getItem('dadok_loggedInPartnerDocId') ||
+                        sessionStorage.getItem('dadok_loggedInPartnerDocId') ||
+                        '';
+                    const partnerUserId =
+                        localStorage.getItem('dadok_loggedInPartnerUserId') ||
+                        sessionStorage.getItem('dadok_loggedInPartnerUserId') ||
+                        '';
+
+                    if (partnerDocId || partnerUserId) {
+                        localStorage.removeItem('dadok_isLoggedIn');
+                        localStorage.removeItem('dadok_username');
+                        localStorage.removeItem('dadok_loggedInUserDocId');
+                        sessionStorage.removeItem('dadok_isLoggedIn');
+                        sessionStorage.removeItem('dadok_username');
+                        sessionStorage.removeItem('dadok_loggedInUserDocId');
+                    } else {
+                        localStorage.removeItem('dadok_isPartnerLoggedIn');
+                        localStorage.removeItem('dadok_loggedInPartnerDocId');
+                        localStorage.removeItem('dadok_loggedInPartnerUserId');
+                        sessionStorage.removeItem('dadok_isPartnerLoggedIn');
+                        sessionStorage.removeItem('dadok_loggedInPartnerDocId');
+                        sessionStorage.removeItem('dadok_loggedInPartnerUserId');
+                    }
+                }
+
                 if (localStorage.getItem('dadok_isPartnerLoggedIn') === 'true' || sessionStorage.getItem('dadok_isPartnerLoggedIn') === 'true') {
                     isPartnerLoggedIn = true;
                 }
                 if (localStorage.getItem('dadok_isLoggedIn') === 'true') {
                     isLoggedIn = true;
                     updateHeaderToLoggedInState(localStorage.getItem('dadok_username') || 'test');
+                    syncLoggedInUserProfileImageFromFirestore();
                 } else if (sessionStorage.getItem('dadok_isLoggedIn') === 'true') {
                     isLoggedIn = true;
                     updateHeaderToLoggedInState(sessionStorage.getItem('dadok_username') || 'test');
+                    syncLoggedInUserProfileImageFromFirestore();
                 }
+                loadUserFavorites();
             }
 
             function showCustomToast(text) {
@@ -6651,6 +7974,28 @@ const filterSheet = document.getElementById('filter-sheet');
                 if (currentPartner && String(currentPartner.id) === pid) {
                     currentPartner.menus = menusFromDoc;
                     if (d.name != null && String(d.name).trim() !== '') currentPartner.name = d.name;
+                    if (d.massage != null) currentPartner.massage = d.massage;
+                    if (d.place != null) currentPartner.place = d.place;
+                    if (d.age != null) currentPartner.age = d.age;
+                    if (Array.isArray(d.regionList)) currentPartner.regionList = d.regionList;
+                    if (d.region != null) currentPartner.region = d.region;
+                    if (Array.isArray(d.tags)) currentPartner.tags = d.tags;
+                    if (d.hours != null) currentPartner.hours = d.hours;
+                    if (d.businessHours != null) currentPartner.businessHours = d.businessHours;
+                    if (d.operatingHours != null) currentPartner.operatingHours = d.operatingHours;
+                    if (typeof d.callEnabled === 'boolean') currentPartner.callEnabled = d.callEnabled;
+                    if (d.callAvailableStart != null) currentPartner.callAvailableStart = d.callAvailableStart;
+                    if (d.callAvailableEnd != null) currentPartner.callAvailableEnd = d.callAvailableEnd;
+                    if (d.callAvailableHours != null) currentPartner.callAvailableHours = d.callAvailableHours;
+                    if (d.phoneNumber != null) currentPartner.phoneNumber = d.phoneNumber;
+                    if (d.phone != null) currentPartner.phone = d.phone;
+                    if (d.contact != null) currentPartner.contact = d.contact;
+                    if (d.imageThumb != null) currentPartner.imageThumb = d.imageThumb;
+                    if (d.imageDetail != null) currentPartner.imageDetail = d.imageDetail;
+                    if (d.image != null) currentPartner.image = d.image;
+                    if (d.ticketType != null) currentPartner.ticketType = d.ticketType;
+                    if (d.ticketExpiry != null) currentPartner.ticketExpiry = d.ticketExpiry;
+                    if (d.ticketExpiryTimestamp != null) currentPartner.ticketExpiryTimestamp = d.ticketExpiryTimestamp;
                     const descLine =
                         d.catchphrase != null
                             ? d.catchphrase
@@ -6669,7 +8014,37 @@ const filterSheet = document.getElementById('filter-sheet');
                 const patchMenusInList = (arr) => {
                     const ix = arr.findIndex((x) => String(x.id) === pid);
                     if (ix < 0) return;
-                    arr[ix].menus = menusFromDoc;
+                    arr[ix] = {
+                        ...arr[ix],
+                        menus: menusFromDoc,
+                        massage: d.massage != null ? d.massage : arr[ix].massage,
+                        place: d.place != null ? d.place : arr[ix].place,
+                        age: d.age != null ? d.age : arr[ix].age,
+                        tags: Array.isArray(d.tags) ? d.tags : arr[ix].tags,
+                        region: d.region != null ? d.region : arr[ix].region,
+                        regionList: Array.isArray(d.regionList) ? d.regionList : arr[ix].regionList,
+                        hours: d.hours != null ? d.hours : arr[ix].hours,
+                        businessHours: d.businessHours != null ? d.businessHours : arr[ix].businessHours,
+                        operatingHours: d.operatingHours != null ? d.operatingHours : arr[ix].operatingHours,
+                        callEnabled: typeof d.callEnabled === 'boolean' ? d.callEnabled : arr[ix].callEnabled,
+                        callAvailableStart:
+                            d.callAvailableStart != null ? d.callAvailableStart : arr[ix].callAvailableStart,
+                        callAvailableEnd: d.callAvailableEnd != null ? d.callAvailableEnd : arr[ix].callAvailableEnd,
+                        callAvailableHours:
+                            d.callAvailableHours != null ? d.callAvailableHours : arr[ix].callAvailableHours,
+                        phoneNumber: d.phoneNumber != null ? d.phoneNumber : arr[ix].phoneNumber,
+                        phone: d.phone != null ? d.phone : arr[ix].phone,
+                        contact: d.contact != null ? d.contact : arr[ix].contact,
+                        imageThumb: d.imageThumb != null ? d.imageThumb : arr[ix].imageThumb,
+                        imageDetail: d.imageDetail != null ? d.imageDetail : arr[ix].imageDetail,
+                        image: d.image != null ? d.image : arr[ix].image,
+                        ticketType: d.ticketType != null ? d.ticketType : arr[ix].ticketType,
+                        ticketExpiry: d.ticketExpiry != null ? d.ticketExpiry : arr[ix].ticketExpiry,
+                        ticketExpiryTimestamp:
+                            d.ticketExpiryTimestamp != null
+                                ? d.ticketExpiryTimestamp
+                                : arr[ix].ticketExpiryTimestamp,
+                    };
                 };
                 patchMenusInList(DB_CHOICE);
                 patchMenusInList(DB_RECOMMEND);
@@ -6682,17 +8057,30 @@ const filterSheet = document.getElementById('filter-sheet');
                     String(currentPartner.id) === pid
                 ) {
                     renderProfilePriceTableFromPartner(currentPartner);
+                    renderProfileCategorySummaryTable(currentPartner);
                     const pn = document.getElementById('profile-name');
-                    const pde = document.getElementById('profile-desc');
                     if (pn && d.name != null && String(d.name).trim() !== '') pn.innerText = d.name;
-                    if (pde) {
-                        const line =
-                            d.catchphrase != null
-                                ? d.catchphrase
-                                : d.description != null
-                                  ? d.description
-                                  : d.desc;
-                        if (line != null && String(line).trim() !== '') pde.innerText = line;
+                    const profileHoursText = document.getElementById('profile-hours-text');
+                    const profileCallPolicyText = document.getElementById('profile-call-policy-text');
+                    const operatingHours =
+                        currentPartner.hours ||
+                        currentPartner.businessHours ||
+                        currentPartner.operatingHours ||
+                        '정보 없음';
+                    const callEnabled =
+                        typeof currentPartner.callEnabled === 'boolean' ? currentPartner.callEnabled : true;
+                    const startHour = currentPartner.callAvailableStart || '';
+                    const endHour = currentPartner.callAvailableEnd || '';
+                    const callHours =
+                        (startHour && endHour ? `${startHour} ~ ${endHour}` : '') ||
+                        currentPartner.callAvailableHours ||
+                        currentPartner.callHours ||
+                        '미설정';
+                    if (profileHoursText) {
+                        profileHoursText.innerHTML = `${escapeChatHtml(operatingHours)}<br><span class="text-xs text-[var(--text-sub)] mt-1 block opacity-80">(변동 가능)</span>`;
+                    }
+                    if (profileCallPolicyText) {
+                        profileCallPolicyText.innerHTML = `통화 가능: ${callEnabled ? '활성화' : '비활성화'}<br><span class="text-xs text-[var(--text-sub)] mt-1 block opacity-80">통화 가능 시간: ${escapeChatHtml(callHours)}</span>`;
                     }
                     updateProfileLocationParkingRows(currentPartner);
                     updateProfileIntroDetailText(currentPartner);
@@ -6909,9 +8297,17 @@ const filterSheet = document.getElementById('filter-sheet');
             });
 
             // [추가] currentPartner 상태를 대시보드 UI에 채우기
-            async function populateDashboardFromPartner() {
+            async function populateDashboardFromPartner(partnerData = null) {
+                if (partnerData && typeof partnerData === 'object') {
+                    currentPartner = {
+                        ...(currentPartner || {}),
+                        ...partnerData,
+                        id: partnerData.id || currentPartner?.id || '',
+                    };
+                }
+
                 const partnerDocId = localStorage.getItem('dadok_loggedInPartnerDocId') || sessionStorage.getItem('dadok_loggedInPartnerDocId');
-                if (partnerDocId && typeof firebase !== 'undefined') {
+                if (!partnerData && partnerDocId && typeof firebase !== 'undefined') {
                     try {
                         const doc = await firebase.firestore().collection('partners').doc(partnerDocId).get();
                         if (doc.exists) {
@@ -6944,21 +8340,27 @@ const filterSheet = document.getElementById('filter-sheet');
                     currentPartner.operatingHours ||
                     '';
                 const parsedBusiness = parseCallHoursToRange(hoursText);
-                if (hoursStartInput) hoursStartInput.value = parsedBusiness.start;
-                if (hoursEndInput) hoursEndInput.value = parsedBusiness.end;
+                const hasBusinessHours = !!String(hoursText || '').trim();
+                if (hoursStartInput) hoursStartInput.value = hasBusinessHours ? parsedBusiness.start : '';
+                if (hoursEndInput) hoursEndInput.value = hasBusinessHours ? parsedBusiness.end : '';
                 if (callEnabledInput) {
                     callEnabledInput.checked =
                         typeof currentPartner.callEnabled === 'boolean'
                             ? currentPartner.callEnabled
-                            : true;
+                            : false;
                 }
+                const hasExplicitCallRange =
+                    !!String(currentPartner.callAvailableStart || '').trim() ||
+                    !!String(currentPartner.callAvailableEnd || '').trim();
+                const callHoursText = currentPartner.callAvailableHours || currentPartner.callHours || '';
                 const parsedCallRange = parseCallHoursToRange(
                     `${currentPartner.callAvailableStart || ''} ~ ${currentPartner.callAvailableEnd || ''}`.trim() !== '~'
                         ? `${currentPartner.callAvailableStart || ''} ~ ${currentPartner.callAvailableEnd || ''}`
-                        : currentPartner.callAvailableHours || currentPartner.callHours || '',
+                        : callHoursText,
                 );
-                if (callStartInput) callStartInput.value = currentPartner.callAvailableStart || parsedCallRange.start;
-                if (callEndInput) callEndInput.value = currentPartner.callAvailableEnd || parsedCallRange.end;
+                const hasCallHours = hasExplicitCallRange || !!String(callHoursText || '').trim();
+                if (callStartInput) callStartInput.value = hasCallHours ? (currentPartner.callAvailableStart || parsedCallRange.start) : '';
+                if (callEndInput) callEndInput.value = hasCallHours ? (currentPartner.callAvailableEnd || parsedCallRange.end) : '';
                 if (addressInput) addressInput.value = currentPartner.address || currentPartner.location || '';
                 if (parkingInput) {
                     parkingInput.value =
@@ -6976,7 +8378,7 @@ const filterSheet = document.getElementById('filter-sheet');
                 }
                 updatePartnerPhotoPickerUIFromPartner(currentPartner || {});
 
-                // 메뉴 채우기 (저장된 항목 없으면 빈 메뉴 1칸을 기본 표시)
+                // 메뉴 채우기 (저장된 항목만 렌더링)
                 const menuContainer = document.getElementById('menu-list-container');
                 if (menuContainer) {
                     const menus = Array.isArray(currentPartner.menus) ? currentPartner.menus : [];
@@ -7016,14 +8418,44 @@ const filterSheet = document.getElementById('filter-sheet');
             </div>`;
                         menuContainer.insertAdjacentHTML('beforeend', itemHtml);
                     });
-                    if (!menuContainer.querySelector('.menu-item')) {
-                        addMenuItem();
-                    }
                 }
 
                 if (typeof window.applyPartnerDashboardCategoriesFromPartner === 'function') {
                     window.applyPartnerDashboardCategoriesFromPartner(currentPartner);
                 }
+            }
+
+            function stopPartnerDashboardLiveSync() {
+                if (typeof unsubscribePartnerDashboardLive === 'function') {
+                    unsubscribePartnerDashboardLive();
+                    unsubscribePartnerDashboardLive = null;
+                }
+            }
+
+            function startPartnerDashboardLiveSync() {
+                stopPartnerDashboardLiveSync();
+                const partnerDocId =
+                    localStorage.getItem('dadok_loggedInPartnerDocId') ||
+                    sessionStorage.getItem('dadok_loggedInPartnerDocId');
+                if (!partnerDocId || typeof firebase === 'undefined') return;
+
+                unsubscribePartnerDashboardLive = firebase
+                    .firestore()
+                    .collection('partners')
+                    .doc(partnerDocId)
+                    .onSnapshot(
+                        async (doc) => {
+                            if (!doc.exists) return;
+                            const livePartner = { id: doc.id, ...(doc.data() || {}) };
+                            currentPartner = livePartner;
+                            await populateDashboardFromPartner(livePartner);
+                            await setPartnerDashboardAccessMode(livePartner);
+                            renderPartnerBanners();
+                        },
+                        (err) => {
+                            console.error('파트너 대시보드 실시간 동기화 실패:', err);
+                        },
+                    );
             }
 
             // [추가] 대시보드에서 설정 저장 시 currentPartner 에 반영
@@ -7059,15 +8491,19 @@ const filterSheet = document.getElementById('filter-sheet');
 
                     if (nameInput) currentPartner.name = nameInput.value;
                     const businessRange = getPartnerBusinessHourRange();
-                    const hoursLine = `${businessRange.start} ~ ${businessRange.end}`;
+                    const hoursLine =
+                        businessRange.start && businessRange.end
+                            ? `${businessRange.start} ~ ${businessRange.end}`
+                            : '';
                     currentPartner.hours = hoursLine;
                     currentPartner.businessHours = hoursLine;
                     currentPartner.operatingHours = hoursLine;
                     const callRange = getPartnerCallHourRange();
-                    currentPartner.callEnabled = callEnabledInput ? !!callEnabledInput.checked : true;
+                    currentPartner.callEnabled = callEnabledInput ? !!callEnabledInput.checked : false;
                     currentPartner.callAvailableStart = callRange.start;
                     currentPartner.callAvailableEnd = callRange.end;
-                    currentPartner.callAvailableHours = `${callRange.start} ~ ${callRange.end}`;
+                    currentPartner.callAvailableHours =
+                        callRange.start && callRange.end ? `${callRange.start} ~ ${callRange.end}` : '';
                     if (addressInput) currentPartner.address = addressInput.value;
                     if (parkingInput) currentPartner.parkingInfo = parkingInput.value.trim();
                     if (descInput) {
@@ -7101,13 +8537,12 @@ const filterSheet = document.getElementById('filter-sheet');
                                       ? `${parts[0]} ${dist}`
                                       : dist;
                               })()
-                            : '강남/서초';
+                            : '';
                     currentPartner.place =
                         selectedSpaces.length > 0
                             ? selectedSpaces.join(', ')
-                            : '방문 (홈케어/출장)';
-                    currentPartner.age =
-                        selectedAges.length > 0 ? selectedAges.join(', ') : '연령 무관 (전체)';
+                            : '';
+                    currentPartner.age = selectedAges.length > 0 ? selectedAges.join(', ') : '';
 
                     // 메뉴 파싱
                     const menuItems = Array.from(document.querySelectorAll('#menu-list-container .menu-item'));
@@ -7122,6 +8557,8 @@ const filterSheet = document.getElementById('filter-sheet');
                     await firebase.firestore().collection('partners').doc(partnerDocId).update({
                         name: currentPartner.name,
                         phoneNumber: preservedPhone || currentPartner.phoneNumber || '',
+                        phone: preservedPhone || currentPartner.phoneNumber || '',
+                        contact: preservedPhone || currentPartner.phoneNumber || '',
                         hours: hoursLine,
                         businessHours: hoursLine,
                         operatingHours: hoursLine,
@@ -7159,11 +8596,39 @@ const filterSheet = document.getElementById('filter-sheet');
 
                     // 메인 화면 배너 리스트(DB_CHOICE)에도 실시간 연동 (Mock 반영용)
                     // 앱 공개 배너 배열은 조건 충족 업체만 유지
-                    if (canExposePartnerBanner(data)) {
-                        let existingIndex = DB_CHOICE.findIndex(p => p.id === partnerDocId);
+                    const resolvedTicketExpiryTimestamp =
+                        getPartnerTicketExpiryMs(data) ||
+                        getPartnerTicketExpiryMs(currentPartner) ||
+                        0;
+                    const resolvedTicketType = String(
+                        data.ticketType ||
+                        data.tier ||
+                        currentPartner.ticketType ||
+                        currentPartner.tier ||
+                        '',
+                    ).trim();
+                    const exposureSource = {
+                        ...data,
+                        status: data.status || currentPartner.status || '',
+                        adminPlacement:
+                            String(data.adminPlacement || currentPartner.adminPlacement || '')
+                                .trim()
+                                .toLowerCase() || 'auto',
+                        ticketType: resolvedTicketType,
+                        tier: String(data.tier || resolvedTicketType || '').trim(),
+                        ticketExpiryTimestamp: resolvedTicketExpiryTimestamp,
+                        ticketExpiry: data.ticketExpiry || currentPartner.ticketExpiry || '',
+                    };
+
+                    if (canExposePartnerBanner(exposureSource)) {
+                        const tierForList = String(exposureSource.tier || exposureSource.ticketType || 'Premium').trim();
+                        const placementBucket = resolveMainPlacement(exposureSource);
                         let myPartnerMock = {
                             id: partnerDocId,
+                            userId: currentPartner.userId || '',
                             name: currentPartner.name,
+                            status: exposureSource.status || 'active',
+                            adminPlacement: exposureSource.adminPlacement || 'auto',
                             region: currentPartner.region,
                             regionList: currentPartner.regionList || [],
                             tags: currentPartner.tags || [],
@@ -7175,13 +8640,16 @@ const filterSheet = document.getElementById('filter-sheet');
                             age: currentPartner.age,
                             rating: currentPartner.rating || 5.0,
                             reviews: currentPartner.reviews || 0,
-                            tier: data.ticketType || 'Premium',
+                            tier: tierForList || 'Premium',
+                            ticketType: exposureSource.ticketType || '',
+                            ticketExpiryTimestamp: resolvedTicketExpiryTimestamp,
+                            ticketExpiry: exposureSource.ticketExpiry || '',
                             image:
                                 currentPartner.imageThumb ||
                                 currentPartner.thumbnailImage ||
                                 currentPartner.thumbImage ||
                                 currentPartner.image ||
-                                'https://images.unsplash.com/photo-1544161515-4ab6ce6db874?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80',
+                                '',
                             imageThumb:
                                 currentPartner.imageThumb ||
                                 currentPartner.thumbnailImage ||
@@ -7206,10 +8674,12 @@ const filterSheet = document.getElementById('filter-sheet');
                             menus: Array.isArray(currentPartner.menus) ? currentPartner.menus : [],
                         };
 
-                        if (existingIndex > -1) {
-                            DB_CHOICE[existingIndex] = myPartnerMock;
-                        } else {
+                        DB_CHOICE = DB_CHOICE.filter(p => p.id !== partnerDocId);
+                        DB_RECOMMEND = DB_RECOMMEND.filter(p => p.id !== partnerDocId);
+                        if (placementBucket === 'choice') {
                             DB_CHOICE.unshift(myPartnerMock);
+                        } else {
+                            DB_RECOMMEND.unshift(myPartnerMock);
                         }
                     } else {
                         DB_CHOICE = DB_CHOICE.filter(p => p.id !== partnerDocId);
@@ -7619,6 +9089,13 @@ const filterSheet = document.getElementById('filter-sheet');
                 }
                 // 스택이 이미 비어있는데 뒤로가기가 발생했다면 (기본 방어)
                 else if (!isClickClosing && appModalStack.length === 0) {
+                    const chatSheet = document.getElementById('chat-sheet');
+                    if (chatSheet && chatSheet.classList.contains('open')) {
+                        if (typeof closeChatSheet === 'function') {
+                            try { closeChatSheet(); } catch (err) { }
+                        }
+                        return;
+                    }
                     if (typeof handleOverlayClick === 'function') { try { handleOverlayClick(); } catch (err) { } }
                     if (typeof closeAllModals === 'function') { try { closeAllModals(); } catch (err) { } }
                 }

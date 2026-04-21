@@ -13,6 +13,7 @@
     <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-storage-compat.js"></script>
     <script>
         window.addEventListener('error', function(e) {
             const errDiv = document.createElement('div');
@@ -484,10 +485,13 @@
             </div>
 
             <!-- Search & Filters -->
-            <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-6 gap-3 mb-6 bg-[#0A1B13] border border-[#2A3731] rounded-2xl p-4 shadow-lg">
-                <div class="relative md:col-span-1">
-                    <button id="shop-filter-name-toggle" type="button" class="w-full bg-[#06110D] border border-[#2A3731] rounded-xl px-4 py-2.5 text-left text-white focus:outline-none focus:border-[var(--point-color)] transition-colors">
-                        <span id="shop-filter-name-selected">상호명: 전체 (승인완료)</span>
+            <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-[1.35fr_1.2fr_1fr_0.95fr_0.95fr_1.1fr_auto_auto] gap-3 mb-6 bg-[#0A1B13] border border-[#2A3731] rounded-2xl p-4 shadow-lg items-center">
+                <div class="relative">
+                    <button id="shop-filter-name-toggle" type="button" class="w-full h-11 bg-[#06110D] border border-[#2A3731] rounded-xl px-4 text-left text-white focus:outline-none focus:border-[var(--point-color)] transition-colors flex items-center justify-between gap-2">
+                        <span id="shop-filter-name-selected" class="block truncate">상호명: 전체 (승인완료)</span>
+                        <svg class="w-4 h-4 text-white shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.4" d="M19 9l-7 7-7-7"></path>
+                        </svg>
                     </button>
                     <div id="shop-filter-name-panel" class="absolute z-20 mt-2 w-full bg-[#06110D] border border-[#2A3731] rounded-xl p-3 shadow-2xl hidden">
                         <div class="flex items-center justify-between mb-2">
@@ -499,10 +503,13 @@
                         </div>
                     </div>
                 </div>
-                <input type="text" id="shop-filter-phone" placeholder="연락처 검색 (숫자만 가능)" class="w-full bg-[#06110D] border border-[#2A3731] rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-[var(--point-color)] transition-colors">
+                <input type="text" id="shop-filter-phone" placeholder="연락처 검색 (숫자만 가능)" class="w-full h-11 bg-[#06110D] border border-[#2A3731] rounded-xl px-4 text-white focus:outline-none focus:border-[var(--point-color)] transition-colors">
                 <div class="relative">
-                    <button id="shop-filter-region-toggle" type="button" class="w-full bg-[#06110D] border border-[#2A3731] rounded-xl px-4 py-2.5 text-left text-white focus:outline-none focus:border-[var(--point-color)] transition-colors">
-                        <span id="shop-filter-region-selected">지역: 전체</span>
+                    <button id="shop-filter-region-toggle" type="button" class="w-full h-11 bg-[#06110D] border border-[#2A3731] rounded-xl px-4 text-left text-white focus:outline-none focus:border-[var(--point-color)] transition-colors flex items-center justify-between gap-2">
+                        <span id="shop-filter-region-selected" class="block truncate">지역: 전체</span>
+                        <svg class="w-4 h-4 text-white shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.4" d="M19 9l-7 7-7-7"></path>
+                        </svg>
                     </button>
                     <div id="shop-filter-region-panel" class="absolute z-20 mt-2 w-full bg-[#06110D] border border-[#2A3731] rounded-xl p-3 shadow-2xl hidden">
                         <div class="flex items-center justify-between mb-2">
@@ -514,12 +521,12 @@
                         </div>
                     </div>
                 </div>
-                <select id="shop-filter-status" class="bg-[#06110D] border border-[#2A3731] rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-[var(--point-color)] min-w-[140px] transition-colors">
+                <select id="shop-filter-status" class="w-full h-11 bg-[#06110D] border border-[#2A3731] rounded-xl px-4 text-white focus:outline-none focus:border-[var(--point-color)] transition-colors">
                     <option value="all">운영 대상 전체</option>
                     <option value="active">운영 중 (승인)</option>
                     <option value="expired">입점권 만료</option>
                 </select>
-                <select id="shop-filter-plan" class="bg-[#06110D] border border-[#2A3731] rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-[var(--point-color)] min-w-[140px] transition-colors">
+                <select id="shop-filter-plan" class="w-full h-11 bg-[#06110D] border border-[#2A3731] rounded-xl px-4 text-white focus:outline-none focus:border-[var(--point-color)] transition-colors">
                     <option value="all">전체 등급</option>
                     <option value="1m">1개월</option>
                     <option value="3m">3개월</option>
@@ -527,16 +534,16 @@
                     <option value="12m">12개월</option>
                     <option value="none">입점권 없음</option>
                 </select>
-                <div class="flex gap-2">
-                    <select id="shop-filter-sort" class="flex-1 bg-[#06110D] border border-[#2A3731] rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-[var(--point-color)] min-w-[140px] transition-colors">
+                <div class="flex gap-2 w-full min-w-0">
+                    <select id="shop-filter-sort" class="flex-1 min-w-0 h-11 bg-[#06110D] border border-[#2A3731] rounded-xl px-4 text-white focus:outline-none focus:border-[var(--point-color)] transition-colors">
                         <option value="created_desc">등록일 최신순</option>
                         <option value="created_asc">등록일 오래된순</option>
                         <option value="expiry_asc">만료 임박순</option>
                         <option value="name_asc">상호명 가나다순</option>
                     </select>
-                    <button id="shop-filter-apply" type="button" class="px-4 py-2.5 bg-[var(--point-color)]/20 border border-[var(--point-color)] text-[var(--point-color)] rounded-xl font-bold hover:bg-[var(--point-color)]/30 transition-colors">조회</button>
-                    <button id="shop-filter-reset" type="button" class="px-4 py-2.5 bg-[#11291D] border border-[#2A3731] text-[#A7B2AE] rounded-xl font-bold hover:text-white hover:border-[var(--point-color)] transition-colors">초기화</button>
                 </div>
+                <button id="shop-filter-apply" type="button" class="h-11 px-5 bg-[var(--point-color)]/20 border border-[var(--point-color)] text-[var(--point-color)] rounded-xl font-bold hover:bg-[var(--point-color)]/30 transition-colors whitespace-nowrap">조회</button>
+                <button id="shop-filter-reset" type="button" class="h-11 px-5 bg-[#11291D] border border-[#2A3731] text-[#A7B2AE] rounded-xl font-bold hover:text-white hover:border-[var(--point-color)] transition-colors whitespace-nowrap">초기화</button>
             </div>
 
             <!-- Shop Cards Container -->
@@ -636,10 +643,6 @@
                                     <label class="block text-sm font-medium text-[#A7B2AE] mb-1">사업자 구분</label>
                                     <p id="approval-biz-type" class="text-white font-medium bg-[#0A1B13] p-3 rounded-lg border border-[#2A3731]/50">-</p>
                                 </div>
-                                <div class="col-span-2">
-                                    <label class="block text-sm font-medium text-[#A7B2AE] mb-1">상세 주소 (지점 위치)</label>
-                                    <p id="approval-address" class="text-white font-medium bg-[#0A1B13] p-3 rounded-lg border border-[#2A3731]/50">-</p>
-                                </div>
                                 <div class="col-span-2 md:col-span-1">
                                     <label class="block text-sm font-medium text-[#A7B2AE] mb-1">사업자등록번호</label>
                                     <p id="approval-biz-no" class="text-white font-medium bg-[#0A1B13] p-3 rounded-lg border border-[#2A3731]/50">-</p>
@@ -654,62 +657,6 @@
                                         <img id="approval-biz-doc" src="https://via.placeholder.com/300" class="max-h-64 object-contain rounded hidden cursor-pointer hover:opacity-80 transition-opacity" onclick="window.open(this.src, '_blank')">
                                         <p id="approval-biz-doc-fail" class="text-[#A7B2AE] text-sm py-4">업로드된 파일이 없습니다.</p>
                                     </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- 2단계: 소비자 앱 노출 콘텐츠 -->
-                        <div>
-                            <h4 class="text-lg font-bold text-white mb-4 flex items-center gap-2"><span class="w-6 h-6 rounded-full bg-[#11291D] text-[var(--point-color)] flex items-center justify-center text-sm">2</span> 소비자 앱 노출 콘텐츠 <span class="text-xs font-normal text-[#A7B2AE] ml-2">(읽기 전용)</span></h4>
-                            <div class="grid grid-cols-2 gap-5 p-5 bg-[#06110D] border border-[#2A3731] rounded-xl shadow-inner">
-                                <div class="col-span-2">
-                                    <label class="block text-sm font-medium text-[#A7B2AE] mb-2">제출된 샵 메인 이미지</label>
-                                    <div class="flex flex-col md:flex-row gap-4 items-start">
-                                        <img id="approval-image-preview" src="https://via.placeholder.com/150" class="w-full md:w-48 h-32 object-cover rounded-lg border border-[#2A3731] hidden">
-                                        <div class="w-full bg-[#0A1B13] p-3 rounded-lg border border-[#2A3731]/50 h-full">
-                                            <p class="text-xs font-semibold text-gray-400 mb-1">이미지 원본 URL</p>
-                                            <p id="approval-image-text" class="text-sm text-[#A7B2AE] break-all">-</p>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-span-2">
-                                    <label class="block text-sm font-medium text-[#A7B2AE] mb-1">한 줄 캐치프레이즈 (목록 노출용)</label>
-                                    <p id="approval-catchphrase" class="text-white font-medium bg-[#0A1B13] p-3 rounded-lg border border-[#2A3731]/50">-</p>
-                                </div>
-                                <div class="col-span-2">
-                                    <label class="block text-sm font-medium text-[#A7B2AE] mb-1">샵 핵심 소개글 (상세페이지 노출용)</label>
-                                    <div id="approval-description" class="text-white font-medium bg-[#0A1B13] p-4 rounded-lg border border-[#2A3731]/50 min-h-[100px] whitespace-pre-wrap text-sm leading-relaxed">-</div>
-                                </div>
-                                <div class="col-span-2 md:col-span-1">
-                                    <label class="block text-sm font-medium text-[#A7B2AE] mb-1">영업 시간</label>
-                                    <p id="approval-hours" class="text-white font-medium bg-[#0A1B13] p-3 rounded-lg border border-[#2A3731]/50">-</p>
-                                </div>
-                                <div class="col-span-2 md:col-span-1">
-                                    <label class="block text-sm font-medium text-[#A7B2AE] mb-1">시작 가격 (최저 요금)</label>
-                                    <p id="approval-min-price" class="text-[var(--point-color)] font-bold bg-[#0A1B13] p-3 rounded-lg border border-[#2A3731]/50">-</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- 3단계: 매칭 필터 및 제공 서비스 -->
-                        <div>
-                            <h4 class="text-lg font-bold text-white mb-4 flex items-center gap-2"><span class="w-6 h-6 rounded-full bg-[#11291D] text-[var(--point-color)] flex items-center justify-center text-sm">3</span> 매칭 필터 및 부가 서비스 <span class="text-xs font-normal text-[#A7B2AE] ml-2">(읽기 전용)</span></h4>
-                            <div class="grid grid-cols-1 md:grid-cols-3 gap-5 p-5 bg-[#06110D] border border-[#2A3731] rounded-xl shadow-inner">
-                                <div>
-                                    <label class="block text-sm font-medium text-[#A7B2AE] mb-1">마사지 카테고리</label>
-                                    <p id="approval-cat-massage" class="text-white font-medium bg-[#0A1B13] p-3 rounded-lg border border-[#2A3731]/50 min-h-[46px]">-</p>
-                                </div>
-                                <div>
-                                    <label class="block text-sm font-medium text-[#A7B2AE] mb-1">공간 형태</label>
-                                    <p id="approval-cat-place" class="text-white font-medium bg-[#0A1B13] p-3 rounded-lg border border-[#2A3731]/50 min-h-[46px]">-</p>
-                                </div>
-                                <div>
-                                    <label class="block text-sm font-medium text-[#A7B2AE] mb-1">관리사 연령대</label>
-                                    <p id="approval-cat-age" class="text-white font-medium bg-[#0A1B13] p-3 rounded-lg border border-[#2A3731]/50 min-h-[46px]">-</p>
-                                </div>
-                                <div class="col-span-1 md:col-span-3">
-                                    <label class="block text-sm font-medium text-[#A7B2AE] mb-1">시설/테마/제공 서비스 해시태그 (수면가, 주차장 등)</label>
-                                    <div id="approval-tags" class="text-white font-medium bg-[#0A1B13] p-3 rounded-lg border border-[#2A3731]/50 min-h-[46px] flex flex-wrap gap-2">-</div>
                                 </div>
                             </div>
                         </div>
@@ -965,6 +912,13 @@
                         <label class="block text-xs text-[#A7B2AE] mb-1.5 font-bold">내용</label>
                         <textarea id="msg-body-input" rows="5" placeholder="전달할 내용을 입력해주세요."
                             class="w-full bg-[#06110D] border border-[#2A3731] rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[var(--point-color)]"></textarea>
+                    </div>
+                    <div class="mt-4">
+                        <label class="block text-xs text-[#A7B2AE] mb-1.5 font-bold">첨부파일</label>
+                        <input id="msg-attachments-input" type="file" multiple onchange="handleMessageAttachmentInput(this)"
+                            class="w-full bg-[#06110D] border border-[#2A3731] rounded-xl px-3 py-2.5 text-white file:mr-3 file:px-3 file:py-1.5 file:rounded-lg file:border-0 file:bg-[#11291D] file:text-[var(--point-color)] file:font-bold focus:outline-none focus:border-[var(--point-color)]">
+                        <p class="mt-1 text-[11px] text-[#7F8E88]">최대 3개, 파일당 10MB 이하 (이미지/PDF/문서/ZIP)</p>
+                        <div id="msg-attachments-preview" class="mt-2 text-[11px] text-[#A7B2AE]">선택된 첨부파일 없음</div>
                     </div>
                     <div class="mt-4">
                         <label class="block text-xs text-[#A7B2AE] mb-1.5 font-bold">중요도</label>
@@ -1248,7 +1202,10 @@
                 </section>
 
                 <section class="bg-[#06110D] border border-[#2A3731] rounded-xl p-4 space-y-4">
-                    <h4 class="text-sm font-bold text-white">기본 식별 정보</h4>
+                    <h4 class="text-sm font-bold text-white flex items-center gap-2">
+                        기본 식별 정보
+                        <span id="shop-change-basic-badge" class="hidden px-2 py-0.5 rounded-full bg-[#7C2D12] text-[#FDBA74] text-[11px] font-extrabold">N</span>
+                    </h4>
                     <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
                         <div>
                             <label class="block text-sm font-medium text-[#A7B2AE] mb-1">아이디</label>
@@ -1282,7 +1239,10 @@
                 </section>
 
                 <section class="bg-[#06110D] border border-[#2A3731] rounded-xl p-4 space-y-4">
-                    <h4 class="text-sm font-bold text-white">운영/노출 설정</h4>
+                    <h4 class="text-sm font-bold text-white flex items-center gap-2">
+                        운영/노출 설정
+                        <span id="shop-change-ops-badge" class="hidden px-2 py-0.5 rounded-full bg-[#7C2D12] text-[#FDBA74] text-[11px] font-extrabold">N</span>
+                    </h4>
                     <p class="text-xs text-[#8C9A95] -mt-1 mb-1">복수 선택 항목은 줄바꿈으로 모두 표시됩니다. (파트너 대시보드 저장 시 실시간 반영)</p>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div class="min-w-0">
@@ -1303,6 +1263,15 @@
                         </div>
                     </div>
                     <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-[#A7B2AE] mb-1">메인 노출 분류(관리자)</label>
+                            <select id="shop-admin-placement" class="no-select-arrow w-full bg-[#0A1B13] border border-[#2A3731] rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[var(--point-color)]">
+                                <option value="auto">자동(기존 로직)</option>
+                                <option value="choice">다독초이스</option>
+                                <option value="recommend">추천파트너</option>
+                            </select>
+                            <p class="mt-1 text-[11px] text-[#8C9A95]">선택 시 앱 메인 배너 분류에 즉시 반영됩니다.</p>
+                        </div>
                         <div>
                             <label class="block text-sm font-medium text-[#A7B2AE] mb-1">전화연결허용</label>
                             <select id="shop-call-enabled" class="no-select-arrow w-full bg-[#0A1B13] border border-[#2A3731] rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[var(--point-color)]">
@@ -1328,7 +1297,10 @@
                         <textarea id="shop-description" rows="3" class="w-full bg-[#0A1B13] border border-[#2A3731] rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[var(--point-color)]"></textarea>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-[#A7B2AE] mb-1">메뉴 / 코스</label>
+                        <label class="block text-sm font-medium text-[#A7B2AE] mb-1 flex items-center gap-2">
+                            메뉴 / 코스
+                            <span id="shop-change-menus-badge" class="hidden px-2 py-0.5 rounded-full bg-[#7C2D12] text-[#FDBA74] text-[11px] font-extrabold">N</span>
+                        </label>
                         <textarea id="shop-menus" rows="3" placeholder="줄바꿈으로 구분" class="w-full bg-[#0A1B13] border border-[#2A3731] rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[var(--point-color)]"></textarea>
                     </div>
                 </section>
@@ -1351,6 +1323,7 @@
                 </section>
 
                 <div class="pt-4 border-t border-[#2A3731] flex justify-end gap-3">
+                    <button type="button" onclick="saveShopPlacementOverride()" class="px-5 py-2.5 bg-[#11291D] border border-[var(--point-color)] text-[var(--point-color)] font-bold rounded-xl hover:bg-[#183928]">노출 분류 저장</button>
                     <button type="button" onclick="closeModal('modal-shop')" class="px-5 py-2.5 bg-[#06110D] border border-[#2A3731] text-white rounded-xl">닫기</button>
                 </div>
             </form>
@@ -1508,7 +1481,7 @@
     </div>
 
     <!-- Scripts -->
-    <script src="./assets/js/admin.js?v=20260418_24"></script>
+    <script src="./assets/js/admin.js?v=20260421_07"></script>
     <style>
         .tab-link.active { background-color: #11291D; color: white; border-left: 3px solid var(--point-color); }
         .no-select-arrow {

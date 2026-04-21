@@ -32,12 +32,14 @@
             overflow: hidden;
             /* 모니터 전체의 스크롤바 방지 */
             height: 100vh;
+            height: 100dvh;
         }
 
         #mobile-wrap {
             width: 100%;
             max-width: 480px;
             height: 100vh;
+            height: 100dvh;
             position: relative;
             box-shadow: 0 0 40px rgba(0, 0, 0, 0.1);
             overflow: hidden;
@@ -46,12 +48,15 @@
 
         #app-container {
             width: 100%;
-            height: 100vh;
+            height: 100%;
             /* 앱 컨테이너 내부 스크롤 부여 */
             background: var(--bg-color);
             overflow-x: hidden;
             overflow-y: auto;
-            padding-bottom: 8px;
+            -webkit-overflow-scrolling: touch;
+            overscroll-behavior-y: contain;
+            padding-bottom: 16px;
+            padding-bottom: calc(16px + env(safe-area-inset-bottom));
         }
 
         .text-point {
@@ -104,7 +109,7 @@
             background-color: var(--surface-color);
             border-radius: 20px;
             overflow: hidden;
-            border: 1px solid rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.9);
             /* 은은한 밝은 테두리로 입체감 */
             box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.03);
             cursor: pointer;
@@ -192,6 +197,20 @@
 
         .bottom-sheet.open {
             transform: translateX(-50%) translateY(0);
+        }
+
+        /* 채팅목록에서 진입한 채팅창은 전체 화면으로 표시 */
+        .bottom-sheet.chat-sheet-fullscreen {
+            top: 0;
+            bottom: 0;
+            height: 100vh !important;
+            height: 100dvh !important;
+            max-height: 100dvh !important;
+            border-radius: 0 !important;
+        }
+
+        .bottom-sheet.chat-sheet-fullscreen .drag-handle {
+            display: none;
         }
 
         /* 우측 슬라이드 시트 (네이티브 앱 화면 전환처럼 우측에서 진입하고 사라짐) */

@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900">
+  <defs>
+    <style>
+      .bg { fill: #0b1110; }
+      .title { fill: #f5f7f6; font-family: Arial, sans-serif; font-size: 40px; font-weight: 700; }
+      .subtitle { fill: #a9b5b0; font-family: Arial, sans-serif; font-size: 19px; }
+      .cardTitle { fill: #f4f7f5; font-family: Arial, sans-serif; font-size: 30px; font-weight: 700; }
+      .label { fill: #d9e1dd; font-family: Arial, sans-serif; font-size: 16px; font-weight: 600; }
+      .hex { fill: #d4af37; font-family: Consolas, monospace; font-size: 15px; font-weight: 700; }
+      .small { fill: #99a7a1; font-family: Arial, sans-serif; font-size: 14px; }
+    </style>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="#000000" flood-opacity="0.35"/>
+    </filter>
+  </defs>
+
+  <rect class="bg" x="0" y="0" width="1600" height="900"/>
+  <text class="title" x="80" y="90">Dadok Theme Palette Comparison</text>
+  <text class="subtitle" x="80" y="126">Brighter tone options: A (recommended) / B / C</text>
+
+  <g transform="translate(80,170)" filter="url(#shadow)">
+    <rect x="0" y="0" rx="24" ry="24" width="460" height="650" fill="#0f1715" stroke="#24342f" stroke-width="1.5"/>
+    <text class="cardTitle" x="28" y="52">A (Recommended)</text>
+    <text class="small" x="28" y="78">Keeps premium mood, easier readability</text>
+    <rect x="28" y="106" width="404" height="56" rx="12" fill="#0A1712"/>
+    <text class="label" x="40" y="140">Background</text>
+    <text class="hex" x="320" y="140">#0A1712</text>
+    <rect x="28" y="176" width="404" height="56" rx="12" fill="#13251D"/>
+    <text class="label" x="40" y="210">Surface</text>
+    <text class="hex" x="320" y="210">#13251D</text>
+    <rect x="28" y="246" width="404" height="56" rx="12" fill="#D4AF37"/>
+    <text x="40" y="280" style="fill:#17201d;font-family:Arial,sans-serif;font-size:16px;font-weight:700;">Point Gold</text>
+    <text x="320" y="280" style="fill:#17201d;font-family:Consolas,monospace;font-size:15px;font-weight:700;">#D4AF37</text>
+    <rect x="28" y="316" width="404" height="56" rx="12" fill="#1a2e26"/>
+    <text class="label" x="40" y="350">Text Sub</text>
+    <text class="hex" x="305" y="350">#B2C0B6</text>
+    <rect x="110" y="410" width="240" height="210" rx="20" fill="#0A1712" stroke="#2a3d35"/>
+    <rect x="110" y="410" width="240" height="46" rx="20" fill="#13251D"/>
+    <rect x="126" y="470" width="208" height="58" rx="14" fill="#13251D" stroke="#355247"/>
+    <rect x="126" y="538" width="208" height="58" rx="14" fill="#13251D" stroke="#355247"/>
+    <rect x="182" y="600" width="96" height="20" rx="10" fill="#D4AF37"/>
+  </g>
+
+  <g transform="translate(570,170)" filter="url(#shadow)">
+    <rect x="0" y="0" rx="24" ry="24" width="460" height="650" fill="#131d1a" stroke="#2b3c36" stroke-width="1.5"/>
+    <text class="cardTitle" x="28" y="52">B</text>
+    <text class="small" x="28" y="78">Noticeably brighter overall</text>
+    <rect x="28" y="106" width="404" height="56" rx="12" fill="#0F1E18"/>
+    <text class="label" x="40" y="140">Background</text>
+    <text class="hex" x="320" y="140">#0F1E18</text>
+    <rect x="28" y="176" width="404" height="56" rx="12" fill="#1A2D24"/>
+    <text class="label" x="40" y="210">Surface</text>
+    <text class="hex" x="320" y="210">#1A2D24</text>
+    <rect x="28" y="246" width="404" height="56" rx="12" fill="#D4AF37"/>
+    <text x="40" y="280" style="fill:#17201d;font-family:Arial,sans-serif;font-size:16px;font-weight:700;">Point Gold</text>
+    <text x="320" y="280" style="fill:#17201d;font-family:Consolas,monospace;font-size:15px;font-weight:700;">#D4AF37</text>
+    <rect x="28" y="316" width="404" height="56" rx="12" fill="#203730"/>
+    <text class="label" x="40" y="350">Text Sub</text>
+    <text class="hex" x="305" y="350">#B6C3BA</text>
+    <rect x="110" y="410" width="240" height="210" rx="20" fill="#0F1E18" stroke="#365045"/>
+    <rect x="110" y="410" width="240" height="46" rx="20" fill="#1A2D24"/>
+    <rect x="126" y="470" width="208" height="58" rx="14" fill="#1A2D24" stroke="#46655a"/>
+    <rect x="126" y="538" width="208" height="58" rx="14" fill="#1A2D24" stroke="#46655a"/>
+    <rect x="182" y="600" width="96" height="20" rx="10" fill="#D4AF37"/>
+  </g>
+
+  <g transform="translate(1060,170)" filter="url(#shadow)">
+    <rect x="0" y="0" rx="24" ry="24" width="460" height="650" fill="#181f1c" stroke="#32423c" stroke-width="1.5"/>
+    <text class="cardTitle" x="28" y="52">C</text>
+    <text class="small" x="28" y="78">Warm dark, softer contrast</text>
+    <rect x="28" y="106" width="404" height="56" rx="12" fill="#121B17"/>
+    <text class="label" x="40" y="140">Background</text>
+    <text class="hex" x="320" y="140">#121B17</text>
+    <rect x="28" y="176" width="404" height="56" rx="12" fill="#1E2A24"/>
+    <text class="label" x="40" y="210">Surface</text>
+    <text class="hex" x="320" y="210">#1E2A24</text>
+    <rect x="28" y="246" width="404" height="56" rx="12" fill="#D4AF37"/>
+    <text x="40" y="280" style="fill:#17201d;font-family:Arial,sans-serif;font-size:16px;font-weight:700;">Point Gold</text>
+    <text x="320" y="280" style="fill:#17201d;font-family:Consolas,monospace;font-size:15px;font-weight:700;">#D4AF37</text>
+    <rect x="28" y="316" width="404" height="56" rx="12" fill="#25332d"/>
+    <text class="label" x="40" y="350">Text Sub</text>
+    <text class="hex" x="305" y="350">#B8C4BC</text>
+    <rect x="110" y="410" width="240" height="210" rx="20" fill="#121B17" stroke="#3e5149"/>
+    <rect x="110" y="410" width="240" height="46" rx="20" fill="#1E2A24"/>
+    <rect x="126" y="470" width="208" height="58" rx="14" fill="#1E2A24" stroke="#4f665d"/>
+    <rect x="126" y="538" width="208" height="58" rx="14" fill="#1E2A24" stroke="#4f665d"/>
+    <rect x="182" y="600" width="96" height="20" rx="10" fill="#D4AF37"/>
+  </g>
+</svg>
