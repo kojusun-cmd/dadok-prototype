@@ -604,11 +604,32 @@ const filterSheet = document.getElementById('filter-sheet');
                 const data = raw || {};
                 const id = String(data.id || '').trim();
                 if (!id) return null;
+                const regionList = (() => {
+                    if (Array.isArray(data.regionList)) {
+                        return data.regionList
+                            .map((v) => String(v || '').trim())
+                            .filter(Boolean);
+                    }
+                    if (typeof data.regionList === 'string' && data.regionList.trim()) {
+                        return data.regionList
+                            .split(',')
+                            .map((v) => String(v || '').trim())
+                            .filter(Boolean);
+                    }
+                    if (typeof data.region === 'string' && data.region.trim()) {
+                        return data.region
+                            .split(',')
+                            .map((v) => String(v || '').trim())
+                            .filter(Boolean);
+                    }
+                    return [];
+                })();
                 return {
                     id,
                     name: String(data.name || '').trim(),
                     desc: String(data.desc || '').trim(),
                     region: String(data.region || '').trim(),
+                    regionList,
                     massage: String(data.massage || '').trim(),
                     place: String(data.place || '').trim(),
                     age: String(data.age || '').trim(),
@@ -3373,6 +3394,8 @@ const filterSheet = document.getElementById('filter-sheet');
 
                 listContent.innerHTML = '';
                 listSheet.scrollTop = 0;
+                // 요청사항: 추천 파트너 전체보기도 다독초이스와 동일 크기로 표시
+                listContent.classList.add('choice-list-large');
 
                 let db = type === 'choice' ? [...filteredChoiceDB] : [...filteredRecDB];
                 listTitle.innerText = type === 'choice' ? '다독 초이스 전체보기' : '추천 파트너 전체보기';
@@ -3382,6 +3405,7 @@ const filterSheet = document.getElementById('filter-sheet');
                 } else {
                     // 매번 리스트뷰 열 때마다 랜덤 섞기
                     db.sort(() => Math.random() - 0.5);
+                    const thumbSizeClass = 'w-[128px] h-[128px]';
 
                     let html = '';
                     for (let partner of db) {
@@ -3399,7 +3423,7 @@ const filterSheet = document.getElementById('filter-sheet');
                         const rb = getPartnerProfileReviewBaselines(partner);
                         html += `
                 <div class="card p-4 flex gap-4 mb-4 items-center relative" onclick="openProfile('${partner.name}', '${rndRegion} · ${rndPlace}', '${partner.id}', ${rb.reviews}, ${rb.rating}, '${rndMassage}', '${rndPlace}', '${rndAge}', '${partner.image}', '${partner.ticketType || '일반 입점'}', '${partner.ticketExpiry || ''}')">
-                    <div class="w-[108px] h-[108px] rounded-2xl bg-cover bg-center flex-shrink-0 relative border border-white" style="background-image: url('${partner.image}'); filter: grayscale(15%) sepia(20%);">
+                    <div class="${thumbSizeClass} rounded-2xl bg-cover bg-center flex-shrink-0 relative border border-white" style="background-image: url('${partner.image}'); filter: grayscale(15%) sepia(20%);">
                         ${badgeHtml}
                     </div>
                     <div class="flex-1 py-1">
@@ -4092,19 +4116,18 @@ const filterSheet = document.getElementById('filter-sheet');
                         let rndAge = pickBannerAge(partner);
                         const rb = getPartnerProfileReviewBaselines(partner);
                         chunk += `
-                <div class="card min-w-[280px] max-w-[280px]" onclick="openProfile('${partner.name}', '${rndRegion} · ${rndPlace}', '${partner.id}', ${rb.reviews}, ${rb.rating}, '${rndMassage}', '${rndPlace}', '${rndAge}', '${partner.image}', '${partner.ticketType || '일반 입점'}', '${partner.ticketExpiry || ''}')">
+                <div class="card min-w-[340px] max-w-[340px]" onclick="openProfile('${partner.name}', '${rndRegion} · ${rndPlace}', '${partner.id}', ${rb.reviews}, ${rb.rating}, '${rndMassage}', '${rndPlace}', '${rndAge}', '${partner.image}', '${partner.ticketType || '일반 입점'}', '${partner.ticketExpiry || ''}')">
                     <div class="relative h-[180px] bg-cover bg-center rounded-t-2xl" style="background-image: url('${partner.image}'); filter: grayscale(15%) sepia(20%); border-bottom: 1px solid var(--accent-color);">
                         ${badgeHtml}
-                        <div class="absolute inset-0 bg-gradient-to-t from-[var(--surface-color)] to-transparent"></div>
                     </div>
                     <div class="p-5 pt-0 mt-3">
                         <h3 class="font-bold text-lg">${partner.name}</h3>
                         <p class="text-sm mt-1.5" style="color: var(--text-sub);">${rndRegion ?? ''}</p>
                         <div class="grid grid-cols-2 gap-2 mt-4 text-xs">
-                            <span class="border border-[var(--point-color)] bg-[var(--point-color)]/10 px-2.5 py-1.5 rounded-full font-bold text-white  flex items-center justify-center truncate tracking-tight shadow-sm">${formatBannerRegionChipLabel(rndRegion)}</span>
-                            <span class="border border-[var(--point-color)] bg-transparent px-2.5 py-1.5 rounded-full font-medium text-white  flex items-center justify-center truncate tracking-tight shadow-sm">${rndMassage}</span>
-                            <span class="border border-[var(--point-color)] bg-transparent px-2.5 py-1.5 rounded-full font-medium text-white  flex items-center justify-center truncate tracking-tight shadow-sm">${rndPlace}</span>
-                            <span class="border border-[var(--point-color)] bg-transparent px-2.5 py-1.5 rounded-full font-medium text-white  flex items-center justify-center truncate tracking-tight shadow-sm">${rndAge}</span>
+                            <span class="border border-[var(--point-color)] bg-[var(--point-color)]/10 px-8 py-1.5 rounded-full font-bold text-white flex items-center justify-center truncate tracking-tight shadow-sm">${formatBannerRegionChipLabel(rndRegion)}</span>
+                            <span class="border border-[var(--point-color)] bg-transparent px-8 py-1.5 rounded-full font-medium text-white flex items-center justify-center truncate tracking-tight shadow-sm">${rndMassage}</span>
+                            <span class="border border-[var(--point-color)] bg-transparent px-8 py-1.5 rounded-full font-medium text-white flex items-center justify-center truncate tracking-tight shadow-sm">${rndPlace}</span>
+                            <span class="border border-[var(--point-color)] bg-transparent px-8 py-1.5 rounded-full font-medium text-white flex items-center justify-center truncate tracking-tight shadow-sm">${rndAge}</span>
                         </div>
 
                     </div>
@@ -4153,7 +4176,7 @@ const filterSheet = document.getElementById('filter-sheet');
                         const rb = getPartnerProfileReviewBaselines(partner);
                         recHtml += `
                 <div class="card p-4 flex gap-4 mb-4 items-center transition-all duration-500 ease-in-out opacity-0 translate-y-2" style="animation: fadeInUp 0.5s ease forwards;" onclick="openProfile('${partner.name}', '${rndRegion} · ${rndPlace}', '${partner.id}', ${rb.reviews}, ${rb.rating}, '${rndMassage}', '${rndPlace}', '${rndAge}', '${partner.image}', '${partner.ticketType || '일반 입점'}', '${partner.ticketExpiry || ''}')">
-                    <div class="w-[108px] h-[108px] rounded-2xl bg-cover bg-center flex-shrink-0 relative border border-white" style="background-image: url('${partner.image}'); filter: grayscale(10%) sepia(10%);">
+                    <div class="w-[128px] h-[128px] rounded-2xl bg-cover bg-center flex-shrink-0 relative border border-white" style="background-image: url('${partner.image}'); filter: grayscale(10%) sepia(10%);">
                         ${badgeHtml}
                     </div>
                     <div class="flex-1 py-1">
@@ -5497,6 +5520,10 @@ const filterSheet = document.getElementById('filter-sheet');
                     }
 
                     const formatDT = (d) => `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+                    const splitDateTimeStr = (s) => {
+                        const i = s.indexOf(' ');
+                        return i >= 0 ? { date: s.slice(0, i), time: s.slice(i + 1) } : { date: s, time: '' };
+                    };
 
                     let isVIP = data.ticketType === "VIP";
                     let combinedName = "다독 파트너스 입점권";
@@ -5511,6 +5538,9 @@ const filterSheet = document.getElementById('filter-sheet');
                         return;
                     }
                     let finalExpirationDate = new Date(expiryMs);
+
+                    const purchaseDT = splitDateTimeStr(formatDT(purchaseDateObj));
+                    const expiryDT = splitDateTimeStr(formatDT(finalExpirationDate));
 
                     let badgeHtml = '';
                     if (isVIP) {
@@ -5531,9 +5561,26 @@ const filterSheet = document.getElementById('filter-sheet');
                             <span class="text-[22px] font-bold text-[var(--point-color)] leading-none mb-[2px]" id="pass-time-combined">--:--:--</span>
                             <span class="text-[14px] text-[var(--text-sub)] font-medium pb-[3px] ml-1">남음</span>
                         </div>
-                        <div class="mt-4 pt-4 border-t border-[#D4AF37]/20 flex flex-col gap-1 text-[13px] text-[#A7B2AE]">
-                            <div><span class="inline-block w-20 text-[var(--text-sub)]">최초 구매일</span> <span class="text-[#E0E8E4]">${formatDT(purchaseDateObj)}</span></div>
-                            <div><span class="inline-block w-20 text-[var(--text-sub)]">예상 만료일</span> <span class="text-[#E0E8E4] font-medium">${formatDT(finalExpirationDate)}</span> <span class="text-[11px] opacity-70 ml-1">(자동 삭제)</span></div>
+                        <div class="mt-4 pt-4 border-t border-[#D4AF37]/20 space-y-3 text-[13px]">
+                            <div class="flex items-baseline justify-between gap-3 w-full min-w-0">
+                                <span class="text-[var(--text-sub)] shrink-0">최초 구매일</span>
+                                <div class="flex items-baseline justify-end gap-2 min-w-0 text-right tabular-nums">
+                                    <span class="text-[#E0E8E4]">${purchaseDT.date}</span>
+                                    <span class="text-[#5C6B66] shrink-0" aria-hidden="true">·</span>
+                                    <span class="text-[#C5D0CC]">${purchaseDT.time}</span>
+                                </div>
+                            </div>
+                            <div class="flex items-start justify-between gap-3 w-full min-w-0">
+                                <span class="text-[var(--text-sub)] shrink-0 pt-0.5">예상 만료일</span>
+                                <div class="text-right min-w-0 flex flex-col items-end gap-0.5">
+                                    <div class="flex items-baseline justify-end gap-2 tabular-nums">
+                                        <span class="text-[#E0E8E4] font-medium">${expiryDT.date}</span>
+                                        <span class="text-[#5C6B66] shrink-0" aria-hidden="true">·</span>
+                                        <span class="text-[#C5D0CC] font-medium">${expiryDT.time}</span>
+                                    </div>
+                                    <span class="text-[11px] text-[var(--text-sub)] opacity-75">(자동 삭제)</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -5601,10 +5648,12 @@ const filterSheet = document.getElementById('filter-sheet');
                         requestAnimationFrame(resetPartnerDashboardTop);
                     }, 10);
                 }
+                registerPartnerDashboardBackStack();
             }
 
             function closePartnerDashboardToLogin() {
                 stopPartnerDashboardLiveSync();
+                popPartnerDashboardHistoryEntryIfTop();
                 const loginModal = document.getElementById('partner-login-modal');
                 if (loginModal) {
                     loginModal.style.display = 'flex';
@@ -5640,6 +5689,7 @@ const filterSheet = document.getElementById('filter-sheet');
 
             function closePartnerDashboardToMain() {
                 stopPartnerDashboardLiveSync();
+                popPartnerDashboardHistoryEntryIfTop();
                 const modal = document.getElementById('partner-dashboard-modal');
                 if (modal) {
                     modal.classList.add('translate-x-full');
@@ -5656,6 +5706,7 @@ const filterSheet = document.getElementById('filter-sheet');
             function goToPartnerEntryFromDashboard() {
                 // 대시보드 위에 입점 안내 페이지를 띄움
                 openPartnerEntryScreen();
+                registerPartnerEntryFromDashboardBackStack();
             }
 
             async function handlePartnerMockLogin() {
@@ -6378,35 +6429,29 @@ const filterSheet = document.getElementById('filter-sheet');
                 <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[var(--point-color)]/15 border border-[var(--point-color)]/35 mb-3">
                     <span class="text-[var(--point-color)] text-[12px] font-bold tracking-widest">입점 신청 접수 완료</span>
                 </div>
-                <div class="leading-relaxed">
-                    <span class="text-[var(--point-color)] font-extrabold text-[22px] tracking-wide">[${company}]</span>
-                    <span class="text-white font-bold text-[20px]"> 대표님</span>
-                    <span class="text-white/80 font-medium text-[18px]">,</span><br>
-                    <span class="text-[#F6DC7A] font-extrabold text-[19px] tracking-wide">[${title}]</span>
-                    <span class="text-white font-semibold text-[18px]"> 신청이 접수되었습니다.</span>
+                <div class="leading-relaxed text-center">
+                    <span class="text-[#F6DC7A] font-extrabold text-[18px] tracking-wide">[${title}]</span><span class="text-white font-semibold text-[18px]"> 접수 완료</span>
                 </div>
             </div>
 
-            <div class="bg-gradient-to-br from-[#111F18] to-[#070E0B] rounded-2xl p-4 border-2 border-[var(--point-color)]/70 mb-4 shadow-[0_14px_30px_rgba(212,175,55,0.22),0_10px_28px_rgba(0,0,0,0.35)]">
-                <div class="flex items-center gap-2 mb-3">
-                    <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-[var(--point-color)] text-[#06110D] font-black text-[13px]">!</span>
-                    <span class="text-[#F5E7AA] text-[13px] font-bold tracking-wide">입금 정보 안내</span>
-                </div>
-                <div class="bg-[#F4C63D] rounded-xl px-4 py-3 border border-[#C99F27]">
-                    <div class="grid grid-cols-[72px_1fr] gap-y-1.5 items-start text-[15px] leading-[1.7] tracking-wide text-left">
-                        <span class="text-[#121212]/80 font-semibold">입금 계좌</span>
-                        <span class="text-[#06110D] font-extrabold">카카오뱅크 3333-37-0613731</span>
-                        <span class="text-[#121212]/80 font-semibold">예금주</span>
-                        <span class="text-[#06110D] font-extrabold">다독(DA:DOK)</span>
-                        <span class="text-[#121212]/80 font-semibold">확인 안내</span>
-                        <span class="text-[#06110D] font-bold">입금 확인 후 즉시 파트너 권한 부여</span>
+            <div class="mb-4 rounded-2xl border border-[#2A3832] bg-[#0C1512] p-4">
+                <p class="text-center text-[12px] font-semibold text-[#9EAEA8] mb-4">입금 정보</p>
+                <div class="space-y-4">
+                    <div>
+                        <p class="text-[11px] text-white/45 mb-1">입금 계좌</p>
+                        <p class="text-[16px] font-bold text-[#E8D89A] leading-snug tracking-wide">카카오뱅크 <span class="text-white/90">3333-37-0613731</span></p>
+                    </div>
+                    <div class="h-px bg-white/[0.08]"></div>
+                    <div>
+                        <p class="text-[11px] text-white/45 mb-1">예금주</p>
+                        <p class="text-[16px] font-bold text-white leading-snug">다독(DA:DOK)</p>
                     </div>
                 </div>
             </div>
 
             <div class="text-center bg-[#0A1310] border border-[#22312B] rounded-xl px-4 py-3">
                 <p class="text-[#9EA9A5] text-[13px] leading-relaxed tracking-wide">
-                    승인 관련 문의는 <strong class="text-white font-semibold">다독 신고센터 / 문의</strong>로<br>연락주시기 바랍니다.
+                    입금 확인 후 즉시 파트너 권한 부여
                 </p>
             </div>
         `;
@@ -6417,6 +6462,7 @@ const filterSheet = document.getElementById('filter-sheet');
                 setTimeout(() => {
                     successModal.classList.remove('translate-x-full');
                 }, 10);
+                registerPartnerApplicationSuccessBackStack();
             }
 
             function finishPartnerApplication() {
@@ -6480,6 +6526,17 @@ const filterSheet = document.getElementById('filter-sheet');
                 }, 300);
 
                 closePartnerApplication();
+
+                /* 기기 뒤로가기로 신청완료만 닫은 뒤 스택에 입점신청이 남아 있으면 히스토리·스택 정리 → 입점 안내로 자연스럽게 복귀 */
+                if (typeof appModalStack !== 'undefined' && typeof isClickClosing !== 'undefined'
+                    && appModalStack.length && appModalStack[appModalStack.length - 1] === 'closePartnerApplication') {
+                    appModalStack.pop();
+                    if (history.state && history.state.modalOpen) {
+                        isClickClosing = true;
+                        history.back();
+                        setTimeout(() => { isClickClosing = false; }, 50);
+                    }
+                }
             }
 
             function openPartnerEntryScreen() {
@@ -6638,7 +6695,7 @@ const filterSheet = document.getElementById('filter-sheet');
                 if (headerProfileBtn) {
                     headerProfileBtn.setAttribute('onclick', "openMyPageModal()");
                     headerProfileBtn.innerHTML = `
-                <div class="w-[36px] h-[36px] rounded-full bg-cover bg-center border-[1.5px] border-[var(--point-color)] shadow-sm overflow-hidden" style="background-image: url('${avatarUrl}');"></div>
+                <div class="w-[42px] h-[42px] rounded-full bg-cover bg-center border-[1.5px] border-[var(--point-color)] shadow-sm overflow-hidden" style="background-image: url('${avatarUrl}');"></div>
             `;
                 }
 
@@ -6943,18 +7000,37 @@ const filterSheet = document.getElementById('filter-sheet');
                     return;
                 }
                 let html = '<div class="space-y-4">';
+                let shouldPersistFavorites = false;
                 userFavorites.forEach(partner => {
-                    let region = partner.desc ? partner.desc.split(' · ')[0] : (partner.region || '');
+                    const sourcePartner = [...DB_CHOICE, ...DB_RECOMMEND].find(
+                        (p) => String(p?.id || '') === String(partner?.id || ''),
+                    );
+                    if (sourcePartner && Array.isArray(sourcePartner.regionList) && sourcePartner.regionList.length) {
+                        const normalized = sourcePartner.regionList
+                            .map((v) => String(v || '').trim())
+                            .filter(Boolean);
+                        const before = JSON.stringify(Array.isArray(partner.regionList) ? partner.regionList : []);
+                        const after = JSON.stringify(normalized);
+                        if (before !== after) {
+                            partner.regionList = normalized;
+                            if (!partner.region && normalized[0]) partner.region = normalized[0];
+                            shouldPersistFavorites = true;
+                        }
+                    }
+                    const regionList = Array.isArray(partner.regionList)
+                        ? partner.regionList.map((v) => String(v || '').trim()).filter(Boolean)
+                        : [];
+                    let region = regionList.length ? regionList.join(', ') : String(partner.region || '').trim();
                     const rb = getPartnerProfileReviewBaselines(partner);
                     html += `
                 <div class="bg-[var(--surface-color)] p-4 rounded-xl border border-[var(--border-color)] flex gap-4 cursor-pointer hover:border-[var(--point-color)]/50 transition-colors" onclick="openProfileFromFavorites('${partner.name}', '${partner.desc}', '${partner.id}', ${rb.reviews}, ${rb.rating}, '${partner.massage}', '${partner.place}', '${partner.age}', '${partner.image}', '${partner.ticketType || '일반 입점'}', '${partner.ticketExpiry || ''}')">
-                    <div class="w-[80px] h-[80px] rounded-lg bg-cover bg-center shrink-0 shadow-sm" style="background-image: url('${partner.image}')"></div>
+                    <div class="w-[120px] h-[120px] rounded-lg bg-cover bg-center shrink-0 shadow-sm" style="background-image: url('${partner.image}')"></div>
                     <div class="flex-1 flex flex-col justify-center overflow-hidden">
                         <div class="flex justify-between items-start mb-1.5">
                             <h4 class="text-white font-bold text-lg leading-tight truncate mr-2">${partner.name}</h4>
                             <svg class="w-5 h-5 text-[var(--point-color)] shrink-0 drop-shadow-[0_0_8px_rgba(212,175,55,0.6)]" fill="currentColor" viewBox="0 0 24 24" onclick="event.stopPropagation(); removeFavorite('${partner.id}')"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path></svg>
                         </div>
-                        <p class="text-[13px] text-[var(--point-color)] font-medium mb-1 truncate">${partner.massage}</p>
+                        <p class="text-[13px] text-[var(--point-color)] font-medium mb-1 truncate">${partner.age}</p>
                         <p class="text-[12px] text-[var(--text-sub)] truncate">${region}</p>
                     </div>
                 </div>
@@ -6962,6 +7038,7 @@ const filterSheet = document.getElementById('filter-sheet');
                 });
                 html += '</div>';
                 container.innerHTML = html;
+                if (shouldPersistFavorites) persistUserFavorites();
             }
 
             function escapeNoticeText(value = '') {
@@ -8754,9 +8831,40 @@ const filterSheet = document.getElementById('filter-sheet');
 
                 const fallback = supportTypeFallbacks[tab] || [];
                 const renderOptions = (options) => {
-                    select.innerHTML = options
-                        .map(label => `<option value="${label}">${label}</option>`)
-                        .join('');
+                    const normalized = Array.isArray(options)
+                        ? options
+                              .map(v => (typeof v === 'string' ? v.trim() : ''))
+                              .filter(Boolean)
+                        : [];
+                    const safeOptions = normalized.length ? normalized : ['일반'];
+                    const prevValue = String(select.value || '').trim();
+                    const menu = document.getElementById('support-type-menu');
+                    select.innerHTML = '';
+                    if (menu) menu.innerHTML = '';
+
+                    safeOptions.forEach((label, idx) => {
+                        const opt = document.createElement('option');
+                        opt.value = label;
+                        opt.textContent = label;
+                        select.appendChild(opt);
+
+                        if (menu) {
+                            const btn = document.createElement('button');
+                            btn.type = 'button';
+                            btn.className =
+                                'w-full text-left px-4 py-3 rounded-xl text-[var(--text-main)] text-[15px] font-medium hover:bg-[#12241B] transition-colors';
+                            btn.textContent = label;
+                            btn.addEventListener('click', (e) => {
+                                e.preventDefault();
+                                selectSupportTypeOption(label);
+                            });
+                            menu.appendChild(btn);
+                        }
+                    });
+
+                    const nextValue = safeOptions.includes(prevValue) ? prevValue : safeOptions[0];
+                    select.value = nextValue || '';
+                    syncSupportTypeLabel();
                 };
 
                 // 네트워크/권한 이슈가 있어도 빈 드롭다운이 되지 않도록 기본값을 즉시 표시
@@ -8795,6 +8903,52 @@ const filterSheet = document.getElementById('filter-sheet');
                 }
             }
 
+            function closeSupportTypeMenu() {
+                const menu = document.getElementById('support-type-menu');
+                const icon = document.getElementById('support-type-trigger-icon');
+                if (menu) menu.classList.add('hidden');
+                if (icon) icon.classList.remove('rotate-180');
+            }
+
+            function syncSupportTypeLabel() {
+                const select = document.getElementById('support-type');
+                const labelEl = document.getElementById('support-type-selected-label');
+                if (!select || !labelEl) return;
+                const text = select.selectedOptions?.[0]?.textContent || select.value || '유형 선택';
+                labelEl.textContent = text;
+            }
+
+            window.toggleSupportTypeMenu = function toggleSupportTypeMenu(event) {
+                if (event && typeof event.stopPropagation === 'function') event.stopPropagation();
+                const menu = document.getElementById('support-type-menu');
+                const icon = document.getElementById('support-type-trigger-icon');
+                if (!menu) return;
+                const willOpen = menu.classList.contains('hidden');
+                if (willOpen) {
+                    menu.classList.remove('hidden');
+                    if (icon) icon.classList.add('rotate-180');
+                } else {
+                    closeSupportTypeMenu();
+                }
+            };
+
+            window.selectSupportTypeOption = function selectSupportTypeOption(value) {
+                const select = document.getElementById('support-type');
+                if (!select) return;
+                select.value = value;
+                syncSupportTypeLabel();
+                closeSupportTypeMenu();
+            };
+
+            if (!window.__supportTypeMenuOutsideClickBound) {
+                document.addEventListener('click', (event) => {
+                    const wrap = document.getElementById('support-type-dropdown-wrap');
+                    if (!wrap || wrap.contains(event.target)) return;
+                    closeSupportTypeMenu();
+                });
+                window.__supportTypeMenuOutsideClickBound = true;
+            }
+
             function openSupportScreen() {
                 const supportModal = document.getElementById('support-modal');
                 supportModal.style.display = 'flex';
@@ -8814,6 +8968,7 @@ const filterSheet = document.getElementById('filter-sheet');
                     supportModal.style.display = 'none';
                     supportModal.style.zIndex = '';
                     resetSupportDraftFields();
+                    closeSupportTypeMenu();
                     stopSupportTypeRealtimeSync();
                 }, 300);
             }
@@ -8829,6 +8984,7 @@ const filterSheet = document.getElementById('filter-sheet');
                 if (contentEl) contentEl.value = '';
                 if (fileInputEl) fileInputEl.value = '';
                 if (fileNameEl) fileNameEl.innerText = '터치하여 이미지 첨부';
+                closeSupportTypeMenu();
             }
 
             window.updateSupportFileLabel = function updateSupportFileLabel() {
@@ -8970,6 +9126,49 @@ const filterSheet = document.getElementById('filter-sheet');
             // 모달을 열 때마다 스택에 추가하고, 기기 뒤로가기 시 최상단 요소부터 순차적으로 하나씩 닫습니다.
             let appModalStack = [];
             let isClickClosing = false; // UI 닫기 버튼 터치로 인한 루프 방지 플래그
+
+            /** 프로그램적으로 열리는 파트너 대시보드도 기기 뒤로가기(popstate)에 잡히도록 히스토리에 한 단계 쌓음 */
+            function registerPartnerDashboardBackStack() {
+                if (appModalStack.length && appModalStack[appModalStack.length - 1] === 'closePartnerDashboardToMain') {
+                    return;
+                }
+                appModalStack.push('closePartnerDashboardToMain');
+                history.pushState({ modalOpen: true, stackDepth: appModalStack.length }, '', location.href);
+            }
+
+            /** 대시보드 닫기(메인/로그인/저장 등) 시 스택·히스토리 정리 — 클릭으로 이미 비운 경우는 무시 */
+            function popPartnerDashboardHistoryEntryIfTop() {
+                if (!appModalStack.length || appModalStack[appModalStack.length - 1] !== 'closePartnerDashboardToMain') {
+                    return;
+                }
+                appModalStack.pop();
+                if (history.state && history.state.modalOpen) {
+                    isClickClosing = true;
+                    history.back();
+                    setTimeout(() => { isClickClosing = false; }, 50);
+                }
+            }
+
+            /**
+             * 파트너 대시보드에서만 입점 안내로 들어온 경우: 기기 뒤로가기 시 입점 안내를 닫고 대시보드로 복귀
+             * (onclick이 open* 가 아니어서 전역 클릭 핸들러가 히스토리를 쌓지 않음)
+             */
+            function registerPartnerEntryFromDashboardBackStack() {
+                if (appModalStack.length && appModalStack[appModalStack.length - 1] === 'closePartnerEntryScreen') {
+                    return;
+                }
+                appModalStack.push('closePartnerEntryScreen');
+                history.pushState({ modalOpen: true, stackDepth: appModalStack.length }, '', location.href);
+            }
+
+            /** 입점 신청 완료 모달: 기기 뒤로가기 시 closeSuccessAndReturnToEntry와 동일(입점 안내로 복귀) */
+            function registerPartnerApplicationSuccessBackStack() {
+                if (appModalStack.length && appModalStack[appModalStack.length - 1] === 'closeSuccessAndReturnToEntry') {
+                    return;
+                }
+                appModalStack.push('closeSuccessAndReturnToEntry');
+                history.pushState({ modalOpen: true, stackDepth: appModalStack.length }, '', location.href);
+            }
 
             // 열기 함수와 1:1로 매칭되는 닫기 함수 맵
             function getCloseFunctionFor(openFunc) {

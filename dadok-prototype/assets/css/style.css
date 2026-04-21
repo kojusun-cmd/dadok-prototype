@@ -257,6 +257,448 @@
             overflow-y: auto;
         }
 
+        /* 상세페이지 내부 텍스트 전체 확대 (다른 화면 영향 없음) */
+        #profile-sheet .text-xs { font-size: 0.9rem !important; }
+        #profile-sheet .text-sm { font-size: 1.05rem !important; }
+        #profile-sheet .text-base { font-size: 1.2rem !important; }
+        #profile-sheet .text-lg { font-size: 1.35rem !important; }
+        #profile-sheet .text-xl { font-size: 1.55rem !important; }
+        #profile-sheet .text-2xl { font-size: 1.9rem !important; }
+        #profile-sheet .text-3xl { font-size: 2.2rem !important; }
+
+        /* Tailwind arbitrary-size 클래스 보정 */
+        #profile-sheet .text-\[10px\] { font-size: 12px !important; }
+        #profile-sheet .text-\[11px\] { font-size: 13px !important; }
+        #profile-sheet .text-\[12px\] { font-size: 14px !important; }
+        #profile-sheet .text-\[13px\] { font-size: 15px !important; }
+        #profile-sheet .text-\[14px\] { font-size: 16px !important; }
+        #profile-sheet .text-\[15px\] { font-size: 17px !important; }
+        #profile-sheet .text-\[15\.5px\] { font-size: 18px !important; }
+        #profile-sheet .text-\[16px\] { font-size: 18px !important; }
+        #profile-sheet .text-\[17\.5px\] { font-size: 20px !important; }
+        #profile-sheet .text-\[18\.5px\] { font-size: 21px !important; }
+        #profile-sheet .text-\[20px\] { font-size: 22px !important; }
+        #profile-sheet .text-\[22px\] { font-size: 24px !important; }
+        #profile-sheet .text-\[24px\] { font-size: 26px !important; }
+        #profile-sheet .text-\[26px\] { font-size: 28px !important; }
+        #profile-sheet .text-\[30px\] { font-size: 32px !important; }
+        #profile-sheet .text-\[34px\] { font-size: 36px !important; }
+
+        /* 채팅창 내부 텍스트 전체 확대 (다른 화면 영향 없음) */
+        #chat-sheet .text-xs { font-size: 1.1rem !important; }
+        #chat-sheet .text-sm { font-size: 1.25rem !important; }
+        #chat-sheet .text-base { font-size: 1.35rem !important; }
+        #chat-sheet .text-lg { font-size: 1.5rem !important; }
+        #chat-sheet .text-xl { font-size: 1.75rem !important; }
+
+        #chat-sheet .text-\[10px\] { font-size: 14px !important; }
+        #chat-sheet .text-\[11px\] { font-size: 15px !important; }
+        #chat-sheet .text-\[12px\] { font-size: 16px !important; }
+        #chat-sheet .text-\[13px\] { font-size: 17px !important; }
+        #chat-sheet .text-\[13\.5px\] { font-size: 17.5px !important; }
+        #chat-sheet .text-\[14px\] { font-size: 18px !important; }
+        #chat-sheet .text-\[15px\] { font-size: 19px !important; }
+        #chat-sheet .text-\[16px\] { font-size: 20px !important; }
+
+        /* 메인화면 텍스트 전체 확대 (상단 영역 + 메인 컨텐츠만) */
+        #main-top-area .text-xs,
+        #main-content-area .text-xs { font-size: 1rem !important; }
+        #main-top-area .text-sm,
+        #main-content-area .text-sm { font-size: 1.15rem !important; }
+        #main-top-area .text-base,
+        #main-content-area .text-base { font-size: 1.25rem !important; }
+        #main-top-area .text-lg,
+        #main-content-area .text-lg { font-size: 1.4rem !important; }
+        #main-top-area .text-xl,
+        #main-content-area .text-xl { font-size: 1.6rem !important; }
+        #main-top-area .text-2xl,
+        #main-content-area .text-2xl { font-size: 1.9rem !important; }
+        #main-top-area .text-3xl,
+        #main-content-area .text-3xl { font-size: 2.2rem !important; }
+
+        #main-top-area .text-\[10px\],
+        #main-content-area .text-\[10px\] { font-size: 12px !important; }
+        #main-top-area .text-\[11px\],
+        #main-content-area .text-\[11px\] { font-size: 13px !important; }
+        #main-top-area .text-\[12px\],
+        #main-content-area .text-\[12px\] { font-size: 14px !important; }
+        #main-top-area .text-\[13px\],
+        #main-content-area .text-\[13px\] { font-size: 15px !important; }
+        #main-top-area .text-\[13\.5px\],
+        #main-content-area .text-\[13\.5px\] { font-size: 15.5px !important; }
+        #main-top-area .text-\[14px\],
+        #main-content-area .text-\[14px\] { font-size: 16px !important; }
+        #main-top-area .text-\[15px\],
+        #main-content-area .text-\[15px\] { font-size: 17px !important; }
+        #main-top-area .text-\[15\.5px\],
+        #main-content-area .text-\[15\.5px\] { font-size: 18px !important; }
+        #main-top-area .text-\[16px\],
+        #main-content-area .text-\[16px\] { font-size: 18px !important; }
+        #main-top-area .text-\[17\.5px\],
+        #main-content-area .text-\[17\.5px\] { font-size: 20px !important; }
+        #main-top-area .text-\[18\.5px\],
+        #main-content-area .text-\[18\.5px\] { font-size: 21px !important; }
+        #main-top-area .text-\[22px\],
+        #main-content-area .text-\[22px\] { font-size: 24px !important; }
+
+        /* 신고센터/문의 화면 텍스트 확대 (다른 화면 영향 없음) */
+        #support-modal .text-xs { font-size: 1.05rem !important; }
+        #support-modal .text-sm { font-size: 1.2rem !important; }
+        #support-modal .text-base { font-size: 1.3rem !important; }
+        #support-modal .text-lg { font-size: 1.45rem !important; }
+        #support-modal .text-xl { font-size: 1.7rem !important; }
+
+        #support-modal .text-\[10px\] { font-size: 13px !important; }
+        #support-modal .text-\[11px\] { font-size: 14px !important; }
+        #support-modal .text-\[12px\] { font-size: 15px !important; }
+        #support-modal .text-\[13px\] { font-size: 16px !important; }
+        #support-modal .text-\[13\.5px\] { font-size: 16.5px !important; }
+        #support-modal .text-\[14px\] { font-size: 17px !important; }
+        #support-modal .text-\[15px\] { font-size: 18px !important; }
+        #support-modal .text-\[16px\] { font-size: 19px !important; }
+        #support-modal .text-\[18px\] { font-size: 21px !important; }
+
+        /* 마이페이지 및 하위 모달 텍스트 확대 */
+        #mypage-modal .text-xs,
+        #chat-list-modal .text-xs,
+        #favorites-modal .text-xs,
+        #notice-modal .text-xs { font-size: 1.05rem !important; }
+        #mypage-modal .text-sm,
+        #chat-list-modal .text-sm,
+        #favorites-modal .text-sm,
+        #notice-modal .text-sm { font-size: 1.2rem !important; }
+        #mypage-modal .text-base,
+        #chat-list-modal .text-base,
+        #favorites-modal .text-base,
+        #notice-modal .text-base { font-size: 1.3rem !important; }
+        #mypage-modal .text-lg,
+        #chat-list-modal .text-lg,
+        #favorites-modal .text-lg,
+        #notice-modal .text-lg { font-size: 1.45rem !important; }
+        #mypage-modal .text-xl,
+        #chat-list-modal .text-xl,
+        #favorites-modal .text-xl,
+        #notice-modal .text-xl { font-size: 1.65rem !important; }
+        #mypage-modal .text-2xl,
+        #chat-list-modal .text-2xl,
+        #favorites-modal .text-2xl,
+        #notice-modal .text-2xl { font-size: 2rem !important; }
+
+        #mypage-modal .text-\[10px\],
+        #chat-list-modal .text-\[10px\],
+        #favorites-modal .text-\[10px\],
+        #notice-modal .text-\[10px\] { font-size: 13px !important; }
+        #mypage-modal .text-\[11px\],
+        #chat-list-modal .text-\[11px\],
+        #favorites-modal .text-\[11px\],
+        #notice-modal .text-\[11px\] { font-size: 14px !important; }
+        #mypage-modal .text-\[12px\],
+        #chat-list-modal .text-\[12px\],
+        #favorites-modal .text-\[12px\],
+        #notice-modal .text-\[12px\] { font-size: 15px !important; }
+        #mypage-modal .text-\[13px\],
+        #chat-list-modal .text-\[13px\],
+        #favorites-modal .text-\[13px\],
+        #notice-modal .text-\[13px\] { font-size: 16px !important; }
+        #mypage-modal .text-\[14px\],
+        #chat-list-modal .text-\[14px\],
+        #favorites-modal .text-\[14px\],
+        #notice-modal .text-\[14px\] { font-size: 17px !important; }
+        #mypage-modal .text-\[15px\],
+        #chat-list-modal .text-\[15px\],
+        #favorites-modal .text-\[15px\],
+        #notice-modal .text-\[15px\] { font-size: 18px !important; }
+        #mypage-modal .text-\[16px\],
+        #chat-list-modal .text-\[16px\],
+        #favorites-modal .text-\[16px\],
+        #notice-modal .text-\[16px\] { font-size: 19px !important; }
+
+        /* 채팅목록 화면은 요청에 따라 추가 확대 */
+        #chat-list-modal .text-xs { font-size: 1.25rem !important; }
+        #chat-list-modal .text-sm { font-size: 1.4rem !important; }
+        #chat-list-modal .text-base { font-size: 1.55rem !important; }
+        #chat-list-modal .text-lg { font-size: 1.7rem !important; }
+        #chat-list-modal .text-xl { font-size: 1.9rem !important; }
+        #chat-list-modal .text-2xl { font-size: 2.2rem !important; }
+
+        #chat-list-modal .text-\[10px\] { font-size: 15px !important; }
+        #chat-list-modal .text-\[11px\] { font-size: 16px !important; }
+        #chat-list-modal .text-\[12px\] { font-size: 17px !important; }
+        #chat-list-modal .text-\[13px\] { font-size: 18px !important; }
+        #chat-list-modal .text-\[14px\] { font-size: 19px !important; }
+        #chat-list-modal .text-\[15px\] { font-size: 20px !important; }
+        #chat-list-modal .text-\[16px\] { font-size: 21px !important; }
+
+        /* 찜한 업체 목록 화면 전용 추가 확대 */
+        #favorites-modal .text-xs { font-size: 1rem !important; }
+        #favorites-modal .text-sm { font-size: 1.15rem !important; }
+        #favorites-modal .text-base { font-size: 1.3rem !important; }
+        #favorites-modal .text-lg { font-size: 1.45rem !important; }
+        #favorites-modal .text-xl { font-size: 1.65rem !important; }
+        #favorites-modal .text-2xl { font-size: 1.95rem !important; }
+
+        #favorites-modal .text-\[10px\] { font-size: 13px !important; }
+        #favorites-modal .text-\[11px\] { font-size: 14px !important; }
+        #favorites-modal .text-\[12px\] { font-size: 15px !important; }
+        #favorites-modal .text-\[13px\] { font-size: 16px !important; }
+        #favorites-modal .text-\[14px\] { font-size: 17px !important; }
+        #favorites-modal .text-\[15px\] { font-size: 18px !important; }
+        #favorites-modal .text-\[16px\] { font-size: 19px !important; }
+
+        /* 회원 공지/안내함 화면 전용 추가 확대 */
+        #notice-modal .text-xs { font-size: 1.2rem !important; }
+        #notice-modal .text-sm { font-size: 1.35rem !important; }
+        #notice-modal .text-base { font-size: 1.5rem !important; }
+        #notice-modal .text-lg { font-size: 1.65rem !important; }
+        #notice-modal .text-xl { font-size: 1.85rem !important; }
+        #notice-modal .text-2xl { font-size: 2.15rem !important; }
+
+        #notice-modal .text-\[10px\] { font-size: 15px !important; }
+        #notice-modal .text-\[11px\] { font-size: 16px !important; }
+        #notice-modal .text-\[12px\] { font-size: 17px !important; }
+        #notice-modal .text-\[13px\] { font-size: 18px !important; }
+        #notice-modal .text-\[14px\] { font-size: 19px !important; }
+        #notice-modal .text-\[15px\] { font-size: 20px !important; }
+        #notice-modal .text-\[16px\] { font-size: 21px !important; }
+
+        /* 계정 및 보안 설정 화면 전용 추가 확대 */
+        #security-modal .text-xs { font-size: 1.15rem !important; }
+        #security-modal .text-sm { font-size: 1.3rem !important; }
+        #security-modal .text-base { font-size: 1.45rem !important; }
+        #security-modal .text-lg { font-size: 1.6rem !important; }
+        #security-modal .text-xl { font-size: 1.8rem !important; }
+        #security-modal .text-2xl { font-size: 2.1rem !important; }
+
+        #security-modal .text-\[10px\] { font-size: 14px !important; }
+        #security-modal .text-\[11px\] { font-size: 15px !important; }
+        #security-modal .text-\[12px\] { font-size: 16px !important; }
+        #security-modal .text-\[13px\] { font-size: 17px !important; }
+        #security-modal .text-\[14px\] { font-size: 18px !important; }
+        #security-modal .text-\[15px\] { font-size: 19px !important; }
+        #security-modal .text-\[16px\] { font-size: 20px !important; }
+
+        /* 일반회원 회원가입 화면 전용 추가 확대 */
+        #signup-modal .text-xs { font-size: 1.05rem !important; }
+        #signup-modal .text-sm { font-size: 1.2rem !important; }
+        #signup-modal .text-base { font-size: 1.35rem !important; }
+        #signup-modal .text-lg { font-size: 1.5rem !important; }
+        #signup-modal .text-xl { font-size: 1.7rem !important; }
+        #signup-modal .text-2xl { font-size: 2rem !important; }
+        #signup-modal .text-3xl { font-size: 2.25rem !important; }
+
+        #signup-modal .text-\[10px\] { font-size: 13px !important; }
+        #signup-modal .text-\[11px\] { font-size: 14px !important; }
+        #signup-modal .text-\[12px\] { font-size: 15px !important; }
+        #signup-modal .text-\[13px\] { font-size: 16px !important; }
+        #signup-modal .text-\[13\.5px\] { font-size: 16.5px !important; }
+        #signup-modal .text-\[14px\] { font-size: 17px !important; }
+        #signup-modal .text-\[14\.5px\] { font-size: 17.5px !important; }
+        #signup-modal .text-\[15px\] { font-size: 18px !important; }
+        #signup-modal .text-\[16px\] { font-size: 19px !important; }
+        #signup-modal .text-\[18px\] { font-size: 21px !important; }
+        #signup-modal .text-\[26px\] { font-size: 28px !important; }
+        /* 비밀번호/비밀번호 확인 영역은 요청에 따라 소폭 축소 */
+        #signup-modal .password-field-label { font-size: 14px !important; }
+        #signup-modal .password-field-input { font-size: 16px !important; }
+        #signup-modal .password-field-input::placeholder { font-size: 14px !important; }
+        #signup-modal .password-field-msg { font-size: 14px !important; }
+
+        /* 회원가입: 서비스 이용약관(면책) 블록 — 본문 전용 추가 확대 */
+        #signup-modal .signup-service-terms-section > label:first-of-type {
+            font-size: 1.2rem !important;
+        }
+        #signup-modal .signup-service-terms-section .signup-tos-scroll {
+            font-size: 1.15rem !important;
+        }
+        #signup-modal .signup-service-terms-section .signup-tos-scroll strong {
+            font-size: 1.18rem !important;
+        }
+        #signup-modal .signup-service-terms-section .signup-tos-agree-line {
+            font-size: 1.12rem !important;
+        }
+
+        /* 약관/개인정보 전문 보기 모달 */
+        #legal-modal .legal-modal-title.text-lg,
+        #legal-modal #legal-modal-title {
+            font-size: 1.85rem !important;
+        }
+        #legal-modal .legal-modal-content,
+        #legal-modal #legal-modal-content {
+            font-size: 1.2rem !important;
+            line-height: 1.75 !important;
+        }
+
+        /* 시작하기(로그인) 화면 전용 텍스트 확대 */
+        #login-modal .text-xs { font-size: 1.05rem !important; }
+        #login-modal .text-sm { font-size: 1.2rem !important; }
+        #login-modal .text-base { font-size: 1.35rem !important; }
+        #login-modal .text-lg { font-size: 1.5rem !important; }
+        #login-modal .text-xl { font-size: 1.7rem !important; }
+        #login-modal .text-2xl { font-size: 2rem !important; }
+        #login-modal .text-3xl { font-size: 2.25rem !important; }
+
+        #login-modal .text-\[10px\] { font-size: 13px !important; }
+        #login-modal .text-\[11px\] { font-size: 14px !important; }
+        #login-modal .text-\[12px\] { font-size: 15px !important; }
+        #login-modal .text-\[13px\] { font-size: 16px !important; }
+        #login-modal .text-\[13\.5px\] { font-size: 16.5px !important; }
+        #login-modal .text-\[14px\] { font-size: 17px !important; }
+        #login-modal .text-\[14\.5px\] { font-size: 17.5px !important; }
+        #login-modal .text-\[15px\] { font-size: 18px !important; }
+        #login-modal .text-\[16px\] { font-size: 19px !important; }
+        #login-modal .text-\[18px\] { font-size: 21px !important; }
+        #login-modal .text-\[26px\] { font-size: 28px !important; }
+
+        /* 파트너 로그인 화면 전용 텍스트 확대 */
+        #partner-login-modal .text-xs { font-size: 1.05rem !important; }
+        #partner-login-modal .text-sm { font-size: 1.2rem !important; }
+        #partner-login-modal .text-base { font-size: 1.35rem !important; }
+        #partner-login-modal .text-lg { font-size: 1.5rem !important; }
+        #partner-login-modal .text-xl { font-size: 1.7rem !important; }
+        #partner-login-modal .text-2xl { font-size: 2rem !important; }
+        #partner-login-modal .text-3xl { font-size: 2.25rem !important; }
+
+        #partner-login-modal .text-\[10px\] { font-size: 13px !important; }
+        #partner-login-modal .text-\[11px\] { font-size: 14px !important; }
+        #partner-login-modal .text-\[12px\] { font-size: 15px !important; }
+        #partner-login-modal .text-\[13px\] { font-size: 16px !important; }
+        #partner-login-modal .text-\[13\.5px\] { font-size: 16.5px !important; }
+        #partner-login-modal .text-\[14px\] { font-size: 17px !important; }
+        #partner-login-modal .text-\[15px\] { font-size: 18px !important; }
+        #partner-login-modal .text-\[16px\] { font-size: 19px !important; }
+        #partner-login-modal .text-\[18px\] { font-size: 21px !important; }
+        #partner-login-modal .text-\[26px\] { font-size: 28px !important; }
+
+        /* 파트너 가입 화면 전용 텍스트 확대 */
+        #partner-signup-modal .text-xs { font-size: 1.05rem !important; }
+        #partner-signup-modal .text-sm { font-size: 1.2rem !important; }
+        #partner-signup-modal .text-base { font-size: 1.35rem !important; }
+        #partner-signup-modal .text-lg { font-size: 1.5rem !important; }
+        #partner-signup-modal .text-xl { font-size: 1.7rem !important; }
+        #partner-signup-modal .text-2xl { font-size: 2rem !important; }
+        #partner-signup-modal .text-3xl { font-size: 2.25rem !important; }
+
+        #partner-signup-modal .text-\[10px\] { font-size: 13px !important; }
+        #partner-signup-modal .text-\[11px\] { font-size: 14px !important; }
+        #partner-signup-modal .text-\[12px\] { font-size: 15px !important; }
+        #partner-signup-modal .text-\[13px\] { font-size: 16px !important; }
+        #partner-signup-modal .text-\[13\.5px\] { font-size: 16.5px !important; }
+        #partner-signup-modal .text-\[14px\] { font-size: 17px !important; }
+        #partner-signup-modal .text-\[15px\] { font-size: 18px !important; }
+        #partner-signup-modal .text-\[16px\] { font-size: 19px !important; }
+        #partner-signup-modal .text-\[18px\] { font-size: 21px !important; }
+        #partner-signup-modal .text-\[22px\] { font-size: 24px !important; }
+
+        /* 파트너 가입: 비밀번호·비밀번호 확인만 일반 필드보다 살짝 작게 */
+        #partner-signup-modal .password-field-label { font-size: 15px !important; }
+        #partner-signup-modal .password-field-input { font-size: 16px !important; }
+        #partner-signup-modal .password-field-input::placeholder { font-size: 14px !important; }
+        #partner-signup-modal .password-field-msg { font-size: 14px !important; }
+
+        /* 파트너 가입: 사업자 구분 라디오 라벨만 살짝 작게 */
+        #partner-signup-modal .partner-biz-type-option { font-size: 16px !important; }
+
+        /* 파트너 가입: 서비스 이용약관 / 개인정보 수집 동의 행 추가 확대 */
+        #partner-signup-modal .partner-signup-tos-privacy-block .partner-tos-privacy-row-text {
+            font-size: 1.35rem !important;
+        }
+        #partner-signup-modal .partner-signup-tos-privacy-block .partner-tos-privacy-view-btn {
+            font-size: 1.1rem !important;
+        }
+
+        /* 파트너 입점 안내 화면 전용 텍스트 확대 */
+        #partner-entry-modal .text-xs { font-size: 1.05rem !important; }
+        #partner-entry-modal .text-sm { font-size: 1.2rem !important; }
+        #partner-entry-modal .text-base { font-size: 1.35rem !important; }
+        #partner-entry-modal .text-lg { font-size: 1.5rem !important; }
+        #partner-entry-modal .text-xl { font-size: 1.7rem !important; }
+        #partner-entry-modal .text-2xl { font-size: 2rem !important; }
+        #partner-entry-modal .text-3xl { font-size: 2.25rem !important; }
+
+        #partner-entry-modal .text-\[10px\] { font-size: 13px !important; }
+        #partner-entry-modal .text-\[11px\] { font-size: 14px !important; }
+        #partner-entry-modal .text-\[11\.5px\] { font-size: 14.5px !important; }
+        #partner-entry-modal .text-\[12px\] { font-size: 15px !important; }
+        #partner-entry-modal .text-\[13px\] { font-size: 16px !important; }
+        #partner-entry-modal .text-\[13\.5px\] { font-size: 16.5px !important; }
+        #partner-entry-modal .text-\[14px\] { font-size: 17px !important; }
+        #partner-entry-modal .text-\[14\.5px\] { font-size: 17.5px !important; }
+        #partner-entry-modal .text-\[15px\] { font-size: 18px !important; }
+        #partner-entry-modal .text-\[16px\] { font-size: 19px !important; }
+        #partner-entry-modal .text-\[17px\] { font-size: 20px !important; }
+        #partner-entry-modal .text-\[18px\] { font-size: 21px !important; }
+        #partner-entry-modal .text-\[20px\] { font-size: 23px !important; }
+        #partner-entry-modal .text-\[22px\] { font-size: 24px !important; }
+        #partner-entry-modal .text-\[26px\] { font-size: 28px !important; }
+        #partner-entry-modal .text-\[28px\] { font-size: 30px !important; }
+
+        /* 파트너 입점 안내 스크롤 영역: 과한 pb-32 제거 유지 + safe-area로 하단만 보강 */
+        #partner-entry-modal .partner-entry-scroll {
+            padding-bottom: max(2rem, calc(1rem + env(safe-area-inset-bottom, 0px))) !important;
+        }
+
+        /* 입점 신청 폼 전용 텍스트 확대 */
+        #partner-application-modal .text-xs { font-size: 1.05rem !important; }
+        #partner-application-modal .text-sm { font-size: 1.2rem !important; }
+        #partner-application-modal .text-base { font-size: 1.35rem !important; }
+        #partner-application-modal .text-lg { font-size: 1.5rem !important; }
+        #partner-application-modal .text-xl { font-size: 1.7rem !important; }
+        #partner-application-modal .text-2xl { font-size: 2rem !important; }
+        #partner-application-modal .text-3xl { font-size: 2.25rem !important; }
+
+        #partner-application-modal .text-\[10px\] { font-size: 13px !important; }
+        #partner-application-modal .text-\[11px\] { font-size: 14px !important; }
+        #partner-application-modal .text-\[12px\] { font-size: 15px !important; }
+        #partner-application-modal .text-\[13px\] { font-size: 16px !important; }
+        #partner-application-modal .text-\[13\.5px\] { font-size: 16.5px !important; }
+        #partner-application-modal .text-\[14px\] { font-size: 17px !important; }
+        #partner-application-modal .text-\[15px\] { font-size: 18px !important; }
+        #partner-application-modal .text-\[16px\] { font-size: 19px !important; }
+        #partner-application-modal .text-\[17px\] { font-size: 20px !important; }
+        #partner-application-modal .text-\[18px\] { font-size: 21px !important; }
+        #partner-application-modal .text-\[19px\] { font-size: 22px !important; }
+        #partner-application-modal .text-\[20px\] { font-size: 23px !important; }
+        #partner-application-modal .text-\[22px\] { font-size: 24px !important; }
+
+        #partner-application-modal input,
+        #partner-application-modal textarea {
+            font-size: 1.15rem !important;
+        }
+        #partner-application-modal input::placeholder,
+        #partner-application-modal textarea::placeholder {
+            font-size: 1.05rem !important;
+        }
+
+        /* 신청 완료 화면 전용 — 입점 신청 폼보다 한 단계 더 크게 */
+        #partner-application-success-modal .text-xs { font-size: 1.2rem !important; }
+        #partner-application-success-modal .text-sm { font-size: 1.35rem !important; }
+        #partner-application-success-modal .text-base { font-size: 1.5rem !important; }
+        #partner-application-success-modal .text-lg { font-size: 1.65rem !important; }
+        #partner-application-success-modal .text-xl { font-size: 1.85rem !important; }
+        #partner-application-success-modal .text-2xl { font-size: 2.15rem !important; }
+        #partner-application-success-modal .text-3xl { font-size: 2.4rem !important; }
+
+        #partner-application-success-modal .text-\[10px\] { font-size: 14px !important; }
+        #partner-application-success-modal .text-\[11px\] { font-size: 15px !important; }
+        #partner-application-success-modal .text-\[12px\] { font-size: 17px !important; }
+        #partner-application-success-modal .text-\[13px\] { font-size: 18px !important; }
+        #partner-application-success-modal .text-\[13\.5px\] { font-size: 18.5px !important; }
+        #partner-application-success-modal .text-\[14px\] { font-size: 19px !important; }
+        #partner-application-success-modal .text-\[15px\] { font-size: 20px !important; }
+        #partner-application-success-modal .text-\[16px\] { font-size: 21px !important; }
+        #partner-application-success-modal .text-\[17px\] { font-size: 22px !important; }
+        #partner-application-success-modal .text-\[18px\] { font-size: 24px !important; }
+        #partner-application-success-modal .text-\[19px\] { font-size: 25px !important; }
+        #partner-application-success-modal .text-\[20px\] { font-size: 26px !important; }
+        #partner-application-success-modal .text-\[22px\] { font-size: 28px !important; }
+
+        #partner-application-success-modal #app-success-message {
+            font-size: 1.1rem !important;
+        }
+        #partner-application-success-modal #app-success-message strong {
+            font-size: inherit !important;
+        }
+
         #filter-sheet {
             height: 85vh;
             display: flex;
@@ -284,18 +726,39 @@
             pointer-events: auto;
         }
 
+        /* 파트너 대시보드 화면 전용 텍스트 확대 */
+        #partner-dashboard-modal .text-xs { font-size: 1.2rem !important; }
+        #partner-dashboard-modal .text-sm { font-size: 1.35rem !important; }
+        #partner-dashboard-modal .text-base { font-size: 1.5rem !important; }
+        #partner-dashboard-modal .text-lg { font-size: 1.65rem !important; }
+        #partner-dashboard-modal .text-xl { font-size: 1.85rem !important; }
+        #partner-dashboard-modal .text-2xl { font-size: 2.15rem !important; }
+        #partner-dashboard-modal .text-3xl { font-size: 2.4rem !important; }
+
+        #partner-dashboard-modal .text-\[10px\] { font-size: 14px !important; }
+        #partner-dashboard-modal .text-\[11px\] { font-size: 15px !important; }
+        #partner-dashboard-modal .text-\[12px\] { font-size: 16px !important; }
+        #partner-dashboard-modal .text-\[13px\] { font-size: 17px !important; }
+        #partner-dashboard-modal .text-\[13\.5px\] { font-size: 17.5px !important; }
+        #partner-dashboard-modal .text-\[14px\] { font-size: 18px !important; }
+        #partner-dashboard-modal .text-\[15px\] { font-size: 19px !important; }
+        #partner-dashboard-modal .text-\[16px\] { font-size: 20px !important; }
+        #partner-dashboard-modal .text-\[18px\] { font-size: 22px !important; }
+        #partner-dashboard-modal .text-\[22px\] { font-size: 25px !important; }
+        #partner-dashboard-modal .text-\[26px\] { font-size: 29px !important; }
+
         /* Partner dashboard readability tuning */
         #partner-dashboard-modal h3 {
-            font-size: 15px;
+            font-size: 20px;
         }
 
         #partner-dashboard-modal label {
-            font-size: 13px !important;
+            font-size: 16px !important;
         }
 
         #partner-dashboard-modal input,
         #partner-dashboard-modal textarea {
-            font-size: 15px !important;
+            font-size: 18px !important;
         }
 
         #partner-dashboard-modal input[type="time"]::-webkit-calendar-picker-indicator {
@@ -305,7 +768,7 @@
         }
 
         #partner-dashboard-modal button {
-            font-size: 15px;
+            font-size: 18px;
         }
 
         /* Edge/Chromium password reveal icon (all app password inputs) */
@@ -336,7 +799,7 @@
 
         .price-table td {
             padding: 20px 0;
-            font-size: 16.5px;
+            font-size: 18px;
         }
 
         .course-name {
@@ -349,7 +812,7 @@
             color: var(--point-color);
             text-align: right;
             font-weight: 700;
-            font-size: 19px;
+            font-size: 24px;
         }
 
         /* 필터 시트 내부 레이아웃 */
@@ -466,4 +929,17 @@
         .overflow-x-auto {
             -ms-overflow-style: none;
             scrollbar-width: none;
+        }
+
+        /* 다독초이스 전체보기 카드 텍스트 확대 */
+        #list-content.choice-list-large .card h3 {
+            font-size: 20px !important;
+        }
+        #list-content.choice-list-large .card p {
+            font-size: 16px !important;
+        }
+        #list-content.choice-list-large .card .grid span {
+            font-size: 13px !important;
+            padding-left: 12px !important;
+            padding-right: 12px !important;
         }
