@@ -13,3 +13,4 @@ build/
 
 # 로컬 백업(용량·중복 방지)
 backups/
+*.bat

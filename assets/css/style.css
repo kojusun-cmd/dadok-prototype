@@ -1,0 +1,450 @@
+/* 
+           3040 타겟: 피로감을 주지 않으면서도 고급스럽고 우아한 웜-다크(Warm-dark) 톤.
+           딥 타우프(Taupe)/다크 브라운 베이스로 호텔 스파의 차분한 분위기를 연출합니다.
+        */
+        :root {
+            --bg-color: #06110D;
+            /* 아주 깊은 에메랄드 블랙 (앱 전체 배경) */
+            --surface-color: #0A1B13;
+            /* 카드뷰/바텀시트 딥 숲속 무드의 어두운 그린 */
+            --point-color: #D4AF37;
+            /* 소프트 매트 골드 (메인 버튼, 로고, 액센트) */
+            --point-light: rgba(212, 175, 55, 0.1);
+            /* 옅은 골드 배경 */
+            --accent-color: #B59530;
+            /* 무광 샴페인 골드 (보조 포인트, 테두리) */
+            --text-main: #F4F7F5;
+            /* 화이트 계열 (본문) */
+            --text-sub: #9CAB9E;
+            /* 은은한 그린그레이 (서브) */
+            --border-color: rgba(212, 175, 55, 0.25);
+            /* 고급스러운 골드 라인 연한 테두리 */
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: 'Pretendard', sans-serif;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            -webkit-font-smoothing: antialiased;
+            overflow: hidden;
+            /* 모니터 전체의 스크롤바 방지 */
+            height: 100vh;
+        }
+
+        #mobile-wrap {
+            width: 100%;
+            max-width: 480px;
+            height: 100vh;
+            position: relative;
+            box-shadow: 0 0 40px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            background: var(--bg-color);
+        }
+
+        #app-container {
+            width: 100%;
+            height: 100vh;
+            /* 앱 컨테이너 내부 스크롤 부여 */
+            background: var(--bg-color);
+            overflow-x: hidden;
+            overflow-y: auto;
+            padding-bottom: 8px;
+        }
+
+        .text-point {
+            color: var(--point-color);
+        }
+
+        .bg-point {
+            background-color: var(--point-color);
+        }
+
+        .border-point {
+            border-color: var(--point-color);
+        }
+
+        /* 필터 칩 스타일 */
+        .chip {
+            background-color: rgba(18, 43, 30, 0.6);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--point-color); /* 노란색(골드) 테두리 일괄 적용 */
+            color: var(--text-main);
+            padding: 10px 14px;
+            border-radius: 30px;
+            font-size: 15.5px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.03);
+        }
+
+        .chip:active {
+            transform: scale(0.95);
+        }
+
+        .chip.active,
+        .chip:hover {
+            background-color: var(--point-color);
+            border-color: var(--point-color);
+            color: #06110D;
+            /* 선택 시 반전 글씨 */
+            font-weight: bold;
+        }
+
+        /* 카드 UI */
+        .card {
+            background-color: var(--surface-color);
+            border-radius: 20px;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            /* 은은한 밝은 테두리로 입체감 */
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.03);
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .card:active {
+            transform: scale(0.97);
+        }
+
+        /* 가로 스와이프 슬라이더 (기존) */
+        .snap-container {
+            scroll-snap-type: x mandatory;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .snap-item {
+            scroll-snap-align: start;
+            scroll-margin-left: 20px;
+        }
+
+        /* 다독 초이스 수동 및 자동 롤링 슬라이드 영역 */
+        .slider-wrapper {
+            overflow-x: auto;
+            width: 100%;
+            cursor: grab;
+            -ms-overflow-style: none;
+            /* IE and Edge */
+            scrollbar-width: none;
+            /* Firefox */
+        }
+
+        .slider-wrapper::-webkit-scrollbar {
+            display: none;
+            /* Chrome, Safari, Opera */
+        }
+
+        .slider-wrapper:active {
+            cursor: grabbing;
+        }
+
+        .slider-track {
+            display: flex;
+            width: max-content;
+            gap: 16px;
+        }
+
+        @keyframes fadeInList {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .fade-in-item {
+            animation: fadeInList 0.5s ease forwards;
+        }
+
+        /* 바텀 시트 (프로필용 & 필터용 공통 베이스) */
+        .bottom-sheet {
+            position: fixed;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%) translateY(100%);
+            width: 100%;
+            max-width: 480px;
+            background-color: rgba(16, 38, 26, 0.88); /* 배경 명도 상향 및 투명도 */
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-top: 1px solid rgba(255, 255, 255, 0.1); /* 엘리베이션 강조명암 */
+            border-left: 1px solid rgba(255, 255, 255, 0.05);
+            border-right: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 24px 24px 0 0;
+            box-shadow: 0 -15px 40px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.08); /* 딥 쉐도우 */
+            z-index: 50;
+            transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .bottom-sheet.open {
+            transform: translateX(-50%) translateY(0);
+        }
+
+        /* 우측 슬라이드 시트 (네이티브 앱 화면 전환처럼 우측에서 진입하고 사라짐) */
+        .right-sheet {
+            position: fixed;
+            top: 0;
+            bottom: 0;
+            left: 50%;
+            /* 50% 지정 시 자신의 너비 절반만큼 우측으로 이동 -> left 50%와 결합 시 모바일 화면 우측 끝단에 완벽히 숨김 처리됨 */
+            transform: translateX(50%);
+            width: 100%;
+            max-width: 480px;
+            background-color: var(--bg-color);
+            /* 메인 배경색 사용으로 이질감 방지 */
+            z-index: 100;
+            transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            border-radius: 0;
+            border-left: 1px solid rgba(255, 255, 255, 0.08); /* 사이드 뷰 엘리베이션 띠 */
+            box-shadow: -10px 0 30px rgba(0, 0, 0, 0.5);
+            opacity: 0;
+            /* PC 화면에서 뷰포트 우측 공간에 스탠바이 중일 때 보이지 않도록 함 */
+            pointer-events: none;
+        }
+
+        .right-sheet.open {
+            transform: translateX(-50%);
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        /* 앱 내 모든 기존 슬라이드 화면(로그인, 대시보드 등)의 전환 속도를 right-sheet와 동일하게 고급스럽고 부드럽게 통일 */
+        div.transition-transform.translate-x-full {
+            transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) !important;
+        }
+
+        #profile-sheet {
+            height: 100vh;
+            height: 100dvh;
+            /* 모바일 동적 뷰포트 대응, 지원하는 브라우저는 100dvh 사용 */
+            border-radius: 0;
+            /* 꽉 차므로 둥근 모서리 제거 */
+            overflow-y: auto;
+        }
+
+        #filter-sheet {
+            height: 85vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* 필터 시트 높이 확장 */
+
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.75);
+            z-index: 40;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.4s ease;
+            backdrop-filter: blur(5px);
+        }
+
+        .overlay.show {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        /* Partner dashboard readability tuning */
+        #partner-dashboard-modal h3 {
+            font-size: 15px;
+        }
+
+        #partner-dashboard-modal label {
+            font-size: 13px !important;
+        }
+
+        #partner-dashboard-modal input,
+        #partner-dashboard-modal textarea {
+            font-size: 15px !important;
+        }
+
+        #partner-dashboard-modal input[type="time"]::-webkit-calendar-picker-indicator {
+            filter: invert(1) brightness(2);
+            opacity: 1;
+            cursor: pointer;
+        }
+
+        #partner-dashboard-modal button {
+            font-size: 15px;
+        }
+
+        /* Edge/Chromium password reveal icon (all app password inputs) */
+        input[type="password"]::-ms-reveal,
+        input[type="password"]::-ms-clear {
+            filter: invert(1) brightness(2);
+            opacity: 1;
+            cursor: pointer;
+        }
+
+        .drag-handle {
+            width: 40px;
+            height: 4px;
+            background-color: rgba(0, 0, 0, 0.15);
+            border-radius: 4px;
+            margin: 16px auto;
+        }
+
+        /* 상세 테이블 */
+        .price-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .price-table tr {
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .price-table td {
+            padding: 20px 0;
+            font-size: 16.5px;
+        }
+
+        .course-name {
+            color: var(--text-main);
+            font-weight: 500;
+            line-height: 1.4;
+        }
+
+        .course-price {
+            color: var(--point-color);
+            text-align: right;
+            font-weight: 700;
+            font-size: 19px;
+        }
+
+        /* 필터 시트 내부 레이아웃 */
+        .filter-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 0 24px 24px;
+        }
+
+        /* 지역 선택 특화 스타일 (아코디언 형태) */
+        .region-group-title {
+            background: transparent;
+            /* 배경색 상속 (블러) */
+            padding: 14px 0;
+            font-size: 17.5px;
+            font-weight: 700;
+            color: var(--point-color);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            margin-top: 4px;
+        }
+
+        .region-list {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            padding: 12px 0;
+        }
+
+        .filter-btn {
+            width: 100%;
+            text-align: left;
+            padding: 14px 18px;
+            background-color: transparent;
+            border: 1px solid var(--accent-color);
+            border-radius: 30px;
+            /* 타원형 모서리 */
+            color: var(--text-main);
+            transition: all 0.2s;
+            font-size: 16.5px;
+            font-weight: 500;
+        }
+
+        .filter-btn:active,
+        .filter-btn:hover {
+            background-color: var(--point-color);
+            border-color: var(--point-color);
+            color: #06110D;
+            /* 반전 */
+        }
+
+        /* 중앙 정렬용 필터 버튼 (지역 외) */
+        .filter-list-col {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        /* 스크롤바 숨김 처리 */
+        .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+
+        .hide-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* 1. 메인 화면(기본) 스크롤바 숨김 */
+        ::-webkit-scrollbar {
+            display: none;
+        }
+
+        /* 2. 필터링된 화면, 전체보기 등 명시된 곳만 짧은 스크롤바 노출 */
+        .scroll-active::-webkit-scrollbar {
+            display: block;
+            width: 5px;
+            height: 5px;
+        }
+
+        .scroll-active::-webkit-scrollbar-track {
+            background: transparent;
+            /* 상/하단 여백을 극대화하여 스크롤 막대를 짧게 만들고 가운데에서만 움직이도록 함 */
+            margin-top: 35vh;
+            margin-bottom: 25vh;
+        }
+
+        .scroll-active::-webkit-scrollbar-thumb {
+            background: rgba(212, 175, 55, 0.5);
+            /* 은은한 포인트 골드 */
+            border-radius: 10px;
+        }
+
+        .scroll-active::-webkit-scrollbar-thumb:hover {
+            background: rgba(212, 175, 55, 0.9);
+        }
+
+        /* 가로로 넘기는 다독 초이스 등은 시각적 깔끔함을 위해 스크롤바 숨김 유지 */
+        .overflow-x-auto::-webkit-scrollbar {
+            display: none;
+        }
+
+        .overflow-x-auto {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
