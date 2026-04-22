@@ -576,6 +576,374 @@ const filterSheet = document.getElementById('filter-sheet');
                 'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx',
                 'txt', 'zip', 'hwp', 'hwpx'
             ];
+            const DADOK_FCM_VAPID_KEY =
+                (window.DADOK_FCM_VAPID_KEY && String(window.DADOK_FCM_VAPID_KEY).trim()) ||
+                (localStorage.getItem('dadok_fcm_vapid_key') || '').trim() ||
+                (sessionStorage.getItem('dadok_fcm_vapid_key') || '').trim();
+            const DEFAULT_NOTIFICATION_SETTINGS = {
+                inApp: { chat: true, notice: true },
+                push: { enabled: false, chat: true, notice: true, preview: true },
+                chatAlertMode: 'sound_vibrate', // sound_vibrate | vibrate_only | silent
+                noticePreview: true,
+            };
+            let currentNotificationSettingsAudience = 'user';
+            const notificationSettingsCache = { user: null, partner: null };
+            const unreadSnapshotTracker = { chat: { user: null, partner: null }, notice: { user: null, partner: null } };
+            let fcmMessagingInstance = null;
+            let fcmForegroundBound = false;
+            let lastForegroundMessageId = '';
+
+            function normalizeNotificationSettings(raw = {}) {
+                const inAppRaw = raw?.inApp || {};
+                const pushRaw = raw?.push || {};
+                const chatAlertModeRaw = String(raw?.chatAlertMode || '').trim();
+                const chatAlertMode = ['sound_vibrate', 'vibrate_only', 'silent'].includes(chatAlertModeRaw)
+                    ? chatAlertModeRaw
+                    : 'sound_vibrate';
+                return {
+                    inApp: {
+                        chat: inAppRaw.chat !== false,
+                        notice: inAppRaw.notice !== false,
+                    },
+                    push: {
+                        enabled: pushRaw.enabled === true,
+                        chat: pushRaw.chat !== false,
+                        notice: pushRaw.notice !== false,
+                        preview: pushRaw.preview !== false,
+                    },
+                    chatAlertMode,
+                    noticePreview: raw?.noticePreview !== false,
+                };
+            }
+
+            function getNotificationSettings(audience = 'user') {
+                return notificationSettingsCache[audience] || normalizeNotificationSettings(DEFAULT_NOTIFICATION_SETTINGS);
+            }
+
+            function isInAppChatEnabled(audience = 'user') {
+                return getNotificationSettings(audience).inApp.chat !== false;
+            }
+
+            function isInAppNoticeEnabled(audience = 'user') {
+                return getNotificationSettings(audience).inApp.notice !== false;
+            }
+
+            function getChatAlertMode(audience = 'user') {
+                return getNotificationSettings(audience).chatAlertMode || 'sound_vibrate';
+            }
+
+            function maybeTriggerChatVibration(audience = 'user') {
+                const mode = getChatAlertMode(audience);
+                if (mode !== 'sound_vibrate' && mode !== 'vibrate_only') return;
+                if (typeof navigator === 'undefined' || typeof navigator.vibrate !== 'function') return;
+                try {
+                    navigator.vibrate(200);
+                } catch (_) {
+                    // ignore vibration errors
+                }
+            }
+
+            async function getNotificationRecipientRef(audience = 'user') {
+                if (typeof firebase === 'undefined') return null;
+                if (audience === 'partner') {
+                    const partnerDocId = getLoggedInPartnerDocId();
+                    if (!partnerDocId) return null;
+                    return firebase.firestore().collection('partners').doc(partnerDocId);
+                }
+                const userDocId = await ensureLoggedInUserDocId();
+                if (!userDocId) return null;
+                return firebase.firestore().collection('users').doc(userDocId);
+            }
+
+            async function loadNotificationSettings(audience = 'user', forceRefresh = false) {
+                if (!forceRefresh && notificationSettingsCache[audience]) {
+                    return notificationSettingsCache[audience];
+                }
+                const ref = await getNotificationRecipientRef(audience);
+                if (!ref) {
+                    const fallback = normalizeNotificationSettings(DEFAULT_NOTIFICATION_SETTINGS);
+                    notificationSettingsCache[audience] = fallback;
+                    return fallback;
+                }
+                try {
+                    const snap = await ref.get();
+                    const data = snap.exists ? snap.data() || {} : {};
+                    const settings = normalizeNotificationSettings(data.notificationSettings || {});
+                    notificationSettingsCache[audience] = settings;
+                    return settings;
+                } catch (e) {
+                    console.error('알림 설정 불러오기 실패:', e);
+                    const fallback = normalizeNotificationSettings(DEFAULT_NOTIFICATION_SETTINGS);
+                    notificationSettingsCache[audience] = fallback;
+                    return fallback;
+                }
+            }
+
+            function setPushStatusText(text = '', isError = false) {
+                const statusEl = document.getElementById('notif-push-status');
+                if (!statusEl) return;
+                statusEl.textContent = text;
+                statusEl.className = isError
+                    ? 'mt-2 text-[11px] text-[#F87171]'
+                    : 'mt-2 text-[11px] text-[var(--text-sub)]';
+            }
+
+            async function withTimeout(promise, ms = 12000, timeoutMessage = '요청 시간이 초과되었습니다.') {
+                let timerId = null;
+                try {
+                    return await Promise.race([
+                        promise,
+                        new Promise((_, reject) => {
+                            timerId = setTimeout(() => reject(new Error(timeoutMessage)), ms);
+                        }),
+                    ]);
+                } finally {
+                    if (timerId) clearTimeout(timerId);
+                }
+            }
+
+            async function isMessagingSupported() {
+                try {
+                    if (typeof firebase === 'undefined' || !firebase.messaging) return false;
+                    if (typeof firebase.messaging.isSupported === 'function') {
+                        const v = firebase.messaging.isSupported();
+                        return typeof v?.then === 'function' ? Boolean(await v) : Boolean(v);
+                    }
+                    return true;
+                } catch (e) {
+                    return false;
+                }
+            }
+
+            async function getMessagingInstance() {
+                if (fcmMessagingInstance) return fcmMessagingInstance;
+                const supported = await isMessagingSupported();
+                if (!supported) return null;
+                try {
+                    fcmMessagingInstance = firebase.messaging();
+                    return fcmMessagingInstance;
+                } catch (e) {
+                    console.error('FCM 인스턴스 초기화 실패:', e);
+                    return null;
+                }
+            }
+
+            async function registerFcmTokenForAudience(audience = 'user') {
+                const settings = getNotificationSettings(audience);
+                if (!settings.push.enabled) return null;
+                const messaging = await getMessagingInstance();
+                if (!messaging) {
+                    setPushStatusText('현재 브라우저에서는 휴대폰 알림이 지원되지 않습니다.', true);
+                    return null;
+                }
+                if (!('serviceWorker' in navigator)) {
+                    setPushStatusText('현재 환경에서는 휴대폰 알림 연결이 어렵습니다.', true);
+                    return null;
+                }
+                try {
+                    const swReg = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
+                    if (typeof messaging.useServiceWorker === 'function') {
+                        messaging.useServiceWorker(swReg);
+                    }
+                    const tokenOptions = { serviceWorkerRegistration: swReg };
+                    if (DADOK_FCM_VAPID_KEY) tokenOptions.vapidKey = DADOK_FCM_VAPID_KEY;
+                    const token = await messaging.getToken(tokenOptions);
+                    if (!token) {
+                        setPushStatusText('알림 연결에 실패했습니다. 권한 상태를 확인해주세요.', true);
+                        return null;
+                    }
+                    const ref = await getNotificationRecipientRef(audience);
+                    if (!ref) {
+                        setPushStatusText('로그인 정보가 없어 휴대폰 알림을 저장할 수 없습니다. 다시 로그인 후 시도해주세요.', true);
+                        return null;
+                    }
+                    const tokenId = token.replace(/[^a-zA-Z0-9]/g, '').slice(-80) || `token_${Date.now()}`;
+                    await ref.collection('fcm_tokens').doc(tokenId).set(
+                        {
+                            token,
+                            enabled: true,
+                            platform: /android/i.test(navigator.userAgent)
+                                ? 'android'
+                                : /iphone|ipad|ipod/i.test(navigator.userAgent)
+                                    ? 'ios'
+                                    : 'web',
+                            updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                        },
+                        { merge: true },
+                    );
+                    setPushStatusText('휴대폰 알림 수신이 설정되었습니다.');
+                    return token;
+                } catch (e) {
+                    console.error('FCM 토큰 등록 실패:', e);
+                    setPushStatusText(`휴대폰 알림 연결 실패: ${e?.message || 'unknown'}`, true);
+                    return null;
+                }
+            }
+
+            async function bindForegroundPushListener() {
+                if (fcmForegroundBound) return;
+                const messaging = await getMessagingInstance();
+                if (!messaging) return;
+                try {
+                    messaging.onMessage((payload) => {
+                        const messageId = String(payload?.messageId || payload?.data?.messageId || '');
+                        if (messageId && messageId === lastForegroundMessageId) return;
+                        if (messageId) lastForegroundMessageId = messageId;
+                        const title = String(payload?.notification?.title || payload?.data?.title || '새 알림');
+                        const body = String(payload?.notification?.body || payload?.data?.body || '');
+                        showCustomToast(`${escapeChatHtml(title)}<br><span class="text-[13px] text-[var(--text-sub)]">${escapeChatHtml(body)}</span>`);
+                    });
+                    fcmForegroundBound = true;
+                } catch (e) {
+                    console.error('FCM foreground listener 등록 실패:', e);
+                }
+            }
+
+            function getChatAlertModeLabel(mode = 'sound_vibrate') {
+                if (mode === 'vibrate_only') return '진동만';
+                if (mode === 'silent') return '무음';
+                return '소리';
+            }
+
+            function refreshChatAlertModeTriggerText() {
+                const modeInput = document.getElementById('notif-chat-alert-mode');
+                const triggerText = document.getElementById('notif-chat-alert-trigger-text');
+                if (!modeInput || !triggerText) return;
+                const mode = String(modeInput.value || 'sound_vibrate');
+                triggerText.textContent = getChatAlertModeLabel(mode);
+            }
+
+            function closeChatAlertModeMenu() {
+                const menu = document.getElementById('notif-chat-alert-menu');
+                if (!menu) return;
+                menu.classList.add('hidden');
+            }
+
+            function toggleChatAlertModeMenu() {
+                const menu = document.getElementById('notif-chat-alert-menu');
+                const trigger = document.getElementById('notif-chat-alert-trigger');
+                if (!menu || !trigger || trigger.disabled) return;
+                menu.classList.toggle('hidden');
+            }
+
+            function selectChatAlertMode(mode = 'sound_vibrate') {
+                const modeInput = document.getElementById('notif-chat-alert-mode');
+                if (!modeInput) return;
+                const safeMode = ['sound_vibrate', 'vibrate_only', 'silent'].includes(mode)
+                    ? mode
+                    : 'sound_vibrate';
+                modeInput.value = safeMode;
+                refreshChatAlertModeTriggerText();
+                closeChatAlertModeMenu();
+            }
+            window.toggleChatAlertModeMenu = toggleChatAlertModeMenu;
+            window.selectChatAlertMode = selectChatAlertMode;
+            document.addEventListener('click', (e) => {
+                const target = e.target;
+                if (!(target instanceof Element)) return;
+                if (
+                    target.closest('#notif-chat-alert-menu') ||
+                    target.closest('#notif-chat-alert-trigger')
+                ) {
+                    return;
+                }
+                closeChatAlertModeMenu();
+            });
+
+            function applyNotificationSettingsToForm(settings) {
+                const chatEnabled = document.getElementById('notif-chat-enabled');
+                const chatMode = document.getElementById('notif-chat-alert-mode');
+                const previewEnabled = document.getElementById('notif-preview-enabled');
+                const noticeEnabled = document.getElementById('notif-notice-enabled');
+                const noticePreview = document.getElementById('notif-notice-preview');
+                const isChatOn = settings.inApp.chat !== false || settings.push.chat !== false;
+                const isNoticeOn = settings.inApp.notice !== false || settings.push.notice !== false;
+                if (chatEnabled) chatEnabled.checked = isChatOn;
+                if (chatMode) chatMode.value = settings.chatAlertMode || 'sound_vibrate';
+                if (previewEnabled) previewEnabled.checked = settings.push.preview !== false;
+                if (noticeEnabled) noticeEnabled.checked = isNoticeOn;
+                if (noticePreview) noticePreview.checked = settings.noticePreview !== false;
+                refreshChatAlertModeTriggerText();
+                closeChatAlertModeMenu();
+                updateNotificationSettingsFormState();
+            }
+
+            function collectNotificationSettingsFromForm() {
+                const chatEnabled = Boolean(document.getElementById('notif-chat-enabled')?.checked);
+                const noticeEnabled = Boolean(document.getElementById('notif-notice-enabled')?.checked);
+                const chatAlertMode = String(document.getElementById('notif-chat-alert-mode')?.value || 'sound_vibrate');
+                const previewEnabled = Boolean(document.getElementById('notif-preview-enabled')?.checked);
+                const noticePreviewEnabled = Boolean(document.getElementById('notif-notice-preview')?.checked);
+                return normalizeNotificationSettings({
+                    inApp: {
+                        chat: chatEnabled,
+                        notice: noticeEnabled,
+                    },
+                    push: {
+                        enabled: chatEnabled || noticeEnabled,
+                        chat: chatEnabled,
+                        notice: noticeEnabled,
+                        preview: previewEnabled || noticePreviewEnabled,
+                    },
+                    chatAlertMode,
+                    noticePreview: noticePreviewEnabled,
+                });
+            }
+
+            function updateNotificationSettingsFormState() {
+                const chatEnabled = Boolean(document.getElementById('notif-chat-enabled')?.checked);
+                const noticeEnabled = Boolean(document.getElementById('notif-notice-enabled')?.checked);
+                const chatModeTrigger = document.getElementById('notif-chat-alert-trigger');
+                const preview = document.getElementById('notif-preview-enabled');
+                const noticePreview = document.getElementById('notif-notice-preview');
+                if (chatModeTrigger) chatModeTrigger.disabled = !chatEnabled;
+                if (preview) preview.disabled = !chatEnabled;
+                if (noticePreview) noticePreview.disabled = !noticeEnabled;
+                if (!chatEnabled) closeChatAlertModeMenu();
+            }
+            window.updateNotificationSettingsFormState = updateNotificationSettingsFormState;
+
+            function resetUnreadTrackers(audience = 'user') {
+                unreadSnapshotTracker.chat[audience] = null;
+                unreadSnapshotTracker.notice[audience] = null;
+            }
+
+            function maybeShowIncomingChatToastFromRows(rows = [], audience = 'user') {
+                const totalUnread = rows.reduce((sum, row) => sum + getThreadUnreadCountForActor(row, audience), 0);
+                const prev = unreadSnapshotTracker.chat[audience];
+                unreadSnapshotTracker.chat[audience] = totalUnread;
+                if (prev == null || totalUnread <= prev) return;
+                if (!isInAppChatEnabled(audience)) return;
+                const chatMode = getChatAlertMode(audience);
+                if (chatMode === 'silent') return;
+                const incoming = rows.find((row) => {
+                    const unread = getThreadUnreadCountForActor(row, audience);
+                    return unread > 0 && String(row.id || '') !== String(activeChatThreadId || '');
+                });
+                if (!incoming) return;
+                const sender = getThreadDisplayName(incoming, audience);
+                const preview = String(incoming.lastMessage || '새 메시지가 도착했습니다.');
+                maybeTriggerChatVibration(audience);
+                showCustomToast(
+                    `${escapeChatHtml(sender)}<br><span class="text-[13px] text-[var(--text-sub)]">${escapeChatHtml(preview)}</span>`,
+                );
+            }
+
+            function maybeShowIncomingNoticeToast(rows = [], audience = 'user') {
+                const unread = rows.filter((row) => !row.isRead).length;
+                const prev = unreadSnapshotTracker.notice[audience];
+                unreadSnapshotTracker.notice[audience] = unread;
+                if (prev == null || unread <= prev) return;
+                if (!isInAppNoticeEnabled(audience)) return;
+                const newest = rows.find((row) => !row.isRead);
+                if (!newest) return;
+                const settings = getNotificationSettings(audience);
+                const showPreview = settings.noticePreview !== false;
+                const previewText = showPreview ? newest.title || '관리자 알림' : '새로운 공지가 도착했습니다.';
+                showCustomToast(
+                    `새 공지 도착<br><span class="text-[13px] text-[var(--text-sub)]">${escapeChatHtml(previewText)}</span>`,
+                );
+            }
 
             function escapeChatHtml(value = '') {
                 return String(value || '')
@@ -1367,6 +1735,10 @@ const filterSheet = document.getElementById('filter-sheet');
             function renderPartnerChatBadgeFromRows(rows = []) {
                 const badge = document.getElementById('partner-chat-unread-badge');
                 if (!badge) return;
+                if (!isInAppChatEnabled('partner')) {
+                    badge.classList.add('hidden');
+                    return;
+                }
                 const totalUnread = rows.reduce((sum, row) => sum + Number(row.unreadForPartner || 0), 0);
                 if (totalUnread > 0) {
                     badge.textContent = `새 문의 ${totalUnread}건`;
@@ -1379,6 +1751,10 @@ const filterSheet = document.getElementById('filter-sheet');
             function renderUserChatUnreadBadgeFromRows(rows = []) {
                 const badge = document.getElementById('user-chat-unread-badge');
                 if (!badge) return;
+                if (!isInAppChatEnabled('user')) {
+                    badge.classList.add('hidden');
+                    return;
+                }
                 const totalUnread = rows.reduce((sum, row) => sum + Number(row.unreadForUser || 0), 0);
                 badge.textContent = totalUnread > 99 ? '99+' : String(totalUnread);
                 badge.classList.toggle('hidden', totalUnread <= 0);
@@ -1397,6 +1773,7 @@ const filterSheet = document.getElementById('filter-sheet');
                 const actor = await getCurrentChatActor();
                 if (actor.role !== 'user' || !actor.docId) {
                     stopUserChatUnreadListener();
+                    resetUnreadTrackers('user');
                     renderUserChatUnreadBadgeFromRows([]);
                     return;
                 }
@@ -1417,6 +1794,7 @@ const filterSheet = document.getElementById('filter-sheet');
                         const exists = merged.some((row) => String(row.id || '') === String(adminThreadRow.id || ''));
                         if (!exists) merged.push(adminThreadRow);
                     }
+                    maybeShowIncomingChatToastFromRows(merged, 'user');
                     renderUserChatUnreadBadgeFromRows(merged);
                 };
 
@@ -2061,6 +2439,7 @@ const filterSheet = document.getElementById('filter-sheet');
                     .where('participantPartnerDocId', '==', partnerDocId)
                     .onSnapshot((snap) => {
                         const rows = snap.docs.map((doc) => ({ ...(doc.data() || {}), id: doc.id }));
+                        maybeShowIncomingChatToastFromRows(rows, 'partner');
                         renderPartnerChatBadgeFromRows(rows);
                     });
             }
@@ -5625,6 +6004,8 @@ const filterSheet = document.getElementById('filter-sheet');
             }
 
             async function openPartnerDashboard() {
+                await loadNotificationSettings('partner');
+                resetUnreadTrackers('partner');
                 await populateDashboardFromPartner();
                 loadPartnerDashboardStats();
                 renderPartnerBanners();
@@ -5653,6 +6034,7 @@ const filterSheet = document.getElementById('filter-sheet');
 
             function closePartnerDashboardToLogin() {
                 stopPartnerDashboardLiveSync();
+                resetUnreadTrackers('partner');
                 popPartnerDashboardHistoryEntryIfTop();
                 const loginModal = document.getElementById('partner-login-modal');
                 if (loginModal) {
@@ -5689,6 +6071,7 @@ const filterSheet = document.getElementById('filter-sheet');
 
             function closePartnerDashboardToMain() {
                 stopPartnerDashboardLiveSync();
+                resetUnreadTrackers('partner');
                 popPartnerDashboardHistoryEntryIfTop();
                 const modal = document.getElementById('partner-dashboard-modal');
                 if (modal) {
@@ -6714,11 +7097,178 @@ const filterSheet = document.getElementById('filter-sheet');
                 }
             }
 
+            async function openNotificationSettingsModal(audience = 'user') {
+                currentNotificationSettingsAudience = audience === 'partner' ? 'partner' : 'user';
+                const modal = document.getElementById('notification-settings-modal');
+                if (!modal) return;
+                // 모바일 네트워크 지연 시에도 화면은 먼저 열고, 설정값은 뒤에서 갱신한다.
+                modal.style.display = 'flex';
+                void modal.offsetWidth;
+                setTimeout(() => {
+                    modal.classList.remove('translate-x-full');
+                    modal.classList.add('translate-x-0');
+                }, 10);
+                const fallbackSettings = normalizeNotificationSettings(DEFAULT_NOTIFICATION_SETTINGS);
+                applyNotificationSettingsToForm(fallbackSettings);
+                setPushStatusText('알림 설정을 불러오는 중입니다...');
+                try {
+                    const settings = await withTimeout(
+                        loadNotificationSettings(currentNotificationSettingsAudience, true),
+                        10000,
+                        '알림 설정 불러오기가 지연되고 있습니다.',
+                    );
+                    applyNotificationSettingsToForm(settings);
+                    if (settings.push.enabled && settings.push.chat !== false) {
+                        setPushStatusText('채팅 알림을 받는 상태입니다.');
+                    } else if (settings.push.enabled && settings.push.notice !== false) {
+                        setPushStatusText('공지/안내 알림을 받는 상태입니다.');
+                    } else {
+                        setPushStatusText('휴대폰 알림이 꺼져 있습니다.');
+                    }
+                } catch (e) {
+                    console.error('알림 설정 모달 초기화 실패:', e);
+                    setPushStatusText('알림 설정을 불러오지 못했습니다. 기본값으로 표시됩니다.', true);
+                }
+                if (currentNotificationSettingsAudience === 'partner') {
+                    bindPartnerDashboardChatBadgeListener();
+                } else {
+                    startUserChatUnreadListener();
+                }
+                refreshNoticeUnreadBadges();
+            }
+
+            function closeNotificationSettingsModal() {
+                const modal = document.getElementById('notification-settings-modal');
+                if (!modal) return;
+                modal.classList.remove('translate-x-0');
+                modal.classList.add('translate-x-full');
+                setTimeout(() => {
+                    modal.style.display = 'none';
+                }, 300);
+            }
+
+            async function saveNotificationSettings() {
+                const audience = currentNotificationSettingsAudience === 'partner' ? 'partner' : 'user';
+                const nextSettings = collectNotificationSettingsFromForm();
+                const ref = await getNotificationRecipientRef(audience);
+                if (!ref) {
+                    showCustomToast('로그인 상태를 확인해주세요.');
+                    return;
+                }
+                try {
+                    await ref.set(
+                        {
+                            notificationSettings: nextSettings,
+                            notificationSettingsUpdatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                        },
+                        { merge: true },
+                    );
+                    notificationSettingsCache[audience] = nextSettings;
+                    if (nextSettings.push.enabled) {
+                        await registerFcmTokenForAudience(audience);
+                        await bindForegroundPushListener();
+                    } else {
+                        setPushStatusText('휴대폰 알림이 꺼져 있습니다.');
+                    }
+                    refreshNoticeUnreadBadges();
+                    if (audience === 'partner') {
+                        bindPartnerDashboardChatBadgeListener();
+                    } else {
+                        startUserChatUnreadListener();
+                    }
+                    showSuccessToast('알림 설정이 저장되었습니다.');
+                    closeNotificationSettingsModal();
+                } catch (e) {
+                    console.error('알림 설정 저장 실패:', e);
+                    showCustomToast('알림 설정 저장 중 오류가 발생했습니다.');
+                }
+            }
+
+            async function requestPushPermissionNow() {
+                if (typeof Notification === 'undefined') {
+                    setPushStatusText('현재 브라우저에서는 휴대폰 알림 기능을 지원하지 않습니다.', true);
+                    return;
+                }
+                try {
+                    setPushStatusText('휴대폰 알림 연결을 준비 중입니다...');
+                    const permission = await withTimeout(
+                        Notification.requestPermission(),
+                        10000,
+                        '알림 권한 확인이 지연되고 있습니다.',
+                    );
+                    if (permission !== 'granted') {
+                        setPushStatusText('휴대폰 알림 권한이 허용되지 않았습니다.', true);
+                        return;
+                    }
+                    const audience = currentNotificationSettingsAudience === 'partner' ? 'partner' : 'user';
+                    setPushStatusText('알림 설정을 적용하는 중입니다...');
+                    const currentSettings = await withTimeout(
+                        loadNotificationSettings(audience, true),
+                        10000,
+                        '알림 설정 조회가 지연되고 있습니다.',
+                    );
+                    const nextSettings = normalizeNotificationSettings({
+                        ...currentSettings,
+                        push: {
+                            ...(currentSettings?.push || {}),
+                            enabled: true,
+                            // 둘 다 꺼져 있으면 버튼으로 켜는 순간 채팅 알림은 기본 활성화
+                            chat:
+                                (currentSettings?.push?.chat !== false) ||
+                                (currentSettings?.push?.notice === false &&
+                                    currentSettings?.push?.chat === false),
+                            notice: currentSettings?.push?.notice !== false,
+                        },
+                    });
+                    const ref = await withTimeout(
+                        getNotificationRecipientRef(audience),
+                        10000,
+                        '사용자 정보 조회가 지연되고 있습니다.',
+                    );
+                    if (ref) {
+                        await withTimeout(
+                            ref.set(
+                                {
+                                    notificationSettings: nextSettings,
+                                    notificationSettingsUpdatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                                },
+                                { merge: true },
+                            ),
+                            10000,
+                            '알림 설정 저장이 지연되고 있습니다.',
+                        );
+                    }
+                    notificationSettingsCache[audience] = nextSettings;
+                    applyNotificationSettingsToForm(nextSettings);
+                    setPushStatusText('휴대폰 알림을 연결하는 중입니다...');
+                    const token = await withTimeout(
+                        registerFcmTokenForAudience(audience),
+                        18000,
+                        '휴대폰 알림 연결이 지연되고 있습니다.',
+                    );
+                    if (!token) {
+                        // registerFcmTokenForAudience()에서 상세 실패 사유를 이미 표시함
+                        return;
+                    }
+                    await withTimeout(
+                        bindForegroundPushListener(),
+                        5000,
+                        '알림 리스너 설정이 지연되고 있습니다.',
+                    );
+                    setPushStatusText('휴대폰 알림이 켜졌습니다.');
+                } catch (e) {
+                    console.error('푸시 권한 요청 실패:', e);
+                    setPushStatusText(`휴대폰 알림 권한 요청 실패: ${e?.message || 'unknown'}`, true);
+                }
+            }
+
             // 마이페이지 모달 처리 
             function openMyPageModal() {
                 const myPageModal = document.getElementById('mypage-modal');
                 myPageModal.style.display = 'flex';
                 syncLoggedInUserProfileImageFromFirestore();
+                loadNotificationSettings('user');
+                resetUnreadTrackers('user');
                 startNoticeRealtimeListener('user');
                 startUserChatUnreadListener();
                 refreshNoticeUnreadBadges();
@@ -6832,6 +7382,7 @@ const filterSheet = document.getElementById('filter-sheet');
                 myPageModal.classList.add('translate-x-full');
                 stopNoticeRealtimeListener('user');
                 stopUserChatUnreadListener();
+                resetUnreadTrackers('user');
                 setTimeout(() => {
                     myPageModal.style.display = 'none';
                 }, 300);
@@ -6946,6 +7497,7 @@ const filterSheet = document.getElementById('filter-sheet');
                     return;
                 }
                 const actorRole = getLoggedInPartnerDocId() ? 'partner' : 'user';
+                const showInAppUnread = isInAppChatEnabled(actorRole);
                 let html = '<div class="space-y-4">';
                 chatListRows.forEach(thread => {
                     const unread = getThreadUnreadCountForActor(thread, actorRole);
@@ -6963,7 +7515,7 @@ const filterSheet = document.getElementById('filter-sheet');
                         </div>
                         <div class="flex items-center justify-between gap-2">
                             <p class="text-[13px] text-[var(--text-sub)] truncate">${lastText}</p>
-                            ${unread > 0 ? `<span class="shrink-0 bg-red-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">${unread}</span>` : ''}
+                            ${showInAppUnread && unread > 0 ? `<span class="shrink-0 bg-red-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">${unread}</span>` : ''}
                         </div>
                     </div>
                 </div>
@@ -7194,6 +7746,7 @@ const filterSheet = document.getElementById('filter-sheet');
                             snap.forEach((doc) => rows.push({ id: doc.id, ...doc.data() }));
                             const sortedRows = sortNoticeRows(rows);
                             noticeRealtimeRows[audience] = sortedRows;
+                            maybeShowIncomingNoticeToast(sortedRows, audience);
                             if (currentNoticeAudience === audience) {
                                 currentNoticeRows = sortedRows;
                                 renderNoticeRowsToContainer(sortedRows);
@@ -7274,6 +7827,14 @@ const filterSheet = document.getElementById('filter-sheet');
                 const partnerBadge = document.getElementById('partner-notice-unread-badge');
                 const setNoticeBadge = (el, count) => {
                     if (!el) return;
+                    if (el.id === 'user-notice-unread-badge' && !isInAppNoticeEnabled('user')) {
+                        el.classList.add('hidden');
+                        return;
+                    }
+                    if (el.id === 'partner-notice-unread-badge' && !isInAppNoticeEnabled('partner')) {
+                        el.classList.add('hidden');
+                        return;
+                    }
                     const safeCount = Number(count || 0);
                     el.innerText = `새 공지 ${safeCount}건`;
                     el.classList.toggle('hidden', safeCount === 0);
@@ -7514,6 +8075,7 @@ const filterSheet = document.getElementById('filter-sheet');
 
                 // 전체 화면 모달 강제 닫기 (존재하는 함수만 호출)
                 if (typeof closeMyPageModal === 'function') closeMyPageModal();
+                if (typeof closeNotificationSettingsModal === 'function') closeNotificationSettingsModal();
                 if (typeof closeFavoritesModal === 'function') closeFavoritesModal();
                 if (typeof closeChatListModal === 'function') closeChatListModal();
                 if (typeof closeNoticeModal === 'function') closeNoticeModal();
@@ -7574,15 +8136,30 @@ const filterSheet = document.getElementById('filter-sheet');
 
                 if (localStorage.getItem('dadok_isPartnerLoggedIn') === 'true' || sessionStorage.getItem('dadok_isPartnerLoggedIn') === 'true') {
                     isPartnerLoggedIn = true;
+                    loadNotificationSettings('partner').then((settings) => {
+                        if (settings.push.enabled) {
+                            bindForegroundPushListener();
+                        }
+                    });
                 }
                 if (localStorage.getItem('dadok_isLoggedIn') === 'true') {
                     isLoggedIn = true;
                     updateHeaderToLoggedInState(localStorage.getItem('dadok_username') || 'test');
                     syncLoggedInUserProfileImageFromFirestore();
+                    loadNotificationSettings('user').then((settings) => {
+                        if (settings.push.enabled) {
+                            bindForegroundPushListener();
+                        }
+                    });
                 } else if (sessionStorage.getItem('dadok_isLoggedIn') === 'true') {
                     isLoggedIn = true;
                     updateHeaderToLoggedInState(sessionStorage.getItem('dadok_username') || 'test');
                     syncLoggedInUserProfileImageFromFirestore();
+                    loadNotificationSettings('user').then((settings) => {
+                        if (settings.push.enabled) {
+                            bindForegroundPushListener();
+                        }
+                    });
                 }
                 loadUserFavorites();
             }
@@ -9195,6 +9772,7 @@ const filterSheet = document.getElementById('filter-sheet');
                     'openFavoritesModal': 'closeFavoritesModal',
                     'openNoticeModal': 'closeNoticeModal',
                     'openNoticePage': 'closeNoticePage',
+                    'openNotificationSettingsModal': 'closeNotificationSettingsModal',
                     'openSecurityModal': 'closeSecurityModal',
                     'openSupportScreen': 'closeSupportScreen',
                     'openSupportFromPartnerDashboard': 'closeSupportScreen',
