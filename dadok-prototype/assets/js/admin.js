@@ -21,6 +21,11 @@ if (!firebase.apps.length) {
 const db = firebase.firestore();
 const auth = firebase.auth();
 const provider = new firebase.auth.GoogleAuthProvider();
+const ADMIN_EMAIL_ALLOWLIST = new Set(['kojusun@gmail.com']);
+
+function isAllowedAdminEmail(email = '') {
+    return ADMIN_EMAIL_ALLOWLIST.has(String(email || '').trim().toLowerCase());
+}
 
 // ─── Authentication ───
 auth.onAuthStateChanged((user) => {
@@ -32,6 +37,12 @@ auth.onAuthStateChanged((user) => {
     const mainApp = document.getElementById('main-app');
 
     if (user) {
+        const userEmail = String(user.email || '').trim().toLowerCase();
+        if (!isAllowedAdminEmail(userEmail)) {
+            alert('관리자 권한이 없는 계정입니다. 허용된 관리자 계정으로 로그인해주세요.');
+            auth.signOut().catch((e) => console.error('Unauthorized admin sign-out failed:', e));
+            return;
+        }
         if (authOverlay) authOverlay.classList.add('hidden');
         if (mainApp) mainApp.classList.remove('hidden');
         if (userInfoEl) userInfoEl.classList.remove('hidden');

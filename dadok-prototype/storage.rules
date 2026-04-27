@@ -1,8 +1,79 @@
 rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
+    function isSignedInAdmin() {
+      return request.auth != null
+        && request.auth.token.email != null
+        && request.auth.token.email in ['kojusun@gmail.com'];
+    }
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isAllowedDocMime() {
+      return request.resource.contentType != null
+        && (
+          request.resource.contentType.matches('image/.*')
+          || request.resource.contentType == 'application/pdf'
+          || request.resource.contentType == 'text/plain'
+          || request.resource.contentType == 'application/msword'
+          || request.resource.contentType == 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+          || request.resource.contentType == 'application/vnd.ms-excel'
+          || request.resource.contentType == 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+          || request.resource.contentType == 'application/vnd.ms-powerpoint'
+          || request.resource.contentType == 'application/vnd.openxmlformats-officedocument.presentationml.presentation'
+          || request.resource.contentType == 'application/zip'
+          || request.resource.contentType == 'application/octet-stream'
+        );
+    }
+
+    // 공개 읽기는 유지하되, 쓰기는 경로/파일유형 제한
+    match /chat_attachments/{threadId}/{fileName} {
+      allow read: if true;
+      allow write: if isAuthenticated() && request.resource.size < 12 * 1024 * 1024 && isAllowedDocMime();
+    }
+
+    match /partners_profile_thumb/{partnerId}/{fileName} {
+      allow read: if true;
+      allow write: if request.resource.size < 8 * 1024 * 1024
+        && isAuthenticated()
+        && request.resource.contentType != null
+        && request.resource.contentType.matches('image/.*');
+    }
+
+    match /partners_profile_detail/{partnerId}/{fileName} {
+      allow read: if true;
+      allow write: if request.resource.size < 8 * 1024 * 1024
+        && isAuthenticated()
+        && request.resource.contentType != null
+        && request.resource.contentType.matches('image/.*');
+    }
+
+    match /partners_biz/{fileName} {
+      allow read: if true;
+      allow write: if isAuthenticated() && request.resource.size < 12 * 1024 * 1024 && isAllowedDocMime();
+    }
+
+    match /users_profile_avatars/{userId}/{fileName} {
+      allow read: if true;
+      allow write: if request.resource.size < 6 * 1024 * 1024
+        && isAuthenticated()
+        && request.resource.contentType != null
+        && request.resource.contentType.matches('image/.*');
+    }
+
+    match /cs_tickets/{ticketId}/{fileName} {
+      allow read: if true;
+      allow write: if request.resource.size < 8 * 1024 * 1024
+        && isAuthenticated()
+        && request.resource.contentType != null
+        && request.resource.contentType.matches('image/.*');
+    }
+
+    // 기타 경로는 관리자만 쓰기 허용
     match /{allPaths=**} {
-      allow read, write: if true;
+      allow read: if true;
+      allow write: if isSignedInAdmin();
     }
   }
 }

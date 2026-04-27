@@ -28,6 +28,7 @@
     </script>
     <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-storage-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-messaging-compat.js"></script>
@@ -237,7 +238,7 @@
                     </div>
 
                     <p id="support-desc" class="text-[var(--text-sub)] text-sm tracking-wide leading-relaxed px-1">
-                        건강하고 클린한 환경을 위해<br>불법·불쾌 행위 제보를 받습니다.
+                        건전한 피부·바디 케어 서비스 운영을 위해<br>불법·유해 행위 제보를 접수합니다.
                     </p>
 
                     <div class="flex flex-col gap-5 mt-2">
@@ -400,8 +401,8 @@
 
                     <!-- 아이디 입력 -->
                     <div class="flex flex-col gap-2">
-                        <label class="text-[var(--text-sub)] text-[13px] font-bold tracking-widest ml-1">아이디</label>
-                        <input id="signup-id" type="text" placeholder="아이디를 입력해주세요" oninput="checkSignupValidity(); scheduleSignupIdValidation();"
+                        <label class="text-[var(--text-sub)] text-[13px] font-bold tracking-widest ml-1">이메일</label>
+                        <input id="signup-id" type="text" placeholder="이메일 주소를 입력해주세요" oninput="checkSignupValidity(); scheduleSignupIdValidation();"
                             class="w-full bg-[#0A1B13] border border-[var(--point-color)]/30 rounded-2xl px-5 py-4 text-[var(--text-main)] placeholder-[var(--text-sub)]/50 font-medium text-[15px] focus:outline-none focus:border-[var(--point-color)] focus:ring-1 focus:ring-[var(--point-color)] transition-all shadow-sm"
                             autocomplete="off">
                         <span id="signup-id-status-msg" class="text-[13px] font-bold ml-1 hidden"></span>
@@ -426,53 +427,21 @@
                         <span id="signup-pw-confirm-status-msg" class="password-field-msg text-[13px] font-bold ml-1 hidden"></span>
                     </div>
 
-                    <!-- 이름 및 성별 입력 -->
-                    <div class="flex flex-col gap-2">
-                        <label class="text-[var(--text-sub)] text-[13px] font-bold tracking-widest ml-1">이름 및 성별</label>
-                        <div class="flex gap-2">
-                            <input id="signup-name" type="text" placeholder="실명을 입력해주세요" oninput="checkSignupValidity()"
-                                class="flex-1 bg-[#0A1B13] border border-[var(--point-color)]/30 rounded-2xl px-5 py-4 text-[var(--text-main)] placeholder-[var(--text-sub)]/50 font-medium text-[15px] focus:outline-none focus:border-[var(--point-color)] focus:ring-1 focus:ring-[var(--point-color)] transition-all shadow-sm">
-                            <div
-                                class="flex bg-[#0A1B13] border border-[var(--point-color)]/30 rounded-2xl p-1 shrink-0 w-[110px]">
-                                <input type="radio" name="signup-gender" id="gender-m" value="male"
-                                    class="peer/m hidden" onchange="checkSignupValidity()">
-                                <label for="gender-m"
-                                    class="flex-1 flex items-center justify-center text-[14px] font-medium text-[var(--text-sub)] rounded-xl cursor-pointer transition-all peer-checked/m:bg-[var(--point-color)] peer-checked/m:text-[#06110D]">남</label>
-
-                                <input type="radio" name="signup-gender" id="gender-f" value="female"
-                                    class="peer/f hidden" onchange="checkSignupValidity()" checked>
-                                <label for="gender-f"
-                                    class="flex-1 flex items-center justify-center text-[14px] font-medium text-[var(--text-sub)] rounded-xl cursor-pointer transition-all peer-checked/f:bg-[var(--point-color)] peer-checked/f:text-[#06110D]">여</label>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- 전화번호 입력 -->
-                    <div class="flex flex-col gap-2">
-                        <label class="text-[var(--text-sub)] text-[13px] font-bold tracking-widest ml-1">전화번호</label>
-                        <input id="signup-phone" type="tel" placeholder="'-' 제외하고 입력해주세요"
-                            oninput="checkSignupValidity()"
-                            class="w-full bg-[#0A1B13] border border-[var(--point-color)]/30 rounded-2xl px-5 py-4 text-[var(--text-main)] placeholder-[var(--text-sub)]/50 font-medium text-[15px] focus:outline-none focus:border-[var(--point-color)] focus:ring-1 focus:ring-[var(--point-color)] transition-all shadow-sm">
-                        <span id="signup-phone-status-msg" class="text-[13px] font-bold ml-1 hidden"></span>
-                    </div>
-
                     <!-- 서비스 이용약관 (면책 조항) -->
                     <div id="signup-service-terms-section" class="signup-service-terms-section flex flex-col gap-2 mt-4">
-                        <label class="text-[var(--text-sub)] text-[13px] font-bold tracking-widest ml-1">서비스 이용약관 (면책
-                            조항)</label>
+                        <label class="text-[var(--text-sub)] text-[13px] font-bold tracking-widest ml-1">서비스 이용약관 (운영
+                            고지)</label>
                         <div class="signup-tos-scroll w-full bg-[#030906] border border-[#2A3731] rounded-2xl p-4 text-[#A7B2AE] text-[13px] h-32 overflow-y-auto leading-relaxed"
                             style="scrollbar-width: thin; scrollbar-color: var(--point-color) #0A1B13;">
                             <p class="mb-3"><strong class="text-[var(--point-color)] font-medium">중개 서비스의 한계
-                                    명시</strong><br>본 서비스는 업체와 이용자를 연결해 주는 광고/정보 제공 플랫폼이며, 마사지 서비스를 직접 제공하는 당사자가 아님을 고지함.
+                                    명시</strong><br>본 서비스는 건전한 피부·바디 케어(테라피) 목적의 업체와 이용자를 연결하는 광고/정보 플랫폼이며, 현장 서비스를 직접 제공하는 주체가 아님을 고지합니다.
                             </p>
                             <p class="mb-3"><strong class="text-[var(--point-color)] font-medium">사고 책임의
-                                    귀속</strong><br>업체와 이용자 간의 서비스 과정에서 발생하는 모든 민·형사상 분쟁(성범죄, 상해, 금전 거래 등)에 대해 회사는 고의 또는
-                                중과실이 없는 한 책임을 지지 않음.</p>
+                                    귀속</strong><br>업체와 이용자 간 거래 과정에서 발생하는 분쟁(폭력, 성적 요구, 금전 분쟁 등)에 대해 회사는 고의 또는 중과실이 없는 한 책임을 지지 않습니다.</p>
                             <p class="mb-3"><strong class="text-[var(--point-color)] font-medium">운영 목적 열람
                                     고지</strong><br>서비스 안정화, 고객 문의 및 분쟁 처리, 부정 이용 탐지 목적에 한해 권한이 부여된 관리자만 최소 범위의 전화 클릭/운영
                                 메시지 관련 기록을 확인할 수 있으며, 열람 내역은 내부 기준에 따라 기록·관리됩니다.</p>
-                            <p><strong class="text-[var(--point-color)] font-medium">불법 이용 금지</strong><br>이용자는 본 서비스를 통해
-                                불법 행위를 유도하거나 요구해서는 안 되며, 적발 시 즉시 이용이 제한됨.</p>
+                            <p><strong class="text-[var(--point-color)] font-medium">금지 행위 및 제재</strong><br>이용자는 성적 서비스 요구, 성매매 알선/유도, 폭언·협박 등 불법·유해 행위를 해서는 안 되며, 적발 시 즉시 이용 제한 및 관계 기관 협조가 진행될 수 있습니다.</p>
                         </div>
                         <!-- 이용약관 동의 체크박스 -->
                         <label
@@ -506,8 +475,8 @@
                         </label>
                         <div
                             class="w-full bg-[#030906] border border-[#2A3731] rounded-2xl p-4 text-[#A7B2AE] text-[13px] leading-relaxed">
-                            <p class="mb-2">본 어플은 건전한 마사지 예약 문화를 지향하며, 어떠한 형태의 불법 성행위도 금지합니다.</p>
-                            <p class="mb-2">이용자가 업체에 불법적인 요구를 하거나, 반대로 업체로부터 부당한 대우를 받았을 경우 '클린 신고 센터'를 통해 즉시 알려야 합니다.
+                            <p class="mb-2">본 서비스는 건전한 피부·바디 케어(테라피) 목적의 예약/상담 환경을 지향하며, 모든 불법·유해 행위를 금지합니다.</p>
+                            <p class="mb-2">이용자가 업체에 불법적 요구를 하거나, 반대로 업체로부터 부당한 대우를 받은 경우 '신고센터/문의'를 통해 즉시 제보해야 합니다.
                             </p>
                             <p>현장에서 발생하는 업체와의 모든 직접적인 거래 및 행위에 대한 책임은 이용자 본인에게 있음을 확인합니다.</p>
                         </div>
@@ -577,12 +546,12 @@
 
                     <!-- 아이디 입력 -->
                     <div class="flex flex-col gap-2.5">
-                        <label class="text-[var(--text-sub)] text-[13px] font-bold tracking-widest ml-1">아이디</label>
-                        <input id="login-id-input" type="text" placeholder="아이디를 입력해주세요"
+                        <label class="text-[var(--text-sub)] text-[13px] font-bold tracking-widest ml-1">이메일</label>
+                        <input id="login-id-input" type="text" placeholder="이메일 주소를 입력해주세요"
                             class="w-full bg-[#0A1B13] border border-[var(--point-color)]/30 rounded-2xl px-5 py-[18px] text-[var(--text-main)] placeholder-[var(--text-sub)]/50 font-medium text-[16px] focus:outline-none focus:border-[var(--point-color)] focus:ring-1 focus:ring-[var(--point-color)] transition-all shadow-sm"
                             oninput="document.getElementById('login-id-error').classList.add('hidden'); document.getElementById('login-mismatch-error').classList.add('hidden'); this.classList.remove('!border-[#ef4444]');">
                         <p id="login-id-error"
-                            class="hidden text-[#ef4444] text-[13.5px] font-bold tracking-wide ml-2 mt-[-2px]">아이디를
+                            class="hidden text-[#ef4444] text-[13.5px] font-bold tracking-wide ml-2 mt-[-2px]">이메일을
                             입력해주세요.</p>
                     </div>
 
@@ -596,7 +565,7 @@
                             class="hidden text-[#ef4444] text-[13.5px] font-bold tracking-wide ml-2 mt-[-2px]">비밀번호를
                             입력해주세요.</p>
                         <p id="login-mismatch-error"
-                            class="hidden text-[#ef4444] text-[13.5px] font-bold tracking-wide ml-2 mt-[-2px]">아이디 또는 비밀번호가 올바르지 않습니다. 입력값을 다시 확인해주세요.</p>
+                            class="hidden text-[#ef4444] text-[13.5px] font-bold tracking-wide ml-2 mt-[-2px]">이메일 또는 비밀번호가 올바르지 않습니다. 입력값을 다시 확인해주세요.</p>
                     </div>
 
                     <div class="flex justify-between items-center mt-[-5px]">
@@ -680,12 +649,12 @@
 
                     <!-- 아이디 입력 -->
                     <div class="flex flex-col gap-2.5">
-                        <label class="text-[var(--text-sub)] text-[13px] font-bold tracking-widest ml-1">파트너 아이디</label>
-                        <input id="partner-login-id-input" type="text" placeholder="아이디를 입력해주세요"
+                        <label class="text-[var(--text-sub)] text-[13px] font-bold tracking-widest ml-1">파트너 이메일</label>
+                        <input id="partner-login-id-input" type="text" placeholder="이메일 주소를 입력해주세요"
                             class="w-full bg-[#0A1B13] border border-[var(--point-color)]/30 rounded-2xl px-5 py-[18px] text-[var(--text-main)] placeholder-[var(--text-sub)]/50 font-medium text-[16px] focus:outline-none focus:border-[var(--point-color)] focus:ring-1 focus:ring-[var(--point-color)] transition-all shadow-sm"
                             oninput="document.getElementById('partner-login-id-error').classList.add('hidden'); document.getElementById('partner-login-mismatch-error').classList.add('hidden'); this.classList.remove('!border-[#ef4444]');">
                         <p id="partner-login-id-error"
-                            class="hidden text-[#ef4444] text-[13.5px] font-bold tracking-wide ml-2 mt-[-2px]">아이디를
+                            class="hidden text-[#ef4444] text-[13.5px] font-bold tracking-wide ml-2 mt-[-2px]">이메일을
                             입력해주세요.</p>
                     </div>
 
@@ -699,7 +668,7 @@
                             class="hidden text-[#ef4444] text-[13.5px] font-bold tracking-wide ml-2 mt-[-2px]">비밀번호를
                             입력해주세요.</p>
                         <p id="partner-login-mismatch-error"
-                            class="hidden text-[#ef4444] text-[13.5px] font-bold tracking-wide ml-2 mt-[-2px]">파트너 아이디 또는 비밀번호가 올바르지 않습니다. 입력값을 다시 확인해주세요.</p>
+                            class="hidden text-[#ef4444] text-[13.5px] font-bold tracking-wide ml-2 mt-[-2px]">파트너 이메일 또는 비밀번호가 올바르지 않습니다. 입력값을 다시 확인해주세요.</p>
                     </div>
 
                     <div class="flex justify-between items-center mt-[-5px]">
@@ -837,8 +806,8 @@
 
                     <div id="partner-recovery-pw-form" class="hidden flex flex-col gap-4">
                         <div class="flex flex-col gap-2">
-                            <label class="text-[var(--text-sub)] text-[13px] font-bold tracking-widest ml-1">파트너 아이디</label>
-                            <input id="partner-find-pw-id" type="text" placeholder="아이디를 입력해주세요"
+                            <label class="text-[var(--text-sub)] text-[13px] font-bold tracking-widest ml-1">파트너 이메일</label>
+                            <input id="partner-find-pw-id" type="text" placeholder="이메일 주소를 입력해주세요"
                                 class="w-full bg-[#0A1B13] border border-[var(--point-color)]/30 rounded-2xl px-5 py-4 text-[var(--text-main)] placeholder-[var(--text-sub)]/50 font-medium text-[15px] focus:outline-none focus:border-[var(--point-color)] focus:ring-1 focus:ring-[var(--point-color)] transition-all shadow-sm">
                         </div>
                         <div class="flex flex-col gap-2">
@@ -914,8 +883,8 @@
                         </h3>
 
                         <div class="flex flex-col gap-2">
-                            <label class="text-[var(--text-sub)] text-[14px] font-bold tracking-widest ml-1">아이디</label>
-                            <input id="partner-signup-id" type="text" placeholder="사용하실 아이디를 입력해주세요" oninput="checkPartnerSignupForm(); schedulePartnerSignupIdValidation();"
+                            <label class="text-[var(--text-sub)] text-[14px] font-bold tracking-widest ml-1">이메일</label>
+                            <input id="partner-signup-id" type="text" placeholder="사용하실 이메일 주소를 입력해주세요" oninput="checkPartnerSignupForm(); schedulePartnerSignupIdValidation();"
                                 class="w-full bg-[#0A1B13] border border-[#2A3731] rounded-xl px-4 py-4 text-[var(--text-main)] placeholder-[var(--text-sub)]/50 font-medium text-[16px] focus:outline-none focus:border-[var(--point-color)] transition-all">
                             <span id="partner-signup-id-status-msg" class="text-[13px] font-bold ml-1 hidden"></span>
                         </div>
@@ -964,9 +933,9 @@
                         </div>
 
                         <div class="flex flex-col gap-2">
-                            <label class="text-[var(--text-sub)] text-[14px] font-bold tracking-widest ml-1">휴대폰
+                            <label class="text-[var(--text-sub)] text-[14px] font-bold tracking-widest ml-1">사업체
                                 번호</label>
-                            <input id="partner-signup-phone" oninput="checkPartnerSignupForm()" type="tel" placeholder="010-0000-0000"
+                            <input id="partner-signup-phone" oninput="checkPartnerSignupForm()" type="tel" placeholder="문의 가능한 번호를 남겨주세요"
                                 class="w-full bg-[#0A1B13] border border-[#2A3731] rounded-xl px-4 py-4 text-[var(--text-main)] placeholder-[var(--text-sub)]/50 font-medium text-[16px] focus:outline-none focus:border-[var(--point-color)] transition-all">
                             <span id="partner-signup-phone-status-msg" class="text-[13px] font-bold ml-1 hidden"></span>
                         </div>
@@ -1128,9 +1097,9 @@
                                 <div class="flex flex-col gap-2">
                                     <span
                                         class="text-[var(--text-main)] text-[15px] leading-snug pt-[1px]"><span
-                                            class="text-[var(--point-color)]">[필수]</span> 클린 서비스 운영 확약</span>
-                                    <span class="text-[var(--text-sub)] text-[14px] font-medium leading-relaxed">본 업체는
-                                        성매매 등 모든 불법 행위를 일절 금하며, 적발 시 모든 법적 책임을 지겠습니다.</span>
+                                            class="text-[var(--point-color)]">[필수]</span> 건전 서비스 운영 확약</span>
+                                    <span class="text-[var(--text-sub)] text-[14px] font-medium leading-relaxed">본 파트너는
+                                        피부·바디 케어(테라피) 목적 외 성적 서비스, 성매매 알선/유도, 기타 불법 행위를 일절 금하며 적발 시 이용 제한 및 법적 책임을 수용합니다.</span>
                                 </div>
                             </label>
 
@@ -1151,8 +1120,7 @@
                                     <span
                                         class="text-[var(--text-main)] text-[15px] leading-snug pt-[1px]"><span
                                             class="text-[var(--point-color)]">[필수]</span> 플랫폼 면책 고지 동의</span>
-                                    <span class="text-[var(--text-sub)] text-[14px] font-medium leading-relaxed">이용자 간의
-                                        거래 및 기타 부당한 사건 발생 시 운영사에 관련 책임을 묻지 않음을 인지합니다.</span>
+                                    <span class="text-[var(--text-sub)] text-[14px] font-medium leading-relaxed">이용자-파트너 간 현장 거래 및 서비스 과정에서 발생한 분쟁은 당사자 책임 원칙이 적용되며, 운영사는 고의·중과실이 없는 한 책임을 지지 않음을 인지합니다.</span>
                                 </div>
                             </label>
                         </div>

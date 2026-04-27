@@ -593,6 +593,44 @@ const filterSheet = document.getElementById('filter-sheet');
             let fcmForegroundBound = false;
             let lastForegroundMessageId = '';
 
+            function getAuthInstance() {
+                if (typeof firebase === 'undefined' || !firebase.auth) return null;
+                try {
+                    return firebase.auth();
+                } catch (e) {
+                    console.error('Firebase Auth 초기화 실패:', e);
+                    return null;
+                }
+            }
+
+            function normalizeAuthEmail(rawEmail = '') {
+                return String(rawEmail || '').trim().toLowerCase();
+            }
+
+            function isValidEmailFormat(rawEmail = '') {
+                const email = normalizeAuthEmail(rawEmail);
+                return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+            }
+
+            function buildAuthEmailByRole(rawId = '', role = 'user') {
+                // role 파라미터는 기존 호출부 호환용으로 유지
+                void role;
+                return normalizeAuthEmail(rawId);
+            }
+
+            async function applyAuthPersistenceByKeepLogin(keepLogin = false) {
+                const auth = getAuthInstance();
+                if (!auth || !firebase.auth.Auth) return;
+                try {
+                    const persistence = keepLogin
+                        ? firebase.auth.Auth.Persistence.LOCAL
+                        : firebase.auth.Auth.Persistence.SESSION;
+                    await auth.setPersistence(persistence);
+                } catch (e) {
+                    console.error('Auth persistence 설정 실패:', e);
+                }
+            }
+
             function normalizeNotificationSettings(raw = {}) {
                 const inAppRaw = raw?.inApp || {};
                 const pushRaw = raw?.push || {};
@@ -5061,7 +5099,7 @@ const filterSheet = document.getElementById('filter-sheet');
             }
 
             function resetSignupForm() {
-                const fields = ['signup-id', 'signup-pw', 'signup-pw-confirm', 'signup-name', 'signup-phone'];
+                const fields = ['signup-id', 'signup-pw', 'signup-pw-confirm'];
                 fields.forEach((fieldId) => {
                     const el = document.getElementById(fieldId);
                     if (el) el.value = '';
@@ -5087,7 +5125,6 @@ const filterSheet = document.getElementById('filter-sheet');
                 setIdStatusMessage(document.getElementById('signup-id-status-msg'), 'idle', '');
                 setIdStatusMessage(document.getElementById('signup-pw-status-msg'), 'idle', '');
                 setIdStatusMessage(document.getElementById('signup-pw-confirm-status-msg'), 'idle', '');
-                setIdStatusMessage(document.getElementById('signup-phone-status-msg'), 'idle', '');
                 checkSignupValidity();
             }
 
@@ -5111,10 +5148,11 @@ const filterSheet = document.getElementById('filter-sheet');
             }
 
             async function checkIdDuplicateAcrossUsersAndPartners(id) {
+                const normalizedId = normalizeAuthEmail(id);
                 const firestoreDb = firebase.firestore();
                 const [userSnap, partnerSnap] = await Promise.all([
-                    firestoreDb.collection('users').where('userId', '==', id).limit(1).get(),
-                    firestoreDb.collection('partners').where('userId', '==', id).limit(1).get()
+                    firestoreDb.collection('users').where('userId', '==', normalizedId).limit(1).get(),
+                    firestoreDb.collection('partners').where('userId', '==', normalizedId).limit(1).get()
                 ]);
                 return !userSnap.empty || !partnerSnap.empty;
             }
@@ -5137,15 +5175,15 @@ const filterSheet = document.getElementById('filter-sheet');
                     return;
                 }
 
-                if (id.length < SIGNUP_ID_MIN_LENGTH) {
+                if (!isValidEmailFormat(id)) {
                     signupIdStatus = 'invalid';
-                    setIdStatusMessage(msgEl, 'invalid', '※ 아이디는 4자리 이상 입력해주세요.');
+                    setIdStatusMessage(msgEl, 'invalid', '※ 올바른 이메일 형식으로 입력해주세요.');
                     checkSignupValidity();
                     return;
                 }
 
                 signupIdStatus = 'checking';
-                setIdStatusMessage(msgEl, 'checking', '※ 아이디 중복을 확인하고 있습니다...');
+                setIdStatusMessage(msgEl, 'checking', '※ 이메일 중복을 확인하고 있습니다...');
                 checkSignupValidity();
 
                 const token = ++signupIdCheckToken;
@@ -5165,7 +5203,7 @@ const filterSheet = document.getElementById('filter-sheet');
                         setIdStatusMessage(
                             msgEl,
                             signupIdStatus,
-                            isDuplicate ? '※ 이미 사용 중인 아이디입니다.' : '※ 사용 가능한 아이디입니다.'
+                            isDuplicate ? '※ 이미 사용 중인 이메일입니다.' : '※ 사용 가능한 이메일입니다.'
                         );
                     } catch (e) {
                         if (token !== signupIdCheckToken) return;
@@ -5194,15 +5232,15 @@ const filterSheet = document.getElementById('filter-sheet');
                     return;
                 }
 
-                if (id.length < SIGNUP_ID_MIN_LENGTH) {
+                if (!isValidEmailFormat(id)) {
                     partnerSignupIdStatus = 'invalid';
-                    setIdStatusMessage(msgEl, 'invalid', '※ 아이디는 4자리 이상 입력해주세요.');
+                    setIdStatusMessage(msgEl, 'invalid', '※ 올바른 이메일 형식으로 입력해주세요.');
                     checkPartnerSignupForm();
                     return;
                 }
 
                 partnerSignupIdStatus = 'checking';
-                setIdStatusMessage(msgEl, 'checking', '※ 아이디 중복을 확인하고 있습니다...');
+                setIdStatusMessage(msgEl, 'checking', '※ 이메일 중복을 확인하고 있습니다...');
                 checkPartnerSignupForm();
 
                 const token = ++partnerSignupIdCheckToken;
@@ -5222,7 +5260,7 @@ const filterSheet = document.getElementById('filter-sheet');
                         setIdStatusMessage(
                             msgEl,
                             partnerSignupIdStatus,
-                            isDuplicate ? '※ 이미 사용 중인 아이디입니다.' : '※ 사용 가능한 아이디입니다.'
+                            isDuplicate ? '※ 이미 사용 중인 이메일입니다.' : '※ 사용 가능한 이메일입니다.'
                         );
                     } catch (e) {
                         if (token !== partnerSignupIdCheckToken) return;
@@ -5237,15 +5275,12 @@ const filterSheet = document.getElementById('filter-sheet');
                 const id = document.getElementById('signup-id').value.trim();
                 const pw = document.getElementById('signup-pw').value.trim();
                 const pwConfirm = document.getElementById('signup-pw-confirm').value.trim();
-                const name = document.getElementById('signup-name').value.trim();
-                const phone = document.getElementById('signup-phone').value.trim();
                 const agreeTerms = document.getElementById('signup-agree-terms').checked;
                 const checkIconTerms = document.getElementById('signup-agree-terms-check');
                 const agree = document.getElementById('signup-agree').checked;
                 const checkIcon = document.getElementById('signup-agree-check');
                 const isPasswordValid = isValidPartnerSignupPassword(pw || '');
                 const isIdAvailable = signupIdStatus === 'available';
-                const isPhoneValid = isValidKoreanMobilePhone(phone || '');
 
                 const pwStatusEl = document.getElementById('signup-pw-status-msg');
                 if (pwStatusEl) {
@@ -5273,19 +5308,6 @@ const filterSheet = document.getElementById('filter-sheet');
                     }
                 }
 
-                const phoneStatusEl = document.getElementById('signup-phone-status-msg');
-                if (phoneStatusEl) {
-                    if (!phone) {
-                        phoneStatusEl.classList.add('hidden');
-                    } else if (isPhoneValid) {
-                        phoneStatusEl.className = 'text-[#22c55e] text-[13px] font-bold ml-1';
-                        phoneStatusEl.innerText = '※ 사용 가능한 휴대폰번호입니다.';
-                    } else {
-                        phoneStatusEl.className = 'text-[#EF4444] text-[13px] font-bold ml-1';
-                        phoneStatusEl.innerText = '※ 휴대폰번호 양식이 맞지 않습니다. (010으로 시작하는 11자리)';
-                    }
-                }
-
                 // 체크박스 아이콘 토글 1
                 if (agreeTerms) {
                     checkIconTerms.classList.remove('opacity-0');
@@ -5307,7 +5329,7 @@ const filterSheet = document.getElementById('filter-sheet');
                 const btn = document.getElementById('signup-submit-btn');
 
                 // 모든 값 존재 여부 검증
-                if (id && isIdAvailable && pw && isPasswordValid && pwConfirm && pw === pwConfirm && name && phone && isPhoneValid && agree && agreeTerms) {
+                if (id && isIdAvailable && pw && isPasswordValid && pwConfirm && pw === pwConfirm && agree && agreeTerms) {
                     btn.disabled = false;
                     btn.classList.remove('bg-[#0A1B13]', 'text-[#A7B2AE]', 'border-[#2A3731]', 'opacity-70');
                     btn.classList.add('bg-gradient-to-r', 'from-[var(--point-color)]', 'to-[#B59530]', 'text-[#06110D]', 'shadow-[0_8px_20px_rgba(212,175,55,0.25)]', 'border-[#D4AF37]', 'hover:brightness-110', 'active:scale-[0.98]');
@@ -5318,26 +5340,21 @@ const filterSheet = document.getElementById('filter-sheet');
                 }
             }
 
-            function handleSignupSubmit() {
+            async function handleSignupSubmit() {
                 const id = document.getElementById('signup-id').value.trim();
                 const pw = document.getElementById('signup-pw').value.trim();
                 const pwConfirm = document.getElementById('signup-pw-confirm').value.trim();
-                const name = document.getElementById('signup-name').value.trim();
-                const phone = document.getElementById('signup-phone').value.trim();
                 const agreeTerms = document.getElementById('signup-agree-terms').checked;
                 const agree = document.getElementById('signup-agree').checked;
                 const legalConsent = buildLegalConsentPayload('user');
-
-                const selectedGender = document.querySelector('input[name="signup-gender"]:checked');
-                const gender = selectedGender ? (selectedGender.value === 'male' ? '남성' : '여성') : '알수없음';
 
                 if (!agreeTerms || !agree) {
                     alert('필수 확인 항목 및 약관에 동의해주세요.');
                     return;
                 }
 
-                if (id.length < SIGNUP_ID_MIN_LENGTH) {
-                    alert('아이디는 4자리 이상 입력해주세요.');
+                if (!isValidEmailFormat(id)) {
+                    alert('이메일 형식으로 입력해주세요.');
                     return;
                 }
 
@@ -5346,17 +5363,10 @@ const filterSheet = document.getElementById('filter-sheet');
                     return;
                 }
 
-                if (!isValidKoreanMobilePhone(phone)) {
-                    alert('휴대폰번호 양식이 맞지 않습니다. (010으로 시작하는 11자리)');
-                    return;
-                }
-
                 if (pw !== pwConfirm) {
                     alert('비밀번호가 일치하지 않습니다.');
                     return;
                 }
-
-                currentPassword = pw;
 
                 // Firestore에 사용자 정보 저장
                 if (typeof firebase === 'undefined') {
@@ -5364,67 +5374,65 @@ const filterSheet = document.getElementById('filter-sheet');
                     return;
                 }
 
+                const auth = getAuthInstance();
+                if (!auth) {
+                    alert('인증 기능을 초기화하지 못했습니다. 잠시 후 다시 시도해주세요.');
+                    return;
+                }
+
                 const firestoreDb = firebase.firestore();
                 const now = firebase.firestore.FieldValue.serverTimestamp();
-                checkIdDuplicateAcrossUsersAndPartners(id).then((isDuplicate) => {
+                try {
+                    const isDuplicate = await checkIdDuplicateAcrossUsersAndPartners(id);
                     if (isDuplicate) {
-                        alert('이미 사용 중인 아이디입니다.');
+                        alert('이미 사용 중인 이메일입니다.');
                         signupIdStatus = 'duplicate';
-                        setIdStatusMessage(document.getElementById('signup-id-status-msg'), 'duplicate', '※ 이미 사용 중인 아이디입니다.');
+                        setIdStatusMessage(document.getElementById('signup-id-status-msg'), 'duplicate', '※ 이미 사용 중인 이메일입니다.');
                         checkSignupValidity();
                         return;
                     }
+                    const normalizedEmail = normalizeAuthEmail(id);
+                    const authEmail = buildAuthEmailByRole(normalizedEmail, 'user');
+                    await applyAuthPersistenceByKeepLogin(Boolean(document.getElementById('keep-login-checkbox')?.checked));
+                    const cred = await auth.createUserWithEmailAndPassword(authEmail, pw);
+                    const authUid = String(cred?.user?.uid || '').trim();
 
-                    let docRef = firestoreDb.collection('users').doc(id);
-                    docRef.set({
-                    userId: id,
-                    password: pw, // UI상 관리자 페이지에서는 제거되지만, 추후 진짜 auth 연동 전까지 데이터 유지
-                    name: name,
-                    phone: phone,
-                    gender: gender,
-                    legalConsent,
-                    createdAt: now,
-                    lastLoginAt: now
-                    }).then(() => {
-                        completeSignup(name, id);
-                    }).catch((error) => {
-                        console.error('Firestore Error:', error);
-                        alert('가입 처리 중 데이터베이스 오류가 발생했습니다: ' + error.message);
-                    });
-                }).catch((error) => {
+                    const docRef = firestoreDb.collection('users').doc(normalizedEmail);
+                    await docRef.set({
+                        userId: normalizedEmail,
+                        authUid,
+                        authEmail,
+                        authRole: 'user',
+                        legalConsent,
+                        createdAt: now,
+                        lastLoginAt: now
+                    }, { merge: true });
+
+                    completeSignup(normalizedEmail, normalizedEmail);
+                } catch (error) {
                     console.error('ID duplicate check error:', error);
-                    alert('아이디 중복 확인 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
-                });
+                    const code = String(error?.code || '');
+                    if (code === 'auth/email-already-in-use') {
+                        alert('이미 사용 중인 이메일입니다.');
+                    } else if (code === 'auth/weak-password') {
+                        alert('비밀번호 보안 수준이 낮습니다. 더 복잡한 비밀번호를 사용해주세요.');
+                    } else {
+                        alert('가입 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
+                    }
+                }
             }
 
             function completeSignup(name, id) {
-                const genderRadio = document.querySelector('input[name="signup-gender"]:checked');
-                const signupGenderKey = genderRadio && (genderRadio.value === 'male' || genderRadio.value === 'female')
-                    ? genderRadio.value
-                    : 'female';
-                localStorage.setItem(DADOK_USER_GENDER_STORAGE_KEY, signupGenderKey);
-
                 alert(name + '님, 다독 회원이 되신 것을 환영합니다!');
                 resetSignupForm();
                 closeSignupModal();
-
-                // 자동 로그인 처리
-                isLoggedIn = true;
-
-                // 백그라운드에 있을 수 있는 로그인 모달 닫기
-                if (typeof closeLoginFormModal === 'function') closeLoginFormModal();
-                if (typeof closeLoginModal === 'function') closeLoginModal();
-
-                // 헤더 UI 상태 업데이트 (메인 화면)
-                if (typeof updateHeaderToLoggedInState === 'function') {
-                    updateHeaderToLoggedInState(id, signupGenderKey);
-                }
+                completeLoginProcess(id, id, '', '');
             }
 
             // 모의 로그인 처리 로직
             let isLoggedIn = false;
             let isPartnerLoggedIn = false;
-            let currentPassword = '1234';
+            let currentPassword = '';
 
             function validatePasswordChange() {
                 const currPw = document.getElementById('curr-pw').value;
@@ -5444,11 +5452,8 @@ const filterSheet = document.getElementById('filter-sheet');
                 // Current Password Validation
                 if (currPw === '') {
                     currPwMsg.textContent = '';
-                } else if (currPw !== currentPassword) {
-                    currPwMsg.textContent = '현재 비밀번호가 일치하지 않습니다.';
-                    currPwMsg.className = 'text-xs mt-2 text-red-500';
                 } else {
-                    currPwMsg.textContent = '현재 비밀번호가 일치합니다.';
+                    currPwMsg.textContent = '현재 비밀번호를 확인합니다.';
                     currPwMsg.className = 'text-xs mt-2 text-[var(--point-color)]';
                     isCurrValid = true;
                 }
@@ -5456,8 +5461,8 @@ const filterSheet = document.getElementById('filter-sheet');
                 // New Password Validation
                 if (newPw === '') {
                     newPwMsg.textContent = '';
-                } else if (newPw === currentPassword) {
-                    newPwMsg.textContent = '현재 비밀번호와 동일합니다. 다른 비밀번호를 입력해주세요.';
+                } else if (!isValidPartnerSignupPassword(newPw)) {
+                    newPwMsg.textContent = '비밀번호는 8자리 이상이며 영문/숫자/특수문자를 모두 포함해야 합니다.';
                     newPwMsg.className = 'text-xs mt-2 text-red-500';
                 } else {
                     newPwMsg.textContent = '사용 가능한 변경할 비밀번호입니다.';
@@ -5487,21 +5492,25 @@ const filterSheet = document.getElementById('filter-sheet');
                 }
             }
 
-            function handleChangePassword() {
+            async function handleChangePassword() {
                 const currPw = document.getElementById('curr-pw').value;
                 const newPw = document.getElementById('new-pw').value;
                 const confirmPw = document.getElementById('confirm-pw').value;
 
                 // 추가적인 다중 보안 검증
-                if (currPw !== currentPassword) {
-                    alert('현재 비밀번호가 일치하지 않습니다.');
+                if (!currPw) {
+                    alert('현재 비밀번호를 입력해주세요.');
                     return;
                 }
                 if (newPw === '') {
                     alert('새 비밀번호를 입력해주세요.');
                     return;
                 }
-                if (newPw === currentPassword) {
+                if (!isValidPartnerSignupPassword(newPw)) {
+                    alert('새 비밀번호는 8자리 이상이며 영문/숫자/특수문자를 모두 포함해야 합니다.');
+                    return;
+                }
+                if (newPw === currPw) {
                     alert('새 비밀번호가 현재 비밀번호와 동일합니다.');
                     return;
                 }
@@ -5510,8 +5519,28 @@ const filterSheet = document.getElementById('filter-sheet');
                     return;
                 }
 
-                alert('비밀번호가 안전하게 변경되었습니다.');
-                currentPassword = newPw;
+                try {
+                    const auth = getAuthInstance();
+                    const user = auth?.currentUser;
+                    if (!auth || !user || !user.email) {
+                        alert('로그인 세션이 확인되지 않습니다. 다시 로그인 후 시도해주세요.');
+                        return;
+                    }
+                    const credential = firebase.auth.EmailAuthProvider.credential(user.email, currPw);
+                    await user.reauthenticateWithCredential(credential);
+                    await user.updatePassword(newPw);
+                    alert('비밀번호가 안전하게 변경되었습니다.');
+                } catch (e) {
+                    const code = String(e?.code || '');
+                    if (code === 'auth/wrong-password' || code === 'auth/invalid-credential') {
+                        alert('현재 비밀번호가 올바르지 않습니다.');
+                    } else if (code === 'auth/too-many-requests') {
+                        alert('시도가 너무 많습니다. 잠시 후 다시 시도해주세요.');
+                    } else {
+                        alert('비밀번호 변경 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
+                    }
+                    return;
+                }
 
                 document.getElementById('curr-pw').value = '';
                 document.getElementById('new-pw').value = '';
@@ -5715,51 +5744,10 @@ const filterSheet = document.getElementById('filter-sheet');
             }
 
             async function submitPartnerPasswordReset() {
-                if (!partnerRecoveryResetPartnerDocId) {
-                    setPartnerRecoveryResult('먼저 비밀번호 찾기를 통해 본인확인을 진행해주세요.', 'error');
-                    return;
-                }
-
-                const pw = document.getElementById('partner-recovery-new-pw')?.value || '';
-                const pwConfirm = document.getElementById('partner-recovery-new-pw-confirm')?.value || '';
-                if (!isValidPartnerSignupPassword(pw)) {
-                    setPartnerRecoveryResult('비밀번호 형식이 올바르지 않습니다.', 'error');
-                    return;
-                }
-                if (pw !== pwConfirm) {
-                    setPartnerRecoveryResult('새 비밀번호와 확인 값이 일치하지 않습니다.', 'error');
-                    return;
-                }
-                if (typeof firebase === 'undefined') {
-                    setPartnerRecoveryResult('데이터베이스 연결에 실패했습니다. 잠시 후 다시 시도해주세요.', 'error');
-                    return;
-                }
-
-                try {
-                    await firebase.firestore().collection('partners').doc(partnerRecoveryResetPartnerDocId).update({
-                        password: pw,
-                        passwordResetStatus: 'completed',
-                        passwordResetCompletedAt: firebase.firestore.FieldValue.serverTimestamp(),
-                        passwordResetCode: firebase.firestore.FieldValue.delete(),
-                        passwordResetExpiresAt: firebase.firestore.FieldValue.delete(),
-                        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-                    });
-
-                    setPartnerRecoveryResult('비밀번호가 재설정되었습니다. 로그인 화면으로 이동합니다.', 'success');
-                    setTimeout(() => {
-                        closePartnerRecoveryModal();
-                        openPartnerLoginScreen();
-                        const idInput = document.getElementById('partner-login-id-input');
-                        if (idInput && partnerRecoveryResetUserId) {
-                            idInput.value = partnerRecoveryResetUserId;
-                        }
-                        const pwInput = document.getElementById('partner-login-password-input');
-                        if (pwInput) pwInput.focus();
-                    }, 600);
-                } catch (e) {
-                    console.error('파트너 비밀번호 재설정 오류:', e);
-                    setPartnerRecoveryResult('비밀번호 재설정 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.', 'error');
-                }
+                setPartnerRecoveryResult(
+                    '보안 강화로 비밀번호 재설정 방식이 변경되었습니다. 관리자 문의를 통해 재설정 요청을 진행해주세요.',
+                    'error'
+                );
             }
 
             async function handlePartnerFindId() {
@@ -5802,10 +5790,10 @@ const filterSheet = document.getElementById('filter-sheet');
                         return;
                     }
 
-                    setPartnerRecoveryResult(`확인된 파트너 아이디는 ${matchedUserId} 입니다.`, 'success');
+                    setPartnerRecoveryResult(`확인된 파트너 이메일은 ${matchedUserId} 입니다.`, 'success');
                 } catch (e) {
-                    console.error('파트너 아이디 찾기 오류:', e);
-                    setPartnerRecoveryResult('아이디 조회 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.', 'error');
+                    console.error('파트너 이메일 찾기 오류:', e);
+                    setPartnerRecoveryResult('이메일 조회 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.', 'error');
                 }
             }
 
@@ -5814,7 +5802,7 @@ const filterSheet = document.getElementById('filter-sheet');
                 const company = document.getElementById('partner-find-pw-company')?.value?.trim();
 
                 if (!userId || !company) {
-                    setPartnerRecoveryResult('아이디와 업체명을 모두 입력해주세요.', 'error');
+                    setPartnerRecoveryResult('이메일과 업체명을 모두 입력해주세요.', 'error');
                     return;
                 }
                 if (typeof firebase === 'undefined') {
@@ -6059,6 +6047,10 @@ const filterSheet = document.getElementById('filter-sheet');
             function logoutPartnerToLogin() {
                 isPartnerLoggedIn = false;
                 currentPartner = null;
+                const auth = getAuthInstance();
+                if (auth?.currentUser) {
+                    auth.signOut().catch((e) => console.error('파트너 로그아웃(signOut) 실패:', e));
+                }
                 localStorage.removeItem('dadok_isPartnerLoggedIn');
                 sessionStorage.removeItem('dadok_isPartnerLoggedIn');
                 localStorage.removeItem('dadok_loggedInPartnerDocId');
@@ -6123,46 +6115,77 @@ const filterSheet = document.getElementById('filter-sheet');
 
                 if (hasError) return;
 
-                // -----------------------
-                // 1. 초기화 및 에러 체크
-                // -----------------------
-                let loginSuccess = false;
-                let loggedInPartnerDocId = null;
-                const idValue = idInput.value.trim();
+                const idValue = normalizeAuthEmail(idInput.value.trim());
                 const pwValue = passwordInput.value.trim();
-
-                if ((idValue === 'partner' || idValue === 'test') && pwValue === '1234') {
-                    loginSuccess = true;
-                } else {
-                    if (typeof firebase === 'undefined') {
-                        alert('데이터베이스 연결에 실패했습니다. 캐시 문제일 수 있으니 [Ctrl + F5]를 눌러 강력 새로고침 후 다시 시도해주세요.');
-                        return;
-                    }
-                    const firestoreDb = firebase.firestore();
-                    try {
-                        const partnerSnapshot = await firestoreDb.collection('partners').where('userId', '==', idValue).get();
-                        
-                        if (!partnerSnapshot.empty) {
-                            const partnerDoc = partnerSnapshot.docs[0];
-                            const partnerData = partnerDoc.data();
-                            
-                            if (partnerData.password === pwValue) {
-                                loginSuccess = true;
-                                loggedInPartnerDocId = partnerDoc.id;
-                                currentPartner = { id: partnerDoc.id, ...partnerData };
-                                
-                                await firestoreDb.collection('partners').doc(partnerDoc.id).update({
-                                    lastLoginAt: firebase.firestore.FieldValue.serverTimestamp()
-                                });
-                            }
-                        }
-                    } catch (error) {
-                        console.error('파트너 로그인 검증 실패:', error);
-                    }
+                if (!isValidEmailFormat(idValue)) {
+                    mismatchError.classList.remove('hidden');
+                    idInput.classList.add('!border-[#ef4444]');
+                    return;
                 }
-
-                if (loginSuccess) {
+                if (typeof firebase === 'undefined') {
+                    alert('데이터베이스 연결에 실패했습니다. 캐시 문제일 수 있으니 [Ctrl + F5]를 눌러 강력 새로고침 후 다시 시도해주세요.');
+                    return;
+                }
+                const auth = getAuthInstance();
+                if (!auth) {
+                    alert('인증 기능을 초기화하지 못했습니다. 잠시 후 다시 시도해주세요.');
+                    return;
+                }
+                const firestoreDb = firebase.firestore();
+                try {
                     const keepLogin = document.getElementById('partner-keep-login-checkbox').checked;
+                    await applyAuthPersistenceByKeepLogin(keepLogin);
+                    const authEmail = buildAuthEmailByRole(idValue, 'partner');
+                    try {
+                        await auth.signInWithEmailAndPassword(authEmail, pwValue);
+                    } catch (signInError) {
+                        // 레거시 파트너 계정 마이그레이션
+                        const signInCode = String(signInError?.code || '');
+                        if (
+                            signInCode === 'auth/user-not-found' ||
+                            signInCode === 'auth/invalid-credential' ||
+                            signInCode === 'auth/wrong-password'
+                        ) {
+                            const partnerSnapshot = await firestoreDb.collection('partners').where('userId', '==', idValue).limit(1).get();
+                            if (partnerSnapshot.empty) throw signInError;
+                            const partnerDoc = partnerSnapshot.docs[0];
+                            const partnerData = partnerDoc.data() || {};
+                            const legacyPw = String(partnerData.password || '');
+                            if (!legacyPw || legacyPw !== pwValue) throw signInError;
+                            const cred = await auth.createUserWithEmailAndPassword(authEmail, pwValue);
+                            await partnerDoc.ref.set(
+                                {
+                                    authUid: String(cred?.user?.uid || ''),
+                                    authEmail,
+                                    authRole: 'partner',
+                                    password: firebase.firestore.FieldValue.delete(),
+                                    updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                                },
+                                { merge: true },
+                            );
+                        } else {
+                            throw signInError;
+                        }
+                    }
+
+                    let loggedInPartnerDocId = null;
+                    const partnerSnapshot = await firestoreDb.collection('partners').where('userId', '==', idValue).limit(1).get();
+                    if (!partnerSnapshot.empty) {
+                        const partnerDoc = partnerSnapshot.docs[0];
+                        const partnerData = partnerDoc.data() || {};
+                        loggedInPartnerDocId = partnerDoc.id;
+                        currentPartner = { id: partnerDoc.id, ...partnerData };
+                        await partnerDoc.ref.set({
+                            authUid: String(auth.currentUser?.uid || partnerData.authUid || ''),
+                            authEmail,
+                            authRole: 'partner',
+                            lastLoginAt: firebase.firestore.FieldValue.serverTimestamp()
+                        }, { merge: true });
+                    }
+                    if (!loggedInPartnerDocId) {
+                        throw new Error('PARTNER_PROFILE_NOT_FOUND');
+                    }
+
                     isPartnerLoggedIn = true;
                     // 파트너 로그인 시 일반회원 세션을 함께 정리해 동시 로그인 상태를 방지
                     isLoggedIn = false;
@@ -6214,7 +6237,8 @@ const filterSheet = document.getElementById('filter-sheet');
                         idInput.value = '';
                         passwordInput.value = '';
                     }, 300);
-                } else {
+                } catch (error) {
+                    console.error('파트너 로그인 검증 실패:', error);
                     mismatchError.classList.remove('hidden');
                     idInput.classList.add('!border-[#ef4444]');
                     passwordInput.classList.add('!border-[#ef4444]');
@@ -6267,10 +6291,10 @@ const filterSheet = document.getElementById('filter-sheet');
 
                 if (type === 'terms') {
                     titleEl.innerText = "서비스 이용약관";
-                    contentEl.innerText = "제 1장 총칙\n\n제 1조 [목적]\n본 약관은 다독(이하 '회사')이 제공하는 위치기반 마사지 정보 제공 서비스 및 제반 서비스의 이용과 관련하여 회사와 회원의 권리, 의무 및 책임사항을 규정함을 목적으로 합니다.\n\n제 2조 [운영 목적 범위 내 정보 확인]\n회사는 서비스 운영 안정화, 고객 문의/분쟁 처리, 부정 이용 탐지 및 보안 점검을 위해 권한이 부여된 관리자에 한하여 필요한 범위 내에서 전화 클릭 로그, 메시지 관련 운영 데이터를 확인할 수 있습니다.\n\n제 3조 [최소 열람 및 기록]\n관리자 열람은 업무상 필요 시에 한정되며, 열람 사유/시각/대상 범위를 기록하여 내부 통제를 수행합니다.\n\n제 4조 [약관의 고지와 개정]\n회사는 본 약관을 서비스 화면에 게시하며, 법령 및 운영정책 변경 시 관련 절차에 따라 고지합니다.";
+                    contentEl.innerText = "제 1장 총칙\n\n제 1조 [목적]\n본 약관은 다독(이하 '회사')이 제공하는 피부·바디 케어(테라피) 목적의 정보 제공/중개 서비스와 관련하여 회사와 회원의 권리, 의무 및 책임사항을 규정함을 목적으로 합니다.\n\n제 2조 [서비스 성격]\n회사는 이용자와 파트너를 연결하는 플랫폼 운영자이며, 현장 서비스의 직접 제공 주체가 아닙니다.\n\n제 3조 [금지 행위]\n회원 및 파트너는 성적 서비스 요구, 성매매 알선/유도, 폭언·협박, 불법 촬영, 사기 및 기타 불법·유해 행위를 해서는 안 됩니다.\n\n제 4조 [운영 목적 범위 내 정보 확인]\n회사는 운영 안정화, 고객 문의/분쟁 처리, 부정 이용 탐지 및 보안 점검을 위해 권한이 부여된 관리자에 한하여 필요한 범위 내 운영 데이터를 확인할 수 있습니다.\n\n제 5조 [최소 열람 및 기록]\n관리자 열람은 업무상 필요 시에 한정되며, 열람 사유/시각/대상 범위를 기록하여 내부 통제를 수행합니다.\n\n제 6조 [제재 및 협조]\n금지 행위 적발 시 경고 없이 이용 제한, 계정 정지 또는 영구 이용 제한이 가능하며, 법령에 따라 관계 기관 요청 시 필요한 범위에서 협조할 수 있습니다.\n\n제 7조 [약관의 고지와 개정]\n회사는 본 약관을 서비스 화면에 게시하며, 법령 및 운영정책 변경 시 관련 절차에 따라 고지합니다.";
                 } else if (type === 'privacy') {
                     titleEl.innerText = "개인정보 수집 및 동의";
-                    contentEl.innerText = "개인정보 수집 및 이용 동의\n\n1. 수집하는 개인정보 항목\n- 필수: 아이디, 비밀번호, 이름/업체명, 대표자명, 휴대폰 번호, 사업자등록번호\n- 서비스 이용 과정에서 생성: 접속/이용기록, 전화 클릭 로그, 고객센터/운영 메시지 관련 기록\n- 선택: 업체 사진, 영업 시간, 계좌번호 등\n\n2. 개인정보 수집 및 이용 목적\n- 회원 가입 및 본인 확인\n- 서비스 제공, 고객 문의 응대, 분쟁 처리\n- 서비스 안정성 확보, 부정 이용 탐지, 보안 점검\n\n3. 관리자 열람 고지\n회사는 위 목적 범위 내에서 권한이 부여된 관리자에게 최소 범위의 열람 권한을 부여할 수 있으며, 열람 내역은 내부 기준에 따라 기록/관리합니다.\n\n4. 개인정보 보유 및 이용 기간\n원칙적으로 목적 달성 후 지체 없이 파기하며, 관련 법령에 따라 보존 의무가 있는 경우 해당 기간 동안 보관합니다.";
+                    contentEl.innerText = "개인정보 수집 및 이용 동의\n\n1. 수집하는 개인정보 항목\n- 공통 필수: 이메일 주소, 비밀번호\n- 파트너 가입 시 필수: 업체명, 대표자명, 휴대폰 번호\n- 파트너 유형별 추가 수집(선택/필수는 정책에 따름): 사업자 정보, 본인확인 자료(마스킹본)\n- 서비스 이용 과정에서 생성: 접속/이용기록, 고객센터/운영 메시지 관련 기록\n\n2. 개인정보 수집 및 이용 목적\n- 회원 가입 및 본인 확인\n- 서비스 제공, 고객 문의 응대, 분쟁 처리\n- 서비스 안정성 확보, 부정 이용 탐지, 보안 점검\n\n3. 관리자 열람 고지\n회사는 위 목적 범위 내에서 권한이 부여된 관리자에게 최소 범위의 열람 권한을 부여할 수 있으며, 열람 내역은 내부 기준에 따라 기록/관리합니다.\n\n4. 보관 및 파기\n원칙적으로 목적 달성 후 지체 없이 파기하며, 관련 법령 또는 내부 보관정책에 따라 일정 기간 보관 후 안전하게 파기합니다.";
                 }
 
                 modal.style.display = 'flex';
@@ -6488,8 +6512,8 @@ const filterSheet = document.getElementById('filter-sheet');
                 let bizType = checkedRadio ? checkedRadio.value : '개인사업자';
                 const legalConsent = buildLegalConsentPayload('partner');
                 
-                if (id.length < SIGNUP_ID_MIN_LENGTH) {
-                    alert('아이디는 4자리 이상 입력해주세요.');
+                if (!isValidEmailFormat(id)) {
+                    alert('이메일 형식으로 입력해주세요.');
                     return;
                 }
 
@@ -6521,20 +6545,26 @@ const filterSheet = document.getElementById('filter-sheet');
                     return;
                 }
 
+                const auth = getAuthInstance();
+                if (!auth) {
+                    alert('인증 기능을 초기화하지 못했습니다. 잠시 후 다시 시도해주세요.');
+                    return;
+                }
+
                 const firestoreDb = firebase.firestore();
                 
                 try {
                     const isDuplicate = await checkIdDuplicateAcrossUsersAndPartners(id);
                     if (isDuplicate) {
-                        alert('이미 사용중인 파트너 아이디입니다.');
+                        alert('이미 사용중인 파트너 이메일입니다.');
                         partnerSignupIdStatus = 'duplicate';
-                        setIdStatusMessage(document.getElementById('partner-signup-id-status-msg'), 'duplicate', '※ 이미 사용 중인 아이디입니다.');
+                        setIdStatusMessage(document.getElementById('partner-signup-id-status-msg'), 'duplicate', '※ 이미 사용 중인 이메일입니다.');
                         checkPartnerSignupForm();
                         return;
                     }
                 } catch (error) {
-                    console.error('파트너 아이디 중복 확인 실패:', error);
-                    alert(`아이디 중복 확인 중 오류가 발생했습니다.\n${formatFirebaseError(error)}`);
+                    console.error('파트너 이메일 중복 확인 실패:', error);
+                    alert(`이메일 중복 확인 중 오류가 발생했습니다.\n${formatFirebaseError(error)}`);
                     setPartnerSignupSubmitButtonLabel('가입하기');
                     return;
                 }
@@ -6560,11 +6590,20 @@ const filterSheet = document.getElementById('filter-sheet');
                 }
 
                 setPartnerSignupSubmitButtonLabel('데이터 저장 중...');
+                let createdAuthUser = null;
                 try {
+                    const normalizedEmail = normalizeAuthEmail(id);
+                    const authEmail = buildAuthEmailByRole(normalizedEmail, 'partner');
+                    await applyAuthPersistenceByKeepLogin(false);
+                    const cred = await auth.createUserWithEmailAndPassword(authEmail, pw);
+                    createdAuthUser = cred?.user || null;
+
                     // 파트너 컬렉션에 새 문서 저장
                     await firestoreDb.collection('partners').add({
-                        userId: id,
-                        password: pw, // 향후 암호화 적용 권장
+                        userId: normalizedEmail,
+                        authUid: String(createdAuthUser?.uid || ''),
+                        authEmail,
+                        authRole: 'partner',
                         name: company,
                         ownerName: ownerName,
                         phone: phone,
@@ -6576,9 +6615,24 @@ const filterSheet = document.getElementById('filter-sheet');
                         createdAt: now,
                         updatedAt: now
                     });
+                    if (createdAuthUser) {
+                        await auth.signOut();
+                    }
                 } catch (error) {
                     console.error('파트너 문서 저장 실패:', error);
-                    alert(`가입 데이터 저장 중 오류가 발생했습니다.\n${formatFirebaseError(error)}`);
+                    if (createdAuthUser) {
+                        try {
+                            await createdAuthUser.delete();
+                        } catch (rollbackError) {
+                            console.error('파트너 가입 롤백 실패:', rollbackError);
+                        }
+                    }
+                    const code = String(error?.code || '');
+                    if (code === 'auth/email-already-in-use') {
+                        alert('이미 사용 중인 파트너 이메일입니다.');
+                    } else {
+                        alert(`가입 데이터 저장 중 오류가 발생했습니다.\n${formatFirebaseError(error)}`);
+                    }
                     setPartnerSignupSubmitButtonLabel('가입하기');
                     return;
                 }
@@ -6944,7 +6998,7 @@ const filterSheet = document.getElementById('filter-sheet');
                 const idError = document.getElementById('login-id-error');
                 const pwError = document.getElementById('login-password-error');
                 const mismatchError = document.getElementById('login-mismatch-error');
-                const idValue = idInput.value.trim();
+                const idValue = normalizeAuthEmail(idInput.value.trim());
                 const pwValue = passwordInput.value.trim();
 
                 if (idError) idError.classList.add('hidden');
@@ -6959,6 +7013,11 @@ const filterSheet = document.getElementById('filter-sheet');
                     if (idInput) idInput.classList.add('!border-[#ef4444]');
                     hasError = true;
                 }
+                if (!isValidEmailFormat(idValue)) {
+                    if (mismatchError) mismatchError.classList.remove('hidden');
+                    if (idInput) idInput.classList.add('!border-[#ef4444]');
+                    return;
+                }
                 if (!pwValue) {
                     if (pwError) pwError.classList.remove('hidden');
                     if (passwordInput) passwordInput.classList.add('!border-[#ef4444]');
@@ -6971,42 +7030,79 @@ const filterSheet = document.getElementById('filter-sheet');
                     return;
                 }
 
+                const auth = getAuthInstance();
+                if (!auth) {
+                    alert('인증 기능을 초기화하지 못했습니다. 잠시 후 다시 시도해주세요.');
+                    return;
+                }
                 const firestoreDb = firebase.firestore();
                 try {
-                    const userSnapshot = await firestoreDb.collection('users').where('userId', '==', idValue).get();
-                    
-                    if (!userSnapshot.empty) {
-                        const userDoc = userSnapshot.docs[0];
-                        const userData = userDoc.data();
-                        
-                        // 과거 데이터라서 비밀번호가 없으면 1234로 통과시키거나 저장된 비밀번호 비교
-                        if ((!userData.password && pwValue === '1234') || (userData.password && userData.password === pwValue)) {
-                            
-                            // 최근 접속일시 갱신
-                            await firestoreDb.collection('users').doc(userDoc.id).update({
-                                lastLoginAt: firebase.firestore.FieldValue.serverTimestamp()
-                            });
-
-                            let resolvedGenderKey = '';
-                            if (userData.gender === '남성') resolvedGenderKey = 'male';
-                            else if (userData.gender === '여성') resolvedGenderKey = 'female';
-                            const resolvedProfileImage =
-                                userData.profileImageUrl ||
-                                userData.photoURL ||
-                                userData.avatarUrl ||
-                                userData.image ||
-                                '';
-                            completeLoginProcess(
-                                idValue,
-                                userDoc.id,
-                                resolvedGenderKey,
-                                resolvedProfileImage,
+                    const keepLoginBox = document.getElementById('keep-login-checkbox');
+                    await applyAuthPersistenceByKeepLogin(Boolean(keepLoginBox?.checked));
+                    const authEmail = buildAuthEmailByRole(idValue, 'user');
+                    try {
+                        await auth.signInWithEmailAndPassword(authEmail, pwValue);
+                    } catch (signInError) {
+                        // 레거시 평문 비밀번호 계정 1회 마이그레이션
+                        const signInCode = String(signInError?.code || '');
+                        if (
+                            signInCode === 'auth/user-not-found' ||
+                            signInCode === 'auth/invalid-credential' ||
+                            signInCode === 'auth/wrong-password'
+                        ) {
+                            const legacySnap = await firestoreDb.collection('users').where('userId', '==', idValue).limit(1).get();
+                            if (legacySnap.empty) throw signInError;
+                            const legacyDoc = legacySnap.docs[0];
+                            const legacyData = legacyDoc.data() || {};
+                            const legacyPw = String(legacyData.password || '');
+                            if (!legacyPw || legacyPw !== pwValue) throw signInError;
+                            const cred = await auth.createUserWithEmailAndPassword(authEmail, pwValue);
+                            await legacyDoc.ref.set(
+                                {
+                                    authUid: String(cred?.user?.uid || ''),
+                                    authEmail,
+                                    authRole: 'user',
+                                    password: firebase.firestore.FieldValue.delete(),
+                                    updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                                },
+                                { merge: true },
                             );
-                            return;
+                        } else {
+                            throw signInError;
                         }
                     }
-                    
-                    // ID 없거나 비밀번호 불일치
+
+                    const userSnapshot = await firestoreDb.collection('users').where('userId', '==', idValue).limit(1).get();
+                    if (!userSnapshot.empty) {
+                        const userDoc = userSnapshot.docs[0];
+                        const userData = userDoc.data() || {};
+                        await userDoc.ref.set(
+                            {
+                                authUid: String(auth.currentUser?.uid || userData.authUid || ''),
+                                authEmail: buildAuthEmailByRole(idValue, 'user'),
+                                authRole: 'user',
+                                lastLoginAt: firebase.firestore.FieldValue.serverTimestamp()
+                            },
+                            { merge: true }
+                        );
+                        let resolvedGenderKey = '';
+                        if (userData.gender === '남성') resolvedGenderKey = 'male';
+                        else if (userData.gender === '여성') resolvedGenderKey = 'female';
+                        const resolvedProfileImage =
+                            userData.profileImageUrl ||
+                            userData.photoURL ||
+                            userData.avatarUrl ||
+                            userData.image ||
+                            '';
+                        completeLoginProcess(
+                            idValue,
+                            userDoc.id,
+                            resolvedGenderKey,
+                            resolvedProfileImage,
+                        );
+                        return;
+                    }
+
                     if (mismatchError) mismatchError.classList.remove('hidden');
                     if (idInput) idInput.classList.add('!border-[#ef4444]');
                     if (passwordInput) passwordInput.classList.add('!border-[#ef4444]');
@@ -8018,6 +8114,10 @@ const filterSheet = document.getElementById('filter-sheet');
             // 로그아웃 처리
             function logout() {
                 isLoggedIn = false;
+                const auth = getAuthInstance();
+                if (auth?.currentUser) {
+                    auth.signOut().catch((e) => console.error('로그아웃(signOut) 실패:', e));
+                }
                 const headerProfileBtn = document.getElementById('header-profile-btn');
                 if (headerProfileBtn) {
                     headerProfileBtn.setAttribute('onclick', "openLoginModal()");
@@ -8099,12 +8199,31 @@ const filterSheet = document.getElementById('filter-sheet');
 
             // 페이지 로드 시 로그인 상태 복원
             function checkLoginState() {
+                isLoggedIn = false;
+                isPartnerLoggedIn = false;
+                const auth = getAuthInstance();
+                const authReady = Boolean(auth && auth.currentUser);
                 const partnerLoggedInPersisted =
                     localStorage.getItem('dadok_isPartnerLoggedIn') === 'true' ||
                     sessionStorage.getItem('dadok_isPartnerLoggedIn') === 'true';
                 const userLoggedInPersisted =
                     localStorage.getItem('dadok_isLoggedIn') === 'true' ||
                     sessionStorage.getItem('dadok_isLoggedIn') === 'true';
+
+                if (!authReady && (partnerLoggedInPersisted || userLoggedInPersisted)) {
+                    localStorage.removeItem('dadok_isLoggedIn');
+                    localStorage.removeItem('dadok_username');
+                    localStorage.removeItem('dadok_loggedInUserDocId');
+                    sessionStorage.removeItem('dadok_isLoggedIn');
+                    sessionStorage.removeItem('dadok_username');
+                    sessionStorage.removeItem('dadok_loggedInUserDocId');
+                    localStorage.removeItem('dadok_isPartnerLoggedIn');
+                    localStorage.removeItem('dadok_loggedInPartnerDocId');
+                    localStorage.removeItem('dadok_loggedInPartnerUserId');
+                    sessionStorage.removeItem('dadok_isPartnerLoggedIn');
+                    sessionStorage.removeItem('dadok_loggedInPartnerDocId');
+                    sessionStorage.removeItem('dadok_loggedInPartnerUserId');
+                }
 
                 // 과거 버전에서 남은 동시 로그인 잔존값 정리
                 if (partnerLoggedInPersisted && userLoggedInPersisted) {
@@ -8134,7 +8253,7 @@ const filterSheet = document.getElementById('filter-sheet');
                     }
                 }
 
-                if (localStorage.getItem('dadok_isPartnerLoggedIn') === 'true' || sessionStorage.getItem('dadok_isPartnerLoggedIn') === 'true') {
+                if (authReady && (localStorage.getItem('dadok_isPartnerLoggedIn') === 'true' || sessionStorage.getItem('dadok_isPartnerLoggedIn') === 'true')) {
                     isPartnerLoggedIn = true;
                     loadNotificationSettings('partner').then((settings) => {
                         if (settings.push.enabled) {
@@ -8142,7 +8261,7 @@ const filterSheet = document.getElementById('filter-sheet');
                         }
                     });
                 }
-                if (localStorage.getItem('dadok_isLoggedIn') === 'true') {
+                if (authReady && localStorage.getItem('dadok_isLoggedIn') === 'true') {
                     isLoggedIn = true;
                     updateHeaderToLoggedInState(localStorage.getItem('dadok_username') || 'test');
                     syncLoggedInUserProfileImageFromFirestore();
@@ -8151,7 +8270,7 @@ const filterSheet = document.getElementById('filter-sheet');
                             bindForegroundPushListener();
                         }
                     });
-                } else if (sessionStorage.getItem('dadok_isLoggedIn') === 'true') {
+                } else if (authReady && sessionStorage.getItem('dadok_isLoggedIn') === 'true') {
                     isLoggedIn = true;
                     updateHeaderToLoggedInState(sessionStorage.getItem('dadok_username') || 'test');
                     syncLoggedInUserProfileImageFromFirestore();
@@ -8250,7 +8369,14 @@ const filterSheet = document.getElementById('filter-sheet');
             document.addEventListener('DOMContentLoaded', () => {
                 window.partnerCustomReviews = {};
                 window.partnerMockReviews = {};
-                checkLoginState();
+                const auth = getAuthInstance();
+                if (auth) {
+                    auth.onAuthStateChanged(() => {
+                        checkLoginState();
+                    });
+                } else {
+                    checkLoginState();
+                }
                 initSliderDrag();
             });
 
@@ -9586,7 +9712,7 @@ const filterSheet = document.getElementById('filter-sheet');
                     tabReport.classList.remove('text-[var(--text-sub)]');
                     tabInquiry.classList.add('text-[var(--text-sub)]');
                     tabInquiry.classList.remove('text-[var(--point-color)]');
-                    desc.innerHTML = '건강하고 클린한 환경을 위해<br>불법·불쾌 행위 제보를 받습니다.';
+                    desc.innerHTML = '건전한 피부·바디 케어 서비스 운영을 위해<br>불법·유해 행위 제보를 접수합니다.';
                 } else {
                     tabBg.style.transform = 'translateX(100%)';
                     tabInquiry.classList.add('text-[var(--point-color)]');
