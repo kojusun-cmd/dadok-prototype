@@ -50,7 +50,7 @@
 
     <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@300;400;500;600;700&display=swap"
         rel="stylesheet">
-    <link rel="stylesheet" href="assets/css/style.css?v=20260422_01">
+    <link rel="stylesheet" href="assets/css/style.css?v=20260429_07">
 </head>
 
 <body>
@@ -933,9 +933,9 @@
                         </div>
 
                         <div class="flex flex-col gap-2">
-                            <label class="text-[var(--text-sub)] text-[14px] font-bold tracking-widest ml-1">사업체
-                                번호</label>
-                            <input id="partner-signup-phone" oninput="checkPartnerSignupForm()" type="tel" placeholder="문의 가능한 번호를 남겨주세요"
+                            <label class="text-[var(--text-sub)] text-[14px] font-bold tracking-widest ml-1">업체
+                                문의전화</label>
+                            <input id="partner-signup-phone" oninput="checkPartnerSignupForm()" type="tel" placeholder="고객이 문의/예약 시 연락할 번호입니다."
                                 class="w-full bg-[#0A1B13] border border-[#2A3731] rounded-xl px-4 py-4 text-[var(--text-main)] placeholder-[var(--text-sub)]/50 font-medium text-[16px] focus:outline-none focus:border-[var(--point-color)] transition-all">
                             <span id="partner-signup-phone-status-msg" class="text-[13px] font-bold ml-1 hidden"></span>
                         </div>
@@ -948,25 +948,26 @@
                                     <input type="radio" name="business_type" value="개인사업자"
                                         class="w-5 h-5 text-[var(--point-color)] focus:ring-[var(--point-color)] bg-[#0A1B13] border-[#2A3731]"
                                         checked
-                                        onchange="document.getElementById('biz-no-wrapper').style.display='flex'">
+                                        onchange="document.getElementById('biz-no-wrapper').style.display='flex'; updatePartnerSignupBizTypeUi()">
                                     <span
                                         class="partner-biz-type-option text-[var(--text-main)] text-[15px] group-hover:text-[var(--point-color)] transition-colors">개인사업자</span>
                                 </label>
                                 <label class="flex items-center gap-2 cursor-pointer group">
                                     <input type="radio" name="business_type" value="법인사업자"
                                         class="w-5 h-5 text-[var(--point-color)] focus:ring-[var(--point-color)] bg-[#0A1B13] border-[#2A3731]"
-                                        onchange="document.getElementById('biz-no-wrapper').style.display='flex'">
+                                        onchange="document.getElementById('biz-no-wrapper').style.display='flex'; updatePartnerSignupBizTypeUi()">
                                     <span
                                         class="partner-biz-type-option text-[var(--text-main)] text-[15px] group-hover:text-[var(--point-color)] transition-colors">법인사업자</span>
                                 </label>
                                 <label class="flex items-center gap-2 cursor-pointer group">
-                                    <input type="radio" name="business_type" value="미등록(개인)"
+                                    <input type="radio" name="business_type" value="일반(개인)"
                                         class="w-5 h-5 text-[var(--point-color)] focus:ring-[var(--point-color)] bg-[#0A1B13] border-[#2A3731]"
-                                        onchange="document.getElementById('biz-no-wrapper').style.display='none'">
+                                        onchange="document.getElementById('biz-no-wrapper').style.display='none'; updatePartnerSignupBizTypeUi()">
                                     <span
-                                        class="partner-biz-type-option text-[var(--text-main)] text-[15px] group-hover:text-[var(--point-color)] transition-colors">미등록(개인)</span>
+                                        class="partner-biz-type-option text-[var(--text-main)] text-[15px] group-hover:text-[var(--point-color)] transition-colors">일반(개인)</span>
                                 </label>
                             </div>
+                            <p id="partner-biztype-general-note" class="text-[12px] text-[var(--text-sub)]/80 ml-1 hidden">일반(개인) 선택 시 사업자등록번호 없이 자격/신원 증빙 기반으로 심사합니다.</p>
                         </div>
 
                         <div id="biz-no-wrapper" class="flex flex-col gap-2 mt-1 transition-all">
@@ -987,7 +988,7 @@
                             if(this.files && this.files.length > 0) {
                                 fileLabel.innerHTML = `<span class='text-[var(--point-color)] font-bold'>${this.files[0].name}</span> 첨부됨`;
                             } else {
-                                fileLabel.innerHTML = '사업자등록증 또는 신분증 업로드';
+                                updatePartnerSignupBizTypeUi();
                             }
                             checkPartnerSignupForm();
                         ">
@@ -997,11 +998,18 @@
                                         d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
                                 </svg>
                                 <span id="partner-signup-file-label"
-                                    class="text-[15px] text-[var(--text-main)] font-medium text-center">사업자등록증 또는 신분증
+                                    class="text-[15px] text-[var(--text-main)] font-medium text-center">사업자등록증 또는 자격/신분
                                     업로드</span>
-                                <span class="text-[13px] text-[var(--text-sub)] text-center">신분증 업로드 시 뒷자리는 반드시<br><span
+                                <span id="partner-signup-file-guide" class="text-[13px] text-[var(--text-sub)] text-center">신분증 업로드 시 뒷자리는 반드시<br><span
                                         class="text-[var(--point-color)] font-bold">가림 처리(마스킹)</span> 후 업로드 해주세요.</span>
                             </div>
+                            <label class="flex items-start gap-3 mt-2 cursor-pointer group">
+                                <input id="partner-signup-id-mask-confirm" type="checkbox" onchange="checkPartnerSignupForm()"
+                                    class="mt-1 w-4.5 h-4.5 text-[var(--point-color)] bg-[#0A1B13] border-[#2A3731] rounded focus:ring-[var(--point-color)]">
+                                <span class="text-[13px] text-[var(--text-sub)] leading-relaxed">
+                                    신분증 업로드 시 주민등록번호 뒷자리를 <span class="text-[var(--point-color)] font-bold">가림 처리(마스킹)</span> 했음을 확인합니다.
+                                </span>
+                            </label>
                         </div>
                     </div>
 
@@ -1120,7 +1128,7 @@
                                     <span
                                         class="text-[var(--text-main)] text-[15px] leading-snug pt-[1px]"><span
                                             class="text-[var(--point-color)]">[필수]</span> 플랫폼 면책 고지 동의</span>
-                                    <span class="text-[var(--text-sub)] text-[14px] font-medium leading-relaxed">이용자-파트너 간 현장 거래 및 서비스 과정에서 발생한 분쟁은 당사자 책임 원칙이 적용되며, 운영사는 고의·중과실이 없는 한 책임을 지지 않음을 인지합니다.</span>
+                                    <span class="text-[var(--text-sub)] text-[14px] font-medium leading-relaxed">이용자-파트너 간 현장 거래 및 서비스 과정에서 발생한 분쟁은 당사자 책임 원칙이 적용되며, 운영사는 고의·중과실이 없는 한 책임을 지지 않음을 인지합니다. 또한 일반(개인) 유형을 포함한 모든 파트너는 관련 법령 준수 책임이 본인에게 있음을 확인합니다.</span>
                                 </div>
                             </label>
                         </div>
@@ -3017,7 +3025,7 @@
             </div>
         </div>
 
-        <script src="assets/js/script.js?v=20260423_01"></script>
+        <script src="assets/js/script.js?v=20260428_05"></script>
     </div>
 
     <!-- Global Custom Toast -->

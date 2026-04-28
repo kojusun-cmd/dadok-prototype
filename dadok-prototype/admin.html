@@ -503,7 +503,7 @@
                         </div>
                     </div>
                 </div>
-                <input type="text" id="shop-filter-phone" placeholder="연락처 검색 (숫자만 가능)" class="w-full h-11 bg-[#06110D] border border-[#2A3731] rounded-xl px-4 text-white focus:outline-none focus:border-[var(--point-color)] transition-colors">
+                <input type="text" id="shop-filter-phone" placeholder="업체 문의전화 검색 (숫자만 가능)" class="w-full h-11 bg-[#06110D] border border-[#2A3731] rounded-xl px-4 text-white focus:outline-none focus:border-[var(--point-color)] transition-colors">
                 <div class="relative">
                     <button id="shop-filter-region-toggle" type="button" class="w-full h-11 bg-[#06110D] border border-[#2A3731] rounded-xl px-4 text-left text-white focus:outline-none focus:border-[var(--point-color)] transition-colors flex items-center justify-between gap-2">
                         <span id="shop-filter-region-selected" class="block truncate">지역: 전체</span>
@@ -592,7 +592,7 @@
                             <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-500">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
                             </span>
-                            <input type="text" id="approval-search" oninput="filterApprovalList()" placeholder="샵 이름, 지역, 연락처..." class="w-full bg-[#11291D] border border-[#2A3731] rounded-lg pl-9 pr-4 py-2.5 text-white text-sm focus:outline-none focus:border-[var(--point-color)] transition-colors">
+                            <input type="text" id="approval-search" oninput="filterApprovalList()" placeholder="샵 이름, 지역, 업체 문의전화..." class="w-full bg-[#11291D] border border-[#2A3731] rounded-lg pl-9 pr-4 py-2.5 text-white text-sm focus:outline-none focus:border-[var(--point-color)] transition-colors">
                         </div>
                     </div>
                     <div class="flex-1 overflow-y-auto overflow-x-hidden p-3 space-y-2" id="approvals-inbox-list">
@@ -636,7 +636,7 @@
                                     <p id="approval-owner" class="text-white font-medium bg-[#0A1B13] p-3 rounded-lg border border-[#2A3731]/50">-</p>
                                 </div>
                                 <div class="col-span-2 md:col-span-1">
-                                    <label class="block text-sm font-medium text-[#A7B2AE] mb-1">휴대폰 번호</label>
+                                    <label class="block text-sm font-medium text-[#A7B2AE] mb-1">업체 문의전화</label>
                                     <p id="approval-phone" class="text-white font-medium bg-[#0A1B13] p-3 rounded-lg border border-[#2A3731]/50">-</p>
                                 </div>
                                 <div class="col-span-2 md:col-span-1">
@@ -1224,7 +1224,7 @@
                             <input type="text" id="shop-mobile" class="w-full bg-[#0A1B13] border border-[#2A3731] rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[var(--point-color)]">
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-[#A7B2AE] mb-1">업체연락처</label>
+                            <label class="block text-sm font-medium text-[#A7B2AE] mb-1">업체 문의전화</label>
                             <input type="text" id="shop-contact" class="w-full bg-[#0A1B13] border border-[#2A3731] rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[var(--point-color)]">
                         </div>
                         <div>
@@ -1481,7 +1481,7 @@
     </div>
 
     <!-- Scripts -->
-    <script src="./assets/js/admin.js?v=20260421_07"></script>
+    <script src="./assets/js/admin.js?v=20260428_01"></script>
     <style>
         .tab-link.active { background-color: #11291D; color: white; border-left: 3px solid var(--point-color); }
         .no-select-arrow {

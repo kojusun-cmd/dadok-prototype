@@ -6253,6 +6253,7 @@ const filterSheet = document.getElementById('filter-sheet');
                 const modal = document.getElementById('partner-signup-modal');
                 if (modal) forcePartnerSignupTop();
                 modal.style.display = 'flex';
+                updatePartnerSignupBizTypeUi();
                 setTimeout(() => {
                     modal.classList.remove('translate-x-full');
                     forcePartnerSignupTop();
@@ -6393,7 +6394,10 @@ const filterSheet = document.getElementById('filter-sheet');
                 const fileInput = document.getElementById('partner-signup-file');
                 if (fileInput) fileInput.value = '';
                 const fileLabel = document.getElementById('partner-signup-file-label');
-                if (fileLabel) fileLabel.innerHTML = '사업자등록증 또는 신분증 업로드';
+                if (fileLabel) fileLabel.innerHTML = '사업자등록증 또는 자격/신분 업로드';
+                const idMaskConfirm = document.getElementById('partner-signup-id-mask-confirm');
+                if (idMaskConfirm) idMaskConfirm.checked = false;
+                updatePartnerSignupBizTypeUi();
 
                 const reqBoxes = document.querySelectorAll('#partner-signup-modal .req-agree');
                 reqBoxes.forEach((box) => setPartnerAgreeCheckboxState(box, false));
@@ -6408,6 +6412,36 @@ const filterSheet = document.getElementById('filter-sheet');
                 setPartnerSignupSubmitButtonLabel('가입하기');
 
                 checkPartnerSignupForm();
+            }
+
+            function updatePartnerSignupBizTypeUi() {
+                const checkedRadio = document.querySelector('input[name="business_type"]:checked');
+                const bizType = checkedRadio ? checkedRadio.value : '개인사업자';
+                const fileLabel = document.getElementById('partner-signup-file-label');
+                const fileGuide = document.getElementById('partner-signup-file-guide');
+                const generalNote = document.getElementById('partner-biztype-general-note');
+
+                if (generalNote) {
+                    generalNote.classList.toggle('hidden', bizType !== '일반(개인)');
+                }
+
+                if (fileLabel) {
+                    if (bizType === '일반(개인)') {
+                        fileLabel.innerHTML = '자격/신분 업로드';
+                    } else {
+                        fileLabel.innerHTML = '사업자등록증 업로드';
+                    }
+                }
+
+                if (fileGuide) {
+                    if (bizType === '일반(개인)') {
+                        fileGuide.innerHTML =
+                            '자격증, 신분증(마스킹), 기타 활동 증빙 중<br><span class="text-[var(--point-color)] font-bold">1개 이상</span> 업로드해 주세요.';
+                    } else {
+                        fileGuide.innerHTML =
+                            '사업자 유형은 사업자등록증을 업로드해 주세요.<br>신분증 첨부 시 뒷자리는 반드시 <span class="text-[var(--point-color)] font-bold">가림 처리(마스킹)</span> 후 업로드해 주세요.';
+                    }
+                }
             }
 
 
@@ -6478,6 +6512,10 @@ const filterSheet = document.getElementById('filter-sheet');
                 if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
                     valid = false;
                 }
+                const idMaskConfirm = document.getElementById('partner-signup-id-mask-confirm');
+                if (!idMaskConfirm || !idMaskConfirm.checked) {
+                    valid = false;
+                }
 
                 const checkboxes = document.querySelectorAll('#partner-signup-modal .req-agree');
                 for (let box of checkboxes) {
@@ -6499,6 +6537,14 @@ const filterSheet = document.getElementById('filter-sheet');
                 }
             }
 
+            function getPartnerBizTypeCode(bizTypeLabel = '') {
+                const normalized = String(bizTypeLabel || '').trim();
+                if (normalized === '개인사업자') return 'sole_proprietor';
+                if (normalized === '법인사업자') return 'corporation';
+                if (normalized === '일반(개인)') return 'general_individual';
+                return 'unknown';
+            }
+
             async function handlePartnerSignupSubmit() {
                 const id = document.getElementById('partner-signup-id').value.trim();
                 const pw = document.getElementById('partner-signup-pw').value;
@@ -6511,6 +6557,8 @@ const filterSheet = document.getElementById('filter-sheet');
                 const checkedRadio = document.querySelector('input[name="business_type"]:checked');
                 let bizType = checkedRadio ? checkedRadio.value : '개인사업자';
                 const legalConsent = buildLegalConsentPayload('partner');
+                const bizTypeCode = getPartnerBizTypeCode(bizType);
+                const idMaskConfirm = document.getElementById('partner-signup-id-mask-confirm');
                 
                 if (!isValidEmailFormat(id)) {
                     alert('이메일 형식으로 입력해주세요.');
@@ -6538,6 +6586,10 @@ const filterSheet = document.getElementById('filter-sheet');
                         alert('모든 필수 약관 및 확약 내용에 동의해 주셔야 가입이 가능합니다.');
                         return;
                     }
+                }
+                if (!idMaskConfirm || !idMaskConfirm.checked) {
+                    alert('신분증 마스킹 확인 항목에 동의해 주세요.');
+                    return;
                 }
 
                 if (typeof firebase === 'undefined') {
@@ -6608,10 +6660,13 @@ const filterSheet = document.getElementById('filter-sheet');
                         ownerName: ownerName,
                         phone: phone,
                         bizType: bizType,
+                        bizTypeCode,
                         bizNo: bizNo,
                         bizDocUrl: bizDocUrl,
                         status: 'pending', // 대기 상태
                         legalConsent,
+                        idMaskConfirmed: true,
+                        idMaskConfirmedAt: now,
                         createdAt: now,
                         updatedAt: now
                     });

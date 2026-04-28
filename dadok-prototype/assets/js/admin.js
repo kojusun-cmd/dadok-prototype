@@ -1,6 +1,10 @@
 // Redirect local IPs to localhost for Firebase Auth compatibility
 if (window.location.protocol === 'file:') {
-    alert("보안 정책상 file:/// 에서는 구글 로그인이 불가능합니다. 관리자 코드를 실행한 로컬 서버(예: http://localhost:5500)로 접속해주세요.");
+    const fallbackLocalUrl = 'http://localhost:5500/admin.html';
+    alert(
+        `보안 정책상 file:/// 에서는 구글 로그인이 불가능합니다.\n\n${fallbackLocalUrl} 로 자동 이동합니다.`,
+    );
+    window.location.replace(fallbackLocalUrl);
 } else if (window.location.hostname !== 'localhost' && /^[0-9\.]+$/.test(window.location.hostname)) {
     console.warn("Redirecting IP " + window.location.hostname + " to localhost for Firebase Auth");
     window.location.hostname = 'localhost';
@@ -21,14 +25,67 @@ if (!firebase.apps.length) {
 const db = firebase.firestore();
 const auth = firebase.auth();
 const provider = new firebase.auth.GoogleAuthProvider();
-const ADMIN_EMAIL_ALLOWLIST = new Set(['kojusun@gmail.com']);
+const ADMIN_DEFAULT_ALLOWED_EMAILS = ['kojusun@gmail.com'];
+let adminSecurityConfig = {
+    allowedEmails: [],
+};
+let adminSecurityConfigLoadPromise = null;
+
+function getAdminAllowedEmails() {
+    const configured = Array.isArray(adminSecurityConfig.allowedEmails)
+        ? adminSecurityConfig.allowedEmails
+        : [];
+    const fallbackFromDevAlert = Array.isArray(devAlertSecurityConfig?.allowedEmails)
+        ? devAlertSecurityConfig.allowedEmails
+        : [];
+    const source = configured.length > 0
+        ? configured
+        : (fallbackFromDevAlert.length > 0 ? fallbackFromDevAlert : ADMIN_DEFAULT_ALLOWED_EMAILS);
+    return [...new Set(source.map(normalizeEmail).filter(Boolean))];
+}
 
 function isAllowedAdminEmail(email = '') {
-    return ADMIN_EMAIL_ALLOWLIST.has(String(email || '').trim().toLowerCase());
+    const normalized = normalizeEmail(email);
+    if (!normalized) return false;
+    const allowlist = getAdminAllowedEmails();
+    if (allowlist.length === 0) return false;
+    return allowlist.includes(normalized);
+}
+
+async function loadAdminSecurityConfig() {
+    try {
+        const snap = await db.collection('admin_configs').doc('security').get();
+        if (!snap.exists) {
+            adminSecurityConfig.allowedEmails = [];
+            return;
+        }
+        const data = snap.data() || {};
+        const allowlist = Array.isArray(data.adminAllowedEmails)
+            ? data.adminAllowedEmails
+            : [];
+        adminSecurityConfig.allowedEmails = allowlist
+            .map(normalizeEmail)
+            .filter(Boolean);
+    } catch (err) {
+        console.warn('admin security 설정 로드 실패, 기본 정책 사용:', err?.message || err);
+        adminSecurityConfig.allowedEmails = [];
+    }
+}
+
+function ensureAdminSecurityConfigLoaded() {
+    if (!adminSecurityConfigLoadPromise) {
+        adminSecurityConfigLoadPromise = Promise.all([
+            loadAdminSecurityConfig(),
+            loadDevAlertSecurityConfig(),
+        ]).catch((err) => {
+            console.warn('보안 설정 초기화 실패:', err?.message || err);
+        });
+    }
+    return adminSecurityConfigLoadPromise;
 }
 
 // ─── Authentication ───
-auth.onAuthStateChanged((user) => {
+auth.onAuthStateChanged(async (user) => {
     const userInfoEl = document.getElementById('admin-user-info');
     const userEmailEl = document.getElementById('admin-user-email');
     const loginBtn = document.getElementById('admin-login-btn');
@@ -37,9 +94,14 @@ auth.onAuthStateChanged((user) => {
     const mainApp = document.getElementById('main-app');
 
     if (user) {
+        await ensureAdminSecurityConfigLoaded();
         const userEmail = String(user.email || '').trim().toLowerCase();
         if (!isAllowedAdminEmail(userEmail)) {
-            alert('관리자 권한이 없는 계정입니다. 허용된 관리자 계정으로 로그인해주세요.');
+            const allowed = getAdminAllowedEmails();
+            const allowedText = allowed.length > 0
+                ? `허용 계정: ${allowed.join(', ')}`
+                : '허용 계정이 설정되지 않았습니다.';
+            alert(`관리자 권한이 없는 계정입니다.\n\n현재 로그인: ${user.email || '(알 수 없음)'}\n${allowedText}`);
             auth.signOut().catch((e) => console.error('Unauthorized admin sign-out failed:', e));
             return;
         }
@@ -50,9 +112,7 @@ auth.onAuthStateChanged((user) => {
         if (loginBtn) loginBtn.classList.add('hidden');
         if (logoutBtn) logoutBtn.classList.remove('hidden');
         startSidebarBadgeReadsListener(user);
-        loadDevAlertSecurityConfig().finally(() => {
-            renderDevAlertGuardState();
-        });
+        renderDevAlertGuardState();
     } else {
         if (authOverlay) authOverlay.classList.remove('hidden');
         if (mainApp) mainApp.classList.add('hidden');
@@ -75,6 +135,10 @@ function adminLogin() {
                 alert(
                     "로그인 실패: 현재 접속하신 주소(도메인)가 Firebase에 등록되지 않았습니다.\n\n해결방법: \n1. 브라우저에서 'http://localhost:5500' 또는 'http://127.0.0.1:5500' 으로 접속해주세요.\n2. file:/// 주소나 내부 IP(59.x.x.x 등)에서는 구글 로그인이 차단됩니다.",
                 );
+            } else if (error.code === 'auth/popup-closed-by-user') {
+                alert('로그인 창이 닫혀 인증이 취소되었습니다. 팝업 차단을 해제한 뒤 다시 시도해주세요.');
+            } else if (error.code === 'auth/operation-not-allowed') {
+                alert('로그인 실패: Firebase 콘솔에서 Google 로그인 제공자가 비활성화되어 있습니다.');
             } else if (error.code === 'auth/network-request-failed') {
                 alert('로그인 실패: 네트워크 상태를 확인해주세요.');
             } else {
@@ -325,10 +389,14 @@ function updateDevAlertButtonsState() {
         const defaultLabel = DEV_ALERT_DEFAULT_BUTTON_LABELS[actionKey] || button.textContent || '';
         const remainingMs = getDevAlertCooldownRemainingMs(actionKey);
         const isCooling = remainingMs > 0;
-        setDevAlertButtonDisabled(button, !canUse || isCooling);
+        const isResetBlockedNonLocal =
+            actionKey === 'resetAll' && !isLocalDevelopmentHost();
+        setDevAlertButtonDisabled(button, !canUse || isCooling || isResetBlockedNonLocal);
 
         if (isCooling) {
             button.textContent = `${defaultLabel} (${Math.ceil(remainingMs / 1000)}초)`;
+        } else if (isResetBlockedNonLocal) {
+            button.textContent = '업체 데이터 전체 초기화 (운영 차단)';
         } else {
             button.textContent = defaultLabel;
         }
@@ -1786,6 +1854,11 @@ async function assertDevAlertAccess(actionKey) {
         alert('로그인 후 다시 시도해주세요.');
         await writeDevAlertAuditLog(actionKey, 'blocked', { reason: 'not_authenticated' });
         renderDevAlertGuardState();
+        return false;
+    }
+    if (actionKey === DEV_ALERT_ACTIONS.resetAll && !isLocalDevelopmentHost()) {
+        alert('운영/실서버 환경에서는 업체 데이터 전체 초기화 기능이 차단됩니다.');
+        await writeDevAlertAuditLog(actionKey, 'blocked', { reason: 'reset_all_blocked_non_local' });
         return false;
     }
     if (!devAlertSecurityConfig.enabled) {
@@ -5639,7 +5712,7 @@ function renderShopCards(shops) {
                         <span class="mx-1.5 text-[#4B5A54]">|</span>
                         <span class="text-[#8C9A95]">가입ID</span> <span class="text-white/90">${signupUserId}</span>
                         <span class="mx-1.5 text-[#4B5A54]">|</span>
-                        <span class="text-[#8C9A95]">연락처</span> <span class="text-white/90">${data.phoneNumber || data.mobile || data.mobilePhone || data.contact || data.phone || '미등록'}</span>
+                        <span class="text-[#8C9A95]">업체 문의전화</span> <span class="text-white/90">${data.phoneNumber || data.mobile || data.mobilePhone || data.contact || data.phone || '미등록'}</span>
                     </div>
                     <div class="text-[13px] text-[#A7B2AE] mt-1 mb-0.5">
                         찐리뷰 <span class="text-white/90 font-semibold">${(() => {
