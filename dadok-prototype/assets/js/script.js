@@ -29,8 +29,8 @@
                                         const btn = document.createElement('button');
                                         const isActive = province === currentActiveTab;
                                         btn.className = isActive
-                                            ? 'flex-shrink-0 px-4 py-2 rounded-full bg-[#D4AF37] text-[#06110D] text-[12px] font-bold transition-all'
-                                            : 'flex-shrink-0 px-4 py-2 rounded-full border border-[#2A3731] text-white  text-[12px] hover:border-[var(--point-color)] transition-all';
+                                            ? 'flex-shrink-0 px-4 py-2 rounded-full bg-[#D4AF37] text-[var(--text-on-point)] text-[12px] font-bold transition-all'
+                                            : 'flex-shrink-0 px-4 py-2 rounded-full border border-[var(--border-subtle)] text-white  text-[12px] hover:border-[var(--point-color)] transition-all';
                                         btn.innerText = province;
                                         btn.onclick = () => {
                                             currentActiveTab = province;
@@ -52,7 +52,7 @@
                                         const btn = document.createElement('button');
                                         btn.className = isSelected
                                             ? 'py-2.5 text-[13px] text-center rounded-lg border border-[var(--point-color)] bg-[#D4AF37]/10 text-[var(--point-color)] font-medium transition-all'
-                                            : 'py-2.5 text-[13px] text-center rounded-lg border border-[#2A3731] text-[var(--text-sub)] hover:border-[var(--point-color)] hover:text-white transition-all';
+                                            : 'py-2.5 text-[13px] text-center rounded-lg border border-[var(--border-subtle)] text-[var(--text-sub)] hover:border-[var(--point-color)] hover:text-white transition-all';
                                         btn.innerText = district;
 
                                         btn.onclick = () => {
@@ -186,7 +186,7 @@
                                             const btn = document.createElement('button');
                                             btn.className = isSelected
                                                 ? 'py-2.5 text-[13px] text-center rounded-lg border border-[var(--point-color)] bg-[#D4AF37]/10 text-[var(--point-color)] font-medium transition-all'
-                                                : 'py-2.5 text-[13px] text-center rounded-lg border border-[#2A3731] text-[var(--text-sub)] hover:border-[var(--point-color)] hover:text-white transition-all';
+                                                : 'py-2.5 text-[13px] text-center rounded-lg border border-[var(--border-subtle)] text-[var(--text-sub)] hover:border-[var(--point-color)] hover:text-white transition-all';
                                             btn.innerText = item;
                                             btn.onclick = () => {
                                                 selected.has(item) ? selected.delete(item) : selected.add(item);
@@ -427,7 +427,7 @@ const filterSheet = document.getElementById('filter-sheet');
 
             const searchBtnHtml = `
             <div class="sticky bottom-0 w-full mt-2 pt-4 pb-4 z-20" style="margin-bottom: -1.5rem;">
-                <button onclick="executeFilterSearch()" class="w-full py-[18px] rounded-2xl font-bold text-[18px] text-[#06110D] shadow-[0_4px_15px_rgba(212,175,55,0.3)] hover:brightness-110 active:scale-95 transition-all" style="background: var(--point-color);">검색 결과 보기</button>
+                <button onclick="executeFilterSearch()" class="w-full py-[18px] rounded-2xl font-bold text-[18px] text-[var(--text-on-point)] shadow-[0_4px_15px_rgba(212,175,55,0.3)] hover:brightness-110 active:scale-95 transition-all" style="background: var(--point-color);">검색 결과 보기</button>
             </div>
         `;
 
@@ -451,7 +451,7 @@ const filterSheet = document.getElementById('filter-sheet');
                     <div class="region-list pt-2" style="${displayStyle}">
                         ${group.cities.map(city => {
                             let val = city === '전체' ? `${group.prov} 전체` : `${group.prov} ${city}`;
-                            let isActive = tempFilters[key].includes(val) ? 'bg-[var(--point-color)] text-[#06110D] font-bold border-transparent' : '';
+                            let isActive = tempFilters[key].includes(val) ? 'bg-[var(--point-color)] text-[var(--text-on-point)] font-bold border-transparent' : '';
                             return `<button class="filter-btn text-center ${isActive}" onclick="applyFilter(this, '${key}', '${val}')">${city}</button>`;
                         }).join('')}
                     </div>
@@ -463,7 +463,7 @@ const filterSheet = document.getElementById('filter-sheet');
                     // 일반 리스트 바인딩
                     let html = `<div class="filter-list-col mt-4">`;
                     config.options.forEach(opt => {
-                        let isActive = tempFilters[key].includes(opt) ? 'bg-[var(--point-color)] text-[#06110D] font-bold border-transparent' : '';
+                        let isActive = tempFilters[key].includes(opt) ? 'bg-[var(--point-color)] text-[var(--text-on-point)] font-bold border-transparent' : '';
                         html += `<button class="filter-btn ${isActive}" onclick="applyFilter(this, '${key}', '${opt}')">${opt}</button>`;
                     });
                     html += `</div>`;
@@ -496,18 +496,18 @@ const filterSheet = document.getElementById('filter-sheet');
                         const parent = btn.closest('#filter-options');
                         if (parent) {
                             parent.querySelectorAll('.filter-btn').forEach(b => {
-                                b.classList.remove('bg-[var(--point-color)]', 'text-[#06110D]', 'font-bold', 'border-transparent');
+                                b.classList.remove('bg-[var(--point-color)]', 'text-[var(--text-on-point)]', 'font-bold', 'border-transparent');
                             });
                         }
-                        btn.classList.add('bg-[var(--point-color)]', 'text-[#06110D]', 'font-bold', 'border-transparent');
+                        btn.classList.add('bg-[var(--point-color)]', 'text-[var(--text-on-point)]', 'font-bold', 'border-transparent');
                     }
                 } else {
                     if (tempFilters[key].includes(fullValue)) {
                         tempFilters[key] = tempFilters[key].filter(v => v !== fullValue);
-                        if (btn) btn.classList.remove('bg-[var(--point-color)]', 'text-[#06110D]', 'font-bold', 'border-transparent');
+                        if (btn) btn.classList.remove('bg-[var(--point-color)]', 'text-[var(--text-on-point)]', 'font-bold', 'border-transparent');
                     } else {
                         tempFilters[key].push(fullValue);
-                        if (btn) btn.classList.add('bg-[var(--point-color)]', 'text-[#06110D]', 'font-bold', 'border-transparent');
+                        if (btn) btn.classList.add('bg-[var(--point-color)]', 'text-[var(--text-on-point)]', 'font-bold', 'border-transparent');
                     }
                 }
             }
@@ -1104,21 +1104,21 @@ const filterSheet = document.getElementById('filter-sheet');
                 const isImage = ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext);
                 if (isImage) {
                     return `
-                        <a href="${fileUrl}" target="_blank" rel="noopener" class="mt-2 block rounded-xl border border-[#2A3731] bg-[#06110D] overflow-hidden hover:border-[var(--point-color)]/50 transition-colors">
+                        <a href="${fileUrl}" target="_blank" rel="noopener" class="mt-2 block rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-panel)] overflow-hidden hover:border-[var(--point-color)]/50 transition-colors">
                             <img src="${fileUrl}" alt="${fileName}" class="w-full h-auto max-h-[260px] object-contain bg-[#020806]">
                         </a>
                     `;
                 }
                 if (ext === 'pdf') {
                     return `
-                        <div class="mt-2 rounded-xl border border-[#2A3731] bg-[#06110D] overflow-hidden">
+                        <div class="mt-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-panel)] overflow-hidden">
                             <iframe src="${fileUrl}" class="w-full h-[300px] bg-white" loading="lazy"></iframe>
-                            <div class="px-3 py-2 text-[11px] text-[#A7B2AE] truncate">${fileName}</div>
+                            <div class="px-3 py-2 text-[11px] text-[var(--text-muted)] truncate">${fileName}</div>
                         </div>
                     `;
                 }
                 return `
-                    <div class="mt-2 px-3 py-2 rounded-lg border border-[#2A3731] bg-[#06110D] text-[11px] text-[#C8D1CD] truncate">
+                    <div class="mt-2 px-3 py-2 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-panel)] text-[11px] text-[#C8D1CD] truncate">
                         첨부파일: ${fileName}
                     </div>
                 `;
@@ -1221,13 +1221,13 @@ const filterSheet = document.getElementById('filter-sheet');
                             const objectUrl = URL.createObjectURL(file);
                             chatAttachmentPreviewUrls.push(objectUrl);
                             return `
-                                <div class="rounded-xl border border-[#2A3731] bg-[#06110D] overflow-hidden">
+                                <div class="rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-panel)] overflow-hidden">
                                     <img src="${objectUrl}" alt="${name}" class="w-full h-auto max-h-[72vh] object-contain bg-[#020806]">
                                 </div>
                             `;
                         }
                         return `
-                            <div class="rounded-xl border border-[#2A3731] bg-[#06110D] px-3 py-3">
+                            <div class="rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-panel)] px-3 py-3">
                                 <div class="text-[12px] text-white truncate">${name}</div>
                                 <div class="text-[11px] text-[var(--text-sub)] mt-1">${typeText} · ${sizeText}</div>
                             </div>
@@ -2413,10 +2413,10 @@ const filterSheet = document.getElementById('filter-sheet');
                 callBtn.disabled = !canCall;
                 if (canCall) {
                     callBtn.className =
-                        'shrink-0 w-12 h-12 flex items-center justify-center rounded-full bg-[var(--point-color)] text-[#06110D] shadow-sm hover:brightness-110 transition-colors';
+                        'shrink-0 w-12 h-12 flex items-center justify-center rounded-full bg-[var(--point-color)] text-[var(--text-on-point)] shadow-sm hover:brightness-110 transition-colors';
                 } else {
                     callBtn.className =
-                        'shrink-0 w-12 h-12 flex items-center justify-center rounded-full bg-[#1A2521] text-[#A7B2AE] border border-[#2A3731] shadow-sm transition-colors cursor-not-allowed';
+                        'shrink-0 w-12 h-12 flex items-center justify-center rounded-full bg-[var(--surface-input)] text-[var(--text-muted)] border border-[var(--border-subtle)] shadow-sm transition-colors cursor-not-allowed';
                 }
                 if (statusEl) {
                     statusEl.textContent = reason;
@@ -2627,7 +2627,7 @@ const filterSheet = document.getElementById('filter-sheet');
                             return `
                                 <div class="flex justify-end mb-2">
                                     <div class="max-w-[80%]">
-                                        ${hasText ? `<div class="bg-[var(--point-color)] text-[#06110D] p-3 rounded-2xl rounded-tr-sm text-[15px] leading-relaxed shadow-sm font-medium">${safeText}</div>` : ''}
+                                        ${hasText ? `<div class="bg-[var(--point-color)] text-[var(--text-on-point)] p-3 rounded-2xl rounded-tr-sm text-[15px] leading-relaxed shadow-sm font-medium">${safeText}</div>` : ''}
                                         ${attachmentsHtml}
                                         <div class="text-[10px] text-[var(--text-sub)] text-right mt-1">${timeLabel}</div>
                                     </div>
@@ -3765,7 +3765,7 @@ const filterSheet = document.getElementById('filter-sheet');
                             let disp = val;
                             if (disp === '상관없음(전체)') disp = '상관없음';
                             else if (disp === '연령 무관 (전체)') disp = '연령 무관';
-                            pillsHtml += `<span class="px-3 py-1.5 text-[13px] bg-transparent border border-[var(--point-color)] text-white  font-medium rounded-full cursor-pointer flex items-center gap-1 hover:bg-[var(--point-color)] hover:text-[#06110D] transition-colors" onclick="removeFilterItem('${key}', '${val}')">${disp} <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></span>`;
+                            pillsHtml += `<span class="px-3 py-1.5 text-[13px] bg-transparent border border-[var(--point-color)] text-white  font-medium rounded-full cursor-pointer flex items-center gap-1 hover:bg-[var(--point-color)] hover:text-[var(--text-on-point)] transition-colors" onclick="removeFilterItem('${key}', '${val}')">${disp} <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></span>`;
                         });
                     });
                     summaryDiv.innerHTML = pillsHtml;
@@ -3828,7 +3828,7 @@ const filterSheet = document.getElementById('filter-sheet');
                     for (let partner of db) {
                         let badgeHtml = '';
                         if (partner.tier === 'VIP') {
-                            badgeHtml = `<div class="absolute top-2 left-2 z-10 bg-gradient-to-r from-[#D4AF37] to-[#B38D1B] text-[#06110D] text-[10px] font-extrabold px-2 py-0.5 rounded opacity-95 tracking-wide shadow-md">VIP</div>`;
+                            badgeHtml = `<div class="absolute top-2 left-2 z-10 bg-gradient-to-r from-[#D4AF37] to-[#B38D1B] text-[var(--text-on-point)] text-[10px] font-extrabold px-2 py-0.5 rounded opacity-95 tracking-wide shadow-md">VIP</div>`;
                         } else if (partner.tier === 'Premium') {
                             badgeHtml = `<div class="absolute top-2 left-2 z-10 bg-[var(--surface-color)] text-[var(--point-color)] text-[10px] font-extrabold px-2 py-0.5 rounded border border-[var(--point-color)] opacity-95 tracking-wide shadow-md">Premium</div>`;
                         }
@@ -3953,7 +3953,7 @@ const filterSheet = document.getElementById('filter-sheet');
                         ? `
                 <div class="review-reply-area mt-4 pt-4 border-t border-[var(--border-color)]" onclick="event.stopPropagation()">
                     <div class="flex items-start gap-3">
-                        <div class="w-8 h-8 rounded-full bg-gradient-to-tl from-[var(--point-color)] to-[#F4D03F] flex-shrink-0 flex items-center justify-center text-[#06110D] font-bold text-xs tracking-tighter" style="padding-top:1px;">운영</div>
+                        <div class="w-8 h-8 rounded-full bg-gradient-to-tl from-[var(--point-color)] to-[#F4D03F] flex-shrink-0 flex items-center justify-center text-[var(--text-on-point)] font-bold text-xs tracking-tighter" style="padding-top:1px;">운영</div>
                         <div class="flex-1 bg-gradient-to-br from-[var(--surface-color)] to-[var(--bg-color)] rounded-xl p-4 border border-[var(--point-color)]/40 shadow-sm relative">
                             <div class="font-bold text-[var(--point-color)] text-[13.5px] mb-1.5">매장 답변</div>
                             <p class="text-[var(--text-main)] text-[14px] leading-relaxed">${escapeChatHtml(String(cr.reply)).replace(/\n/g, '<br>')}</p>
@@ -4093,7 +4093,7 @@ const filterSheet = document.getElementById('filter-sheet');
             </div>
             <textarea id="review-text-input" class="w-full bg-[var(--bg-color)] border border-[var(--border-color)] rounded-xl p-4 text-[var(--text-main)] placeholder-[var(--text-sub)] focus:outline-none focus:border-[var(--point-color)] resize-none transition-colors" rows="3" placeholder="친절하고 상세한 방문 후기를 남겨주세요." style="font-size: 15px;"></textarea>
             <div class="flex justify-end mt-4">
-                <button type="button" onclick="submitReview()" class="bg-[var(--point-color)] text-[#06110D] px-6 py-2.5 rounded-full font-bold text-[15px] hover:opacity-90 transition-opacity shadow-md">리뷰 등록</button>
+                <button type="button" onclick="submitReview()" class="bg-[var(--point-color)] text-[var(--text-on-point)] px-6 py-2.5 rounded-full font-bold text-[15px] hover:opacity-90 transition-opacity shadow-md">리뷰 등록</button>
             </div>
         </div>
         `;
@@ -4138,11 +4138,11 @@ const filterSheet = document.getElementById('filter-sheet');
                 };
                 replyArea.innerHTML = `
             <div class="flex items-start gap-3">
-                <div class="w-8 h-8 rounded-full bg-gradient-to-tl from-[var(--point-color)] to-[#F4D03F] flex-shrink-0 flex items-center justify-center text-[#06110D] font-bold text-xs tracking-tighter" style="padding-top:1px;">운영</div>
+                <div class="w-8 h-8 rounded-full bg-gradient-to-tl from-[var(--point-color)] to-[#F4D03F] flex-shrink-0 flex items-center justify-center text-[var(--text-on-point)] font-bold text-xs tracking-tighter" style="padding-top:1px;">운영</div>
                 <div class="flex-1 bg-[var(--bg-color)] rounded-xl border border-[var(--border-color)] overflow-hidden focus-within:border-[var(--point-color)] transition-colors">
                     <textarea class="w-full bg-transparent p-3 text-[var(--text-main)] focus:outline-none resize-none text-[14px]" rows="2" placeholder="리뷰에 답글을 달아보세요."></textarea>
                     <div class="flex justify-end p-2 bg-[var(--surface-color)] border-t border-[var(--border-color)]">
-                        <button type="button" class="bg-gradient-to-r from-[#D4AF37] to-[#B38D1B] text-[#06110D] px-4 py-1.5 rounded-full font-bold text-[13px] shadow-sm hover:opacity-90" onclick="submitReply(this, event)">답글 등록</button>
+                        <button type="button" class="bg-gradient-to-r from-[#D4AF37] to-[#B38D1B] text-[var(--text-on-point)] px-4 py-1.5 rounded-full font-bold text-[13px] shadow-sm hover:opacity-90" onclick="submitReply(this, event)">답글 등록</button>
                     </div>
                 </div>
             </div>
@@ -4196,7 +4196,7 @@ const filterSheet = document.getElementById('filter-sheet');
                 };
                 replyArea.innerHTML = `
             <div class="flex items-start gap-3">
-                <div class="w-8 h-8 rounded-full bg-gradient-to-tl from-[var(--point-color)] to-[#F4D03F] flex-shrink-0 flex items-center justify-center text-[#06110D] font-bold text-xs tracking-tighter" style="padding-top:1px;">운영</div>
+                <div class="w-8 h-8 rounded-full bg-gradient-to-tl from-[var(--point-color)] to-[#F4D03F] flex-shrink-0 flex items-center justify-center text-[var(--text-on-point)] font-bold text-xs tracking-tighter" style="padding-top:1px;">운영</div>
                 <div class="flex-1 bg-gradient-to-br from-[var(--surface-color)] to-[var(--bg-color)] rounded-xl p-4 border border-[var(--point-color)]/40 shadow-sm relative">
                     <div class="font-bold text-[var(--point-color)] text-[13.5px] mb-1.5">매장 답변</div>
                     <p class="text-[var(--text-main)] text-[14px] leading-relaxed">${escapeChatHtml(text).replace(/\n/g, '<br>')}</p>
@@ -4522,7 +4522,7 @@ const filterSheet = document.getElementById('filter-sheet');
                     for (let partner of mixedChoice) {
                         let badgeHtml = '';
                         if (partner.tier === 'VIP') {
-                            badgeHtml = `<div class="absolute top-3 left-3 z-10 bg-gradient-to-r from-[#D4AF37] to-[#B38D1B] text-[#06110D] text-[11px] font-extrabold px-2.5 py-1 rounded opacity-95 tracking-wide shadow-md">VIP</div>`;
+                            badgeHtml = `<div class="absolute top-3 left-3 z-10 bg-gradient-to-r from-[#D4AF37] to-[#B38D1B] text-[var(--text-on-point)] text-[11px] font-extrabold px-2.5 py-1 rounded opacity-95 tracking-wide shadow-md">VIP</div>`;
                         } else if (partner.tier === 'Premium') {
                             badgeHtml = `<div class="absolute top-3 left-3 z-10 bg-[var(--surface-color)] text-[var(--point-color)] border border-[var(--point-color)] text-[11px] font-extrabold px-2.5 py-1 rounded opacity-95 tracking-wide shadow-md">Premium</div>`;
                         }
@@ -4581,7 +4581,7 @@ const filterSheet = document.getElementById('filter-sheet');
                         let partner = mixedRec[idx];
                         let badgeHtml = '';
                         if (partner.tier === 'VIP') {
-                            badgeHtml = `<div class="absolute top-1 left-1 z-10 bg-gradient-to-r from-[#D4AF37] to-[#B38D1B] text-[#06110D] text-[9px] font-extrabold px-1.5 py-0.5 rounded opacity-95 tracking-wide shadow-md">VIP</div>`;
+                            badgeHtml = `<div class="absolute top-1 left-1 z-10 bg-gradient-to-r from-[#D4AF37] to-[#B38D1B] text-[var(--text-on-point)] text-[9px] font-extrabold px-1.5 py-0.5 rounded opacity-95 tracking-wide shadow-md">VIP</div>`;
                         } else if (partner.tier === 'Premium') {
                             badgeHtml = `<div class="absolute top-1 left-1 z-10 bg-[var(--surface-color)] text-[var(--point-color)] border border-[var(--point-color)] text-[9px] font-extrabold px-1.5 py-0.5 rounded opacity-95 tracking-wide shadow-md">Premium</div>`;
                         }
@@ -5136,7 +5136,7 @@ const filterSheet = document.getElementById('filter-sheet');
                     return;
                 }
 
-                let cls = 'text-[#A7B2AE] text-[13px] font-bold ml-1';
+                let cls = 'text-[var(--text-muted)] text-[13px] font-bold ml-1';
                 if (status === 'invalid' || status === 'duplicate' || status === 'error') {
                     cls = 'text-[#EF4444] text-[13px] font-bold ml-1';
                 } else if (status === 'available') {
@@ -5331,12 +5331,12 @@ const filterSheet = document.getElementById('filter-sheet');
                 // 모든 값 존재 여부 검증
                 if (id && isIdAvailable && pw && isPasswordValid && pwConfirm && pw === pwConfirm && agree && agreeTerms) {
                     btn.disabled = false;
-                    btn.classList.remove('bg-[#0A1B13]', 'text-[#A7B2AE]', 'border-[#2A3731]', 'opacity-70');
-                    btn.classList.add('bg-gradient-to-r', 'from-[var(--point-color)]', 'to-[#B59530]', 'text-[#06110D]', 'shadow-[0_8px_20px_rgba(212,175,55,0.25)]', 'border-[#D4AF37]', 'hover:brightness-110', 'active:scale-[0.98]');
+                    btn.classList.remove('bg-[var(--surface-input)]', 'text-[var(--text-muted)]', 'border-[var(--border-subtle)]', 'opacity-70');
+                    btn.classList.add('bg-gradient-to-r', 'from-[var(--point-color)]', 'to-[#B59530]', 'text-[var(--text-on-point)]', 'shadow-[0_8px_20px_rgba(212,175,55,0.25)]', 'border-[#D4AF37]', 'hover:brightness-110', 'active:scale-[0.98]');
                 } else {
                     btn.disabled = true;
-                    btn.classList.add('bg-[#0A1B13]', 'text-[#A7B2AE]', 'border-[#2A3731]', 'opacity-70');
-                    btn.classList.remove('bg-gradient-to-r', 'from-[var(--point-color)]', 'to-[#B59530]', 'text-[#06110D]', 'shadow-[0_8px_20px_rgba(212,175,55,0.25)]', 'border-[#D4AF37]', 'hover:brightness-110', 'active:scale-[0.98]');
+                    btn.classList.add('bg-[var(--surface-input)]', 'text-[var(--text-muted)]', 'border-[var(--border-subtle)]', 'opacity-70');
+                    btn.classList.remove('bg-gradient-to-r', 'from-[var(--point-color)]', 'to-[#B59530]', 'text-[var(--text-on-point)]', 'shadow-[0_8px_20px_rgba(212,175,55,0.25)]', 'border-[#D4AF37]', 'hover:brightness-110', 'active:scale-[0.98]');
                 }
             }
 
@@ -5485,10 +5485,10 @@ const filterSheet = document.getElementById('filter-sheet');
                 // Update button state
                 if (isCurrValid && isNewValid && isConfirmValid && currPw !== '' && newPw !== '' && confirmPw !== '') {
                     changeBtn.disabled = false;
-                    changeBtn.className = 'w-full py-4 mt-6 rounded-xl bg-gradient-to-r from-[var(--point-color)] to-[#B59530] text-[#06110D] font-bold shadow-[0_4px_15px_rgba(212,175,55,0.15)] hover:brightness-110 active:scale-[0.98] transition-all cursor-pointer';
+                    changeBtn.className = 'w-full py-4 mt-6 rounded-xl bg-gradient-to-r from-[var(--point-color)] to-[#B59530] text-[var(--text-on-point)] font-bold shadow-[0_4px_15px_rgba(212,175,55,0.15)] hover:brightness-110 active:scale-[0.98] transition-all cursor-pointer';
                 } else {
                     changeBtn.disabled = true;
-                    changeBtn.className = 'w-full py-4 mt-6 rounded-xl bg-[#06110D] text-[#A7B2AE]/50 border border-[var(--border-color)] font-bold transition-all cursor-not-allowed';
+                    changeBtn.className = 'w-full py-4 mt-6 rounded-xl bg-[var(--surface-panel)] text-[var(--text-muted)]/50 border border-[var(--border-color)] font-bold transition-all cursor-not-allowed';
                 }
             }
 
@@ -5633,7 +5633,7 @@ const filterSheet = document.getElementById('filter-sheet');
                 const submitBtn = document.getElementById('partner-recovery-reset-submit-btn');
                 if (submitBtn) {
                     submitBtn.disabled = true;
-                    submitBtn.className = 'w-full py-[14px] mt-1 rounded-xl bg-[#1A2521] text-[#A7B2AE] border border-[#2A3731] font-bold text-[15px] tracking-wide transition-all duration-300 pointer-events-none';
+                    submitBtn.className = 'w-full py-[14px] mt-1 rounded-xl bg-[var(--surface-input)] text-[var(--text-muted)] border border-[var(--border-subtle)] font-bold text-[15px] tracking-wide transition-all duration-300 pointer-events-none';
                 }
 
                 switchPartnerRecoveryTab('id');
@@ -5692,7 +5692,7 @@ const filterSheet = document.getElementById('filter-sheet');
                 } else if (type === 'error') {
                     resultEl.className = `${base} text-[#fecaca] border-red-500/40 bg-red-900/15`;
                 } else {
-                    resultEl.className = `${base} text-[#A7B2AE] border-[#2A3731] bg-[#0A1B13]`;
+                    resultEl.className = `${base} text-[var(--text-muted)] border-[var(--border-subtle)] bg-[var(--surface-input)]`;
                 }
                 resultEl.innerText = message;
                 resultEl.classList.remove('hidden');
@@ -5735,10 +5735,10 @@ const filterSheet = document.getElementById('filter-sheet');
                 if (submitBtn) {
                     if (pwValid && confirmValid && partnerRecoveryResetPartnerDocId) {
                         submitBtn.disabled = false;
-                        submitBtn.className = 'w-full py-[14px] mt-1 rounded-xl bg-gradient-to-r from-[var(--point-color)] to-[#B59530] text-[#06110D] border border-[#D4AF37] font-bold text-[15px] tracking-wide transition-all duration-300 hover:brightness-110 active:scale-[0.98]';
+                        submitBtn.className = 'w-full py-[14px] mt-1 rounded-xl bg-gradient-to-r from-[var(--point-color)] to-[#B59530] text-[var(--text-on-point)] border border-[#D4AF37] font-bold text-[15px] tracking-wide transition-all duration-300 hover:brightness-110 active:scale-[0.98]';
                     } else {
                         submitBtn.disabled = true;
-                        submitBtn.className = 'w-full py-[14px] mt-1 rounded-xl bg-[#1A2521] text-[#A7B2AE] border border-[#2A3731] font-bold text-[15px] tracking-wide transition-all duration-300 pointer-events-none';
+                        submitBtn.className = 'w-full py-[14px] mt-1 rounded-xl bg-[var(--surface-input)] text-[var(--text-muted)] border border-[var(--border-subtle)] font-bold text-[15px] tracking-wide transition-all duration-300 pointer-events-none';
                     }
                 }
             }
@@ -5911,7 +5911,7 @@ const filterSheet = document.getElementById('filter-sheet');
 
                     let badgeHtml = '';
                     if (isVIP) {
-                        badgeHtml = `<span class="inline-block bg-gradient-to-r from-[#D4AF37] to-[#B38D1B] text-[#06110D] text-[10px] font-extrabold px-2 py-0.5 rounded shadow-sm tracking-wide ml-2 align-middle">VIP</span>`;
+                        badgeHtml = `<span class="inline-block bg-gradient-to-r from-[#D4AF37] to-[#B38D1B] text-[var(--text-on-point)] text-[10px] font-extrabold px-2 py-0.5 rounded shadow-sm tracking-wide ml-2 align-middle">VIP</span>`;
                     } else if(data.ticketType === "Premium") {
                         badgeHtml = `<span class="inline-block bg-gradient-to-r from-[#00d2ff] to-[#3a7bd5] text-white text-[10px] font-extrabold px-2 py-0.5 rounded shadow-sm tracking-wide ml-2 align-middle">Premium</span>`;
                     } else {
@@ -6529,10 +6529,10 @@ const filterSheet = document.getElementById('filter-sheet');
                 if (!btn) return;
 
                 if (valid) {
-                    btn.className = "group relative flex items-center justify-center w-full py-[18px] mt-2 rounded-2xl bg-gradient-to-r from-[var(--point-color)] to-[#B59530] text-[#06110D] font-bold text-[18px] tracking-[0.1em] transition-all duration-300 shadow-[0_8px_20px_rgba(212,175,55,0.25)] hover:brightness-110 active:scale-[0.98] cursor-pointer";
+                    btn.className = "group relative flex items-center justify-center w-full py-[18px] mt-2 rounded-2xl bg-gradient-to-r from-[var(--point-color)] to-[#B59530] text-[var(--text-on-point)] font-bold text-[18px] tracking-[0.1em] transition-all duration-300 shadow-[0_8px_20px_rgba(212,175,55,0.25)] hover:brightness-110 active:scale-[0.98] cursor-pointer";
                     btn.disabled = false;
                 } else {
-                    btn.className = "flex items-center justify-center w-full py-[18px] mt-2 rounded-2xl bg-[#1A2521] text-[#A7B2AE] font-bold text-[18px] tracking-[0.1em] transition-all duration-300 pointer-events-none";
+                    btn.className = "flex items-center justify-center w-full py-[18px] mt-2 rounded-2xl bg-[var(--surface-input)] text-[var(--text-muted)] font-bold text-[18px] tracking-[0.1em] transition-all duration-300 pointer-events-none";
                     btn.disabled = true;
                 }
             }
@@ -7777,21 +7777,21 @@ const filterSheet = document.getElementById('filter-sheet');
                 const imageExts = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
                 if (imageExts.includes(ext)) {
                     return `
-                        <div class="mt-2 rounded-xl border border-[#2A3731] bg-[#06110D] overflow-hidden">
+                        <div class="mt-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-panel)] overflow-hidden">
                             <img src="${fileUrl}" alt="${fileName}" class="w-full h-auto max-h-[260px] object-contain bg-[#020806]">
                         </div>
                     `;
                 }
                 if (ext === 'pdf') {
                     return `
-                        <div class="mt-2 rounded-xl border border-[#2A3731] bg-[#06110D] overflow-hidden">
+                        <div class="mt-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-panel)] overflow-hidden">
                             <iframe src="${fileUrl}" class="w-full h-[300px] bg-white" loading="lazy"></iframe>
-                            <div class="px-3 py-2 text-[11px] text-[#A7B2AE] truncate">${fileName}</div>
+                            <div class="px-3 py-2 text-[11px] text-[var(--text-muted)] truncate">${fileName}</div>
                         </div>
                     `;
                 }
                 return `
-                    <div class="mt-2 px-3 py-2 rounded-lg border border-[#2A3731] bg-[#06110D] text-[11px] text-[#C8D1CD]">
+                    <div class="mt-2 px-3 py-2 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-panel)] text-[11px] text-[#C8D1CD]">
                         첨부파일: ${fileName}
                     </div>
                 `;
@@ -7825,13 +7825,13 @@ const filterSheet = document.getElementById('filter-sheet');
                     const priorityBadge =
                         row.priority === 'important'
                             ? '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-500/20 text-red-300 border border-red-500/30">중요</span>'
-                            : '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#11291D] text-[var(--point-color)] border border-[#2A3731]">일반</span>';
+                            : '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#11291D] text-[var(--point-color)] border border-[var(--border-subtle)]">일반</span>';
                     const unreadDot = row.isRead
                         ? ''
                         : '<span class="inline-flex w-2.5 h-2.5 rounded-full bg-red-400"></span>';
                     const linkBtn =
                         row.linkType && row.linkType !== 'none'
-                            ? `<button onclick="openNoticeLinkedScreen('${row.id}', '${row.linkType}')" class="px-2 py-1 text-[10px] font-bold rounded-lg border border-[#2A3731] text-white hover:border-[var(--point-color)] hover:text-[var(--point-color)] transition-colors">관련 화면 이동</button>`
+                            ? `<button onclick="openNoticeLinkedScreen('${row.id}', '${row.linkType}')" class="px-2 py-1 text-[10px] font-bold rounded-lg border border-[var(--border-subtle)] text-white hover:border-[var(--point-color)] hover:text-[var(--point-color)] transition-colors">관련 화면 이동</button>`
                             : '';
                     const readBtn = row.isRead
                         ? '<span class="text-[10px] text-[#6C7A74]">읽음</span>'
@@ -7843,7 +7843,7 @@ const filterSheet = document.getElementById('filter-sheet');
                               .join('')}</div>`
                         : '';
                     html += `
-                        <div class="bg-[#0A1B13] border ${row.isRead ? 'border-[#2A3731]' : 'border-[var(--point-color)]/35'} rounded-2xl p-4">
+                        <div class="bg-[var(--surface-input)] border ${row.isRead ? 'border-[var(--border-subtle)]' : 'border-[var(--point-color)]/35'} rounded-2xl p-4">
                             <div class="flex items-start justify-between gap-2 mb-2">
                                 <div class="flex items-center gap-2 text-white font-bold text-[15px]">${unreadDot}${escapeNoticeText(row.title || '(제목 없음)')}</div>
                                 <div class="flex items-center gap-2">${priorityBadge}${readBtn}${linkBtn}</div>
@@ -8375,8 +8375,8 @@ const filterSheet = document.getElementById('filter-sheet');
                 if (!container) return;
 
                 const itemHtml = `
-            <div class="menu-item relative bg-[#06110D] border border-[#2A3731] rounded-xl p-5 transition-all duration-300 group hover:border-[var(--point-color)]/50 opacity-0">
-                <button class="absolute top-4 right-4 text-[var(--text-sub)] hover:text-[#E91E63] p-1.5 flex items-center justify-center transition-colors bg-[#0A1B13] rounded-full z-10" onclick="this.closest('.menu-item').remove()">
+            <div class="menu-item relative bg-[var(--surface-panel)] border border-[var(--border-subtle)] rounded-xl p-5 transition-all duration-300 group hover:border-[var(--point-color)]/50 opacity-0">
+                <button class="absolute top-4 right-4 text-[var(--text-sub)] hover:text-[#E91E63] p-1.5 flex items-center justify-center transition-colors bg-[var(--surface-input)] rounded-full z-10" onclick="this.closest('.menu-item').remove()">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                 </button>
                 
@@ -8384,12 +8384,12 @@ const filterSheet = document.getElementById('filter-sheet');
                     <div class="flex gap-4 pr-10">
                         <div class="flex-1 flex flex-col gap-1.5">
                             <label class="text-[var(--text-sub)] text-[12px] font-bold tracking-widest ml-1">코스 이름</label>
-                            <input type="text" value="" class="menu-name-input w-full bg-[#0A1B13] border border-[#2A3731] rounded-xl px-4 py-3 text-[var(--text-main)] font-medium text-[15px] focus:outline-none focus:border-[var(--point-color)] transition-all" placeholder="예: A 코스">
+                            <input type="text" value="" class="menu-name-input w-full bg-[var(--surface-input)] border border-[var(--border-subtle)] rounded-xl px-4 py-3 text-[var(--text-main)] font-medium text-[15px] focus:outline-none focus:border-[var(--point-color)] transition-all" placeholder="예: A 코스">
                         </div>
                         <div class="w-[120px] shrink-0 flex flex-col gap-1.5">
                             <label class="text-[var(--text-sub)] text-[12px] font-bold tracking-widest ml-1">가격</label>
                             <div class="flex items-center gap-2">
-                                <input type="text" value="" class="menu-price-input w-full bg-[#0A1B13] border border-[#2A3731] rounded-xl px-4 py-3 text-[var(--text-main)] font-medium text-[15px] text-right focus:outline-none focus:border-[var(--point-color)] transition-all" placeholder="가격">
+                                <input type="text" value="" class="menu-price-input w-full bg-[var(--surface-input)] border border-[var(--border-subtle)] rounded-xl px-4 py-3 text-[var(--text-main)] font-medium text-[15px] text-right focus:outline-none focus:border-[var(--point-color)] transition-all" placeholder="가격">
                                 <span class="text-[var(--text-sub)] text-[13px] font-bold shrink-0">원</span>
                             </div>
                         </div>
@@ -8397,12 +8397,12 @@ const filterSheet = document.getElementById('filter-sheet');
                     
                     <div class="flex flex-col gap-1.5">
                         <label class="text-[var(--text-sub)] text-[12px] font-bold tracking-widest ml-1">마사지 테마 / 종류</label>
-                        <input type="text" value="" class="menu-theme-input w-full bg-[#0A1B13] border border-[#2A3731] rounded-xl px-4 py-3 text-[var(--text-main)] font-medium text-[15px] focus:outline-none focus:border-[var(--point-color)] transition-all" placeholder="예: 스웨디시 & 스포츠 케어">
+                        <input type="text" value="" class="menu-theme-input w-full bg-[var(--surface-input)] border border-[var(--border-subtle)] rounded-xl px-4 py-3 text-[var(--text-main)] font-medium text-[15px] focus:outline-none focus:border-[var(--point-color)] transition-all" placeholder="예: 스웨디시 & 스포츠 케어">
                     </div>
                     
                     <div class="flex flex-col gap-1.5">
                         <label class="text-[var(--text-sub)] text-[12px] font-bold tracking-widest ml-1">상세 내용 및 시간</label>
-                        <input type="text" value="" class="menu-desc-input w-full bg-[#0A1B13] border border-[#2A3731] rounded-xl px-4 py-3 text-[var(--text-main)] font-medium text-[15px] focus:outline-none focus:border-[var(--point-color)] transition-all" placeholder="예: 건식 및 소프트 아로마 60분">
+                        <input type="text" value="" class="menu-desc-input w-full bg-[var(--surface-input)] border border-[var(--border-subtle)] rounded-xl px-4 py-3 text-[var(--text-main)] font-medium text-[15px] focus:outline-none focus:border-[var(--point-color)] transition-all" placeholder="예: 건식 및 소프트 아로마 60분">
                     </div>
                 </div>
             </div>
@@ -9220,8 +9220,8 @@ const filterSheet = document.getElementById('filter-sheet');
                     menuContainer.innerHTML = '';
                     menus.forEach(menu => {
                         const itemHtml = `
-            <div class="menu-item relative bg-[#06110D] border border-[#2A3731] rounded-xl p-5 transition-all duration-300 group hover:border-[var(--point-color)]/50 opacity-100">
-                <button class="absolute top-4 right-4 text-[var(--text-sub)] hover:text-[#E91E63] p-1.5 flex items-center justify-center transition-colors bg-[#0A1B13] rounded-full z-10" onclick="this.closest('.menu-item').remove()">
+            <div class="menu-item relative bg-[var(--surface-panel)] border border-[var(--border-subtle)] rounded-xl p-5 transition-all duration-300 group hover:border-[var(--point-color)]/50 opacity-100">
+                <button class="absolute top-4 right-4 text-[var(--text-sub)] hover:text-[#E91E63] p-1.5 flex items-center justify-center transition-colors bg-[var(--surface-input)] rounded-full z-10" onclick="this.closest('.menu-item').remove()">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                 </button>
                 
@@ -9229,12 +9229,12 @@ const filterSheet = document.getElementById('filter-sheet');
                     <div class="flex gap-4 pr-10">
                         <div class="flex-1 flex flex-col gap-1.5">
                             <label class="text-[var(--text-sub)] text-[12px] font-bold tracking-widest ml-1">코스 이름</label>
-                            <input type="text" value="${menu.name || ''}" class="menu-name-input w-full bg-[#0A1B13] border border-[#2A3731] rounded-xl px-4 py-3 text-[var(--text-main)] font-medium text-[15px] focus:outline-none focus:border-[var(--point-color)] transition-all" placeholder="예: A 코스">
+                            <input type="text" value="${menu.name || ''}" class="menu-name-input w-full bg-[var(--surface-input)] border border-[var(--border-subtle)] rounded-xl px-4 py-3 text-[var(--text-main)] font-medium text-[15px] focus:outline-none focus:border-[var(--point-color)] transition-all" placeholder="예: A 코스">
                         </div>
                         <div class="w-[120px] shrink-0 flex flex-col gap-1.5">
                             <label class="text-[var(--text-sub)] text-[12px] font-bold tracking-widest ml-1">가격</label>
                             <div class="flex items-center gap-2">
-                                <input type="text" value="${(menu.price || '').toString().replace(/[^0-9]/g, '')}" class="menu-price-input w-full bg-[#0A1B13] border border-[#2A3731] rounded-xl px-4 py-3 text-[var(--text-main)] font-medium text-[15px] text-right focus:outline-none focus:border-[var(--point-color)] transition-all" placeholder="가격">
+                                <input type="text" value="${(menu.price || '').toString().replace(/[^0-9]/g, '')}" class="menu-price-input w-full bg-[var(--surface-input)] border border-[var(--border-subtle)] rounded-xl px-4 py-3 text-[var(--text-main)] font-medium text-[15px] text-right focus:outline-none focus:border-[var(--point-color)] transition-all" placeholder="가격">
                                 <span class="text-[var(--text-sub)] text-[13px] font-bold shrink-0">원</span>
                             </div>
                         </div>
@@ -9242,12 +9242,12 @@ const filterSheet = document.getElementById('filter-sheet');
                     
                     <div class="flex flex-col gap-1.5">
                         <label class="text-[var(--text-sub)] text-[12px] font-bold tracking-widest ml-1">마사지 테마 / 종류</label>
-                        <input type="text" value="${menu.theme || ''}" class="menu-theme-input w-full bg-[#0A1B13] border border-[#2A3731] rounded-xl px-4 py-3 text-[var(--text-main)] font-medium text-[15px] focus:outline-none focus:border-[var(--point-color)] transition-all" placeholder="예: 스웨디시 & 스포츠 케어">
+                        <input type="text" value="${menu.theme || ''}" class="menu-theme-input w-full bg-[var(--surface-input)] border border-[var(--border-subtle)] rounded-xl px-4 py-3 text-[var(--text-main)] font-medium text-[15px] focus:outline-none focus:border-[var(--point-color)] transition-all" placeholder="예: 스웨디시 & 스포츠 케어">
                     </div>
                     
                     <div class="flex flex-col gap-1.5">
                         <label class="text-[var(--text-sub)] text-[12px] font-bold tracking-widest ml-1">상세 내용 및 시간</label>
-                        <input type="text" value="${menu.desc || ''}" class="menu-desc-input w-full bg-[#0A1B13] border border-[#2A3731] rounded-xl px-4 py-3 text-[var(--text-main)] font-medium text-[15px] focus:outline-none focus:border-[var(--point-color)] transition-all" placeholder="예: 건식 및 소프트 아로마 60분">
+                        <input type="text" value="${menu.desc || ''}" class="menu-desc-input w-full bg-[var(--surface-input)] border border-[var(--border-subtle)] rounded-xl px-4 py-3 text-[var(--text-main)] font-medium text-[15px] focus:outline-none focus:border-[var(--point-color)] transition-all" placeholder="예: 건식 및 소프트 아로마 60분">
                     </div>
                 </div>
             </div>`;

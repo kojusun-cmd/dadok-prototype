@@ -1,28 +1,45 @@
 /* 
-           3040 타겟: 피로감을 주지 않으면서도 고급스럽고 우아한 웜-다크(Warm-dark) 톤.
-           딥 타우프(Taupe)/다크 브라운 베이스로 호텔 스파의 차분한 분위기를 연출합니다.
+           프리미엄 웜 라이트: 순백 대신 웜 그레이 베이스, 크림 서페이스, 브론즈·샴페인 골드 포인트.
+           카드/헤더에 은은한 그라데이션과 대기광으로 밋밋함을 줄입니다.
         */
         :root {
-            --bg-color: #F5F7FA;
-            /* Cool Neutral 배경 */
-            --surface-color: #FFFFFF;
-            /* 카드/바텀시트 배경 */
-            --point-color: #C9A227;
-            /* 골드 포인트 */
-            --point-light: rgba(201, 162, 39, 0.14);
-            /* 옅은 골드 배경 */
-            --accent-color: #B8922F;
-            /* 보조 포인트 */
-            --text-main: #1F2937;
-            /* 본문 텍스트 */
-            --text-sub: #6B7280;
-            /* 보조 텍스트 */
-            --border-color: #E5E7EB;
-            /* 연한 구분선 */
+            --bg-color: #E9E4DD;
+            --bg-deep: #DFDBD4;
+            --surface-color: #FFFBF7;
+            --surface-raised: #FFFFFF;
+            --surface-input: #F3EEE8;
+            --surface-panel: #F6F1EA;
+            --surface-legal: #EDE8E0;
+            --surface-header: rgba(255, 251, 246, 0.94);
+            --surface-elevated: #FAF6F0;
+
+            --point-color: #B08D3E;
+            --point-bright: #C9A74C;
+            --point-deep: #8E6F28;
+            --point-light: rgba(176, 141, 62, 0.12);
+            --point-ring: rgba(176, 141, 62, 0.35);
+
+            --accent-color: #A67C52;
+            --accent-moss: #5C665C;
+            --accent-blush: rgba(176, 141, 62, 0.08);
+
+            --text-main: #2A2622;
+            --text-sub: #6F6860;
+            --text-muted: #8A8279;
+            --text-soft: #9A9288;
+            --text-on-point: #1C1916;
+
+            --border-color: rgba(176, 155, 120, 0.28);
+            --border-subtle: rgba(62, 54, 46, 0.12);
+            --border-strong: rgba(62, 54, 46, 0.18);
+
+            --shadow-color: rgba(42, 36, 30, 0.09);
+            --shadow-lift: 0 10px 36px var(--shadow-color), 0 2px 8px rgba(42, 36, 30, 0.05);
+            --shadow-soft: 0 4px 20px rgba(42, 36, 30, 0.07);
         }
 
         body {
-            background-color: var(--bg-color);
+            background: linear-gradient(165deg, #ddd6cc 0%, var(--bg-color) 42%, #e3dcd3 100%);
             color: var(--text-main);
             font-family: 'Pretendard', sans-serif;
             margin: 0;
@@ -30,7 +47,6 @@
             justify-content: center;
             -webkit-font-smoothing: antialiased;
             overflow: hidden;
-            /* 모니터 전체의 스크롤바 방지 */
             height: 100vh;
             height: 100dvh;
         }
@@ -41,7 +57,10 @@
             height: 100vh;
             height: 100dvh;
             position: relative;
-            box-shadow: 0 0 40px rgba(0, 0, 0, 0.1);
+            box-shadow:
+                0 0 0 1px rgba(255, 255, 255, 0.45),
+                0 25px 60px rgba(42, 36, 30, 0.14),
+                0 8px 24px rgba(42, 36, 30, 0.08);
             overflow: hidden;
             background: var(--bg-color);
         }
@@ -49,14 +68,76 @@
         #app-container {
             width: 100%;
             height: 100%;
-            /* 앱 컨테이너 내부 스크롤 부여 */
-            background: var(--bg-color);
+            background: linear-gradient(180deg, #ebe6df 0%, var(--bg-color) 28%, var(--bg-color) 100%);
             overflow-x: hidden;
             overflow-y: auto;
             -webkit-overflow-scrolling: touch;
             overscroll-behavior-y: contain;
             padding-bottom: 16px;
             padding-bottom: calc(16px + env(safe-area-inset-bottom));
+            position: relative;
+            isolation: isolate;
+        }
+
+        #app-container::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            right: 0;
+            top: 0;
+            height: min(320px, 42vh);
+            background:
+                radial-gradient(ellipse 95% 70% at 50% -15%, rgba(201, 167, 76, 0.22) 0%, transparent 58%),
+                radial-gradient(ellipse 80% 50% at 88% 8%, rgba(166, 124, 82, 0.12) 0%, transparent 55%),
+                radial-gradient(ellipse 60% 45% at 12% 18%, rgba(92, 102, 92, 0.06) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        #main-top-area,
+        #main-content-area {
+            position: relative;
+            z-index: 1;
+        }
+
+        .premium-app-header {
+            background: linear-gradient(180deg, rgba(255, 252, 248, 0.98) 0%, rgba(245, 240, 232, 0.93) 100%) !important;
+            backdrop-filter: blur(18px);
+            -webkit-backdrop-filter: blur(18px);
+            border-bottom: 1px solid var(--border-color) !important;
+            box-shadow:
+                var(--shadow-soft),
+                inset 0 1px 0 rgba(255, 255, 255, 0.75) !important;
+        }
+
+        .premium-section-heading h2 {
+            position: relative;
+            display: inline-block;
+        }
+
+        .premium-section-heading h2::after {
+            content: '';
+            display: block;
+            margin-top: 8px;
+            height: 3px;
+            width: 100%;
+            max-width: 48px;
+            border-radius: 2px;
+            background: linear-gradient(90deg, var(--point-color), rgba(201, 167, 76, 0.35));
+        }
+
+        .premium-pill-link {
+            border-color: var(--point-color) !important;
+            color: var(--point-deep) !important;
+            background: rgba(255, 255, 255, 0.65) !important;
+            box-shadow: 0 2px 10px rgba(176, 141, 62, 0.12);
+        }
+
+        .premium-pill-link:hover {
+            background: linear-gradient(135deg, var(--point-bright), var(--point-color)) !important;
+            color: var(--text-on-point) !important;
+            border-color: transparent !important;
+            box-shadow: 0 6px 18px rgba(176, 141, 62, 0.28);
         }
 
         .text-point {
@@ -73,10 +154,10 @@
 
         /* 필터 칩 스타일 */
         .chip {
-            background-color: rgba(255, 255, 255, 0.92);
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.95) 0%, rgba(250, 246, 240, 0.9) 100%);
             backdrop-filter: blur(12px);
             -webkit-backdrop-filter: blur(12px);
-            border: 1px solid var(--point-color); /* 노란색(골드) 테두리 일괄 적용 */
+            border: 1px solid var(--point-ring);
             color: var(--text-main);
             padding: 10px 14px;
             border-radius: 30px;
@@ -88,7 +169,7 @@
             align-items: center;
             justify-content: center;
             gap: 6px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.03);
+            box-shadow: 0 3px 12px var(--shadow-color), inset 0 1px 0 rgba(255, 255, 255, 0.9);
         }
 
         .chip:active {
@@ -97,21 +178,20 @@
 
         .chip.active,
         .chip:hover {
-            background-color: var(--point-color);
-            border-color: var(--point-color);
-            color: #06110D;
-            /* 선택 시 반전 글씨 */
+            background: linear-gradient(135deg, var(--point-bright), var(--point-color));
+            border-color: var(--point-deep);
+            color: var(--text-on-point);
             font-weight: bold;
+            box-shadow: 0 6px 18px rgba(176, 141, 62, 0.28);
         }
 
         /* 카드 UI */
         .card {
-            background-color: var(--surface-color);
+            background: linear-gradient(165deg, var(--surface-raised) 0%, var(--surface-color) 100%);
             border-radius: 20px;
             overflow: hidden;
-            border: 1px solid rgba(255, 255, 255, 0.9);
-            /* 은은한 밝은 테두리로 입체감 */
-            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.85);
+            box-shadow: var(--shadow-lift);
             cursor: pointer;
             transition: transform 0.2s, box-shadow 0.2s;
         }
@@ -181,14 +261,17 @@
             transform: translateX(-50%) translateY(100%);
             width: 100%;
             max-width: 480px;
-            background-color: rgba(16, 38, 26, 0.88); /* 배경 명도 상향 및 투명도 */
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border-top: 1px solid rgba(255, 255, 255, 0.1); /* 엘리베이션 강조명암 */
-            border-left: 1px solid rgba(255, 255, 255, 0.05);
-            border-right: 1px solid rgba(255, 255, 255, 0.05);
+            background: linear-gradient(180deg, rgba(255, 252, 248, 0.97) 0%, rgba(245, 240, 232, 0.98) 100%);
+            backdrop-filter: blur(22px);
+            -webkit-backdrop-filter: blur(22px);
+            border-top: 1px solid var(--border-color);
+            border-left: 1px solid var(--border-subtle);
+            border-right: 1px solid var(--border-subtle);
             border-radius: 24px 24px 0 0;
-            box-shadow: 0 -15px 40px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.08); /* 딥 쉐도우 */
+            box-shadow:
+                0 -12px 40px rgba(42, 36, 30, 0.12),
+                0 -4px 16px rgba(42, 36, 30, 0.06),
+                inset 0 1px 0 rgba(255, 255, 255, 0.85);
             z-index: 50;
             transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
             display: flex;
@@ -219,19 +302,17 @@
             top: 0;
             bottom: 0;
             left: 50%;
-            /* 50% 지정 시 자신의 너비 절반만큼 우측으로 이동 -> left 50%와 결합 시 모바일 화면 우측 끝단에 완벽히 숨김 처리됨 */
             transform: translateX(50%);
             width: 100%;
             max-width: 480px;
-            background-color: var(--bg-color);
-            /* 메인 배경색 사용으로 이질감 방지 */
+            background: linear-gradient(180deg, var(--surface-elevated) 0%, var(--bg-color) 45%);
             z-index: 100;
             transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.3s ease;
             display: flex;
             flex-direction: column;
             border-radius: 0;
-            border-left: 1px solid rgba(255, 255, 255, 0.08); /* 사이드 뷰 엘리베이션 띠 */
-            box-shadow: -10px 0 30px rgba(0, 0, 0, 0.5);
+            border-left: 1px solid var(--border-color);
+            box-shadow: -12px 0 40px rgba(42, 36, 30, 0.12);
             opacity: 0;
             /* PC 화면에서 뷰포트 우측 공간에 스탠바이 중일 때 보이지 않도록 함 */
             pointer-events: none;
@@ -713,12 +794,12 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0, 0, 0, 0.75);
+            background: rgba(42, 36, 34, 0.42);
             z-index: 40;
             opacity: 0;
             pointer-events: none;
             transition: opacity 0.4s ease;
-            backdrop-filter: blur(5px);
+            backdrop-filter: blur(8px);
         }
 
         .overlay.show {
