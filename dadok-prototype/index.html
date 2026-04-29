@@ -50,7 +50,7 @@
 
     <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@300;400;500;600;700&display=swap"
         rel="stylesheet">
-    <link rel="stylesheet" href="assets/css/style.css?v=20260429_premium_light">
+    <link rel="stylesheet" href="assets/css/style.css?v=20260429_quick_recent_title_fix">
 </head>
 
 <body>
@@ -77,7 +77,7 @@
                         <div class="flex-1">
                             <span class="text-[13.5px] font-bold tracking-tight inline-block whitespace-nowrap"
                                 style="background: linear-gradient(135deg, #F3E5AB 10%, #D4AF37 100%); background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
-                                여성을 위한 프라이빗 라운지 by 토닥
+                                여성을 위한 라운지 by 토닥
                             </span>
                         </div>
                     </div>
@@ -95,36 +95,99 @@
 
                 <!-- Filters (Sticky Horizontal Bar) -->
                 <div class="px-5 pb-4">
-                    <button id="filter-toggle-btn" onclick="toggleFilterContainer(event)"
-                        class="w-full flex items-center justify-center gap-2 py-4 mb-2 bg-[var(--point-color)] text-[var(--text-on-point)] rounded-xl font-bold text-[16px] shadow-[0_6px_20px_rgba(176,141,62,0.35)] hover:brightness-105 active:scale-[0.98] transition-all">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z">
-                            </path>
-                        </svg>
-                        조건 상세 검색
-                    </button>
-                    <div id="active-filters-summary" class="flex flex-wrap gap-2 mt-2 empty:hidden"></div>
-
-                    <div id="filter-options-container" class="hidden grid grid-cols-2 gap-3 mt-3 border border-[var(--point-color)] rounded-xl p-4 bg-transparent">
-                        <button class="chip w-full justify-center py-3" onclick="openFilter('region')" id="chip-region">
-                            <span class="text-[22px] flex-shrink-0">📍</span> <span id="val-region"
-                                class="truncate text-[17.5px] font-medium">지역 선택</span>
-                        </button>
-                        <button class="chip w-full justify-center py-3" onclick="openFilter('massage')"
-                            id="chip-massage">
-                            <span class="text-[22px] flex-shrink-0">💆‍♀️</span> <span id="val-massage"
-                                class="truncate text-[17.5px] font-medium">마사지 종류</span>
-                        </button>
-                        <button class="chip w-full justify-center py-3" onclick="openFilter('place')" id="chip-place">
-                            <span class="text-[22px] flex-shrink-0">🏠</span> <span id="val-place"
-                                class="truncate text-[17.5px] font-medium">공간 형태</span>
-                        </button>
-                        <button class="chip w-full justify-center py-3" onclick="openFilter('age')" id="chip-age">
-                            <span class="text-[22px] flex-shrink-0">👤</span> <span id="val-age"
-                                class="truncate text-[17.5px] font-medium">관리사 연령</span>
-                        </button>
+                    <div id="dadok-main-billboard" class="dadok-main-billboard mb-3" role="region"
+                        aria-roledescription="carousel" aria-label="다독 메인 안내">
+                        <div id="dadok-billboard-touch" class="dadok-main-billboard__touch">
+                            <div class="dadok-main-billboard__frame">
+                                <div id="dadok-billboard-gradient" class="dadok-main-billboard__gradient" aria-hidden="true"></div>
+                                <img id="dadok-billboard-img" class="dadok-main-billboard__img" alt="" decoding="async" />
+                                <div class="dadok-main-billboard__scrim" aria-hidden="true"></div>
+                                <div class="dadok-main-billboard__meta">
+                                    <span id="dadok-billboard-eyebrow" class="dadok-main-billboard__eyebrow opacity-100 transition-opacity duration-300">Da:dok Lounge</span>
+                                    <p id="dadok-billboard-caption" class="dadok-main-billboard__caption opacity-100 transition-opacity duration-300" aria-live="polite">
+                                        여성을 위한 프라이빗 라운지, 다독.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        <div id="dadok-billboard-dots" class="dadok-main-billboard__dots"></div>
                     </div>
+                    <div class="dadok-hero-micro mb-4 rounded-xl border border-[var(--border-subtle)] px-3.5 py-3">
+                        <div class="flex items-start justify-between gap-3">
+                            <div class="min-w-0 flex-1">
+                                <p class="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--point-deep)]/85">Quick Start</p>
+                                <p class="mt-1 text-[14.5px] font-semibold leading-snug text-[var(--text-main)]">
+                                    오늘 컨디션에 맞는 업체를 골라 드려요
+                                </p>
+                                <p class="mt-1 text-[11px] text-[var(--text-sub)]">지역 · 마사지 · 공간 · 연령을 한 번에 설정해요.</p>
+                            </div>
+                            <span class="shrink-0 rounded-full border border-[var(--point-color)]/45 bg-[var(--point-light)] px-2.5 py-1 text-[13px] font-bold text-[var(--point-deep)]">빠른 탐색</span>
+                        </div>
+                        <button id="filter-toggle-btn" onclick="toggleFilterContainer(event)"
+                            class="dadok-hero-search-cta mt-3 w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-bold text-[14px]">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M4 6h16M4 12h16M4 18h16" />
+                                <circle cx="9" cy="6" r="1.8" fill="currentColor" stroke="none" />
+                                <circle cx="15" cy="12" r="1.8" fill="currentColor" stroke="none" />
+                                <circle cx="11" cy="18" r="1.8" fill="currentColor" stroke="none" />
+                            </svg>
+                            조건 상세 검색
+                        </button>
+                        <div id="filter-options-container" class="hidden grid grid-cols-2 gap-3 mt-3 border border-[var(--point-color)] rounded-xl p-4 bg-transparent">
+                            <button class="chip w-full justify-center py-3" onclick="openFilter('region')" id="chip-region">
+                                <span class="text-[22px] flex-shrink-0">📍</span> <span id="val-region"
+                                    class="truncate text-[17.5px] font-medium">지역 선택</span>
+                            </button>
+                            <button class="chip w-full justify-center py-3" onclick="openFilter('massage')"
+                                id="chip-massage">
+                                <span class="text-[22px] flex-shrink-0">💆‍♀️</span> <span id="val-massage"
+                                    class="truncate text-[17.5px] font-medium">마사지 종류</span>
+                            </button>
+                            <button class="chip w-full justify-center py-3" onclick="openFilter('place')" id="chip-place">
+                                <span class="text-[22px] flex-shrink-0">🏠</span> <span id="val-place"
+                                    class="truncate text-[17.5px] font-medium">공간 형태</span>
+                            </button>
+                            <button class="chip w-full justify-center py-3" onclick="openFilter('age')" id="chip-age">
+                                <span class="text-[22px] flex-shrink-0">👤</span> <span id="val-age"
+                                    class="truncate text-[17.5px] font-medium">관리사 연령</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div id="quick-tools-panel" class="mb-4 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-raised)]/85 px-3 py-3">
+                        <div class="flex items-center justify-between gap-2">
+                            <p class="text-[16px] font-bold tracking-[0.01em] text-[var(--point-deep)]">빠른 정렬</p>
+                            <label class="flex items-center gap-1.5 text-[14px] text-[var(--text-sub)] cursor-pointer">
+                                <input id="open-now-only-toggle" type="checkbox" onchange="toggleOpenNowOnly(this.checked)"
+                                    class="w-4 h-4 accent-[var(--point-color)]">
+                                영업중만
+                            </label>
+                        </div>
+                        <div id="quick-sort-row" class="mt-2 grid grid-cols-4 gap-1.5">
+                            <button type="button" onclick="setQuickSortMode('distance')" data-sort="distance" class="quick-sort-btn rounded-lg border border-[var(--point-color)] bg-[var(--point-light)] px-2 py-1.5 text-[13px] font-bold text-[var(--point-deep)]">지역순</button>
+                            <button type="button" onclick="setQuickSortMode('rating')" data-sort="rating" class="quick-sort-btn rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-panel)] px-2 py-1.5 text-[13px] text-[var(--text-sub)]">평점순</button>
+                            <button type="button" onclick="setQuickSortMode('reviews')" data-sort="reviews" class="quick-sort-btn rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-panel)] px-2 py-1.5 text-[13px] text-[var(--text-sub)]">리뷰순</button>
+                            <button type="button" onclick="setQuickSortMode('new')" data-sort="new" class="quick-sort-btn rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-panel)] px-2 py-1.5 text-[13px] text-[var(--text-sub)]">신규순</button>
+                        </div>
+                        <div class="mt-2 flex items-center justify-between gap-2">
+                            <p class="text-[10px] text-[var(--text-sub)]">영업중 필터와 정렬은 즉시 적용됩니다.</p>
+                            <button type="button" onclick="setRegionFromCurrentLocation()"
+                                class="rounded-full border border-[var(--point-color)]/45 bg-[var(--point-light)] px-2.5 py-1 text-[10px] font-bold text-[var(--point-deep)]">
+                                현재 위치로 지역 설정
+                            </button>
+                        </div>
+                    </div>
+                    <div id="recent-viewed-panel" class="mb-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-raised)]/88 px-3 py-2.5">
+                        <div class="flex items-center justify-between gap-2">
+                            <p class="text-[16px] font-bold text-[var(--point-deep)]">최근 본 업체</p>
+                            <button type="button" onclick="clearRecentViewedPartners()"
+                                class="text-[10px] text-[var(--text-sub)] hover:text-[var(--point-deep)]">초기화</button>
+                        </div>
+                        <div id="recent-viewed-list" class="mt-2 grid grid-cols-2 gap-2">
+                            <span class="text-[10px] text-[var(--text-sub)]">아직 최근 본 업체가 없어요.</span>
+                        </div>
+                    </div>
+                    <div id="active-filters-summary" class="flex flex-wrap gap-2 mt-2 empty:hidden"></div>
                 </div>
             </div>
 
@@ -136,11 +199,11 @@
                     <div class="mb-12">
                         <div class="flex justify-between items-end px-5 mb-5">
                             <div class="premium-section-heading">
-                                <h2 class="text-xl font-bold" style="color: var(--text-main);">다독 초이스</h2>
-                                <p class="text-sm mt-2" style="color: var(--text-sub);">검증된 이달의 프리미엄 파트너</p>
+                                <h2 class="text-lg font-bold" style="color: var(--text-main);">다독 초이스</h2>
+                                <p class="text-xs mt-2" style="color: var(--text-sub);">검증된 이달의 프리미엄 파트너</p>
                             </div>
                             <span
-                                class="premium-pill-link text-sm cursor-pointer font-bold px-4 py-2 rounded-full transition-all border"
+                                class="premium-pill-link text-[11px] cursor-pointer font-bold px-3.5 py-1.5 rounded-full transition-all border"
                                 onclick="openListView('choice')">전체보기</span>
                         </div>
 
@@ -155,10 +218,10 @@
                     <div class="px-5">
                         <div class="flex justify-between items-end mb-6">
                             <div class="premium-section-heading">
-                                <h2 class="text-xl font-bold" style="color: var(--text-main);">추천 파트너</h2>
+                                <h2 class="text-lg font-bold" style="color: var(--text-main);">추천 파트너</h2>
                             </div>
                             <span
-                                class="premium-pill-link text-sm cursor-pointer font-bold px-4 py-2 rounded-full transition-all border"
+                                class="premium-pill-link text-[11px] cursor-pointer font-bold px-3.5 py-1.5 rounded-full transition-all border"
                                 onclick="openListView('recommend')">전체보기</span>
                         </div>
 
@@ -227,7 +290,7 @@
             <div class="flex-1 flex flex-col px-5 pt-6 pb-32 overflow-y-auto w-full mx-auto">
                 <div class="w-full max-w-sm mx-auto flex flex-col gap-6 mt-2">
                     <!-- 탭 (신고 / 문의) -->
-                    <div class="flex p-1 bg-[var(--surface-input)] border border-[var(--border-subtle)] rounded-xl relative">
+                    <div class="flex p-1 bg-[var(--surface-input)] border border-[var(--border-subtle)] rounded-xl premium-field relative">
                         <div id="support-tab-bg"
                             class="absolute top-1 bottom-1 w-[calc(50%-4px)] bg-[var(--surface-raised)] rounded-lg transition-transform duration-300 ease-in-out shadow-sm border border-[var(--border-subtle)]/80">
                         </div>
@@ -307,7 +370,7 @@
             <!-- App Header -->
             <div class="px-5 py-4 flex items-center justify-between border-b border-[var(--border-color)]">
                 <button
-                    class="w-10 h-10 flex items-center justify-center text-[var(--point-color)] hover:text-white transition-colors"
+                    class="w-10 h-10 flex items-center justify-center text-[var(--point-color)] hover:text-[var(--point-deep)] transition-colors"
                     onclick="closeLoginModal()">
                     <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7">
@@ -382,7 +445,7 @@
             <div
                 class="px-5 py-4 flex items-center justify-between border-b border-[var(--border-color)] bg-[var(--surface-panel)]/95 backdrop-blur-md">
                 <button
-                    class="w-10 h-10 flex items-center justify-center text-[var(--point-color)] hover:text-white transition-colors"
+                    class="w-10 h-10 flex items-center justify-center text-[var(--point-color)] hover:text-[var(--point-deep)] transition-colors"
                     onclick="closeSignupModal()">
                     <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7">
@@ -405,7 +468,7 @@
                     <div class="flex flex-col gap-2">
                         <label class="text-[var(--text-sub)] text-[13px] font-bold tracking-widest ml-1">이메일</label>
                         <input id="signup-id" type="text" placeholder="이메일 주소를 입력해주세요" oninput="checkSignupValidity(); scheduleSignupIdValidation();"
-                            class="w-full bg-[var(--surface-input)] border border-[var(--point-color)]/30 rounded-2xl px-5 py-4 text-[var(--text-main)] placeholder-[var(--text-sub)]/50 font-medium text-[15px] focus:outline-none focus:border-[var(--point-color)] focus:ring-1 focus:ring-[var(--point-color)] transition-all shadow-sm"
+                            class="w-full bg-[var(--surface-input)] border border-[var(--point-color)]/30 rounded-2xl premium-field px-5 py-4 text-[var(--text-main)] placeholder-[var(--text-sub)]/50 font-medium text-[15px] focus:outline-none focus:border-[var(--point-color)] focus:ring-1 focus:ring-[var(--point-color)] transition-all shadow-sm"
                             autocomplete="off">
                         <span id="signup-id-status-msg" class="text-[13px] font-bold ml-1 hidden"></span>
                     </div>
@@ -415,7 +478,7 @@
                         <label class="password-field-label text-[var(--text-sub)] text-[13px] font-bold tracking-widest ml-1">비밀번호</label>
                         <input id="signup-pw" type="password" placeholder="비밀번호(8자리이상 영문/숫자/특수문자 조합)"
                             oninput="checkSignupValidity()"
-                            class="password-field-input w-full bg-[var(--surface-input)] border border-[var(--point-color)]/30 rounded-2xl px-5 py-4 text-[var(--text-main)] placeholder-[var(--text-sub)]/50 font-medium text-[15px] focus:outline-none focus:border-[var(--point-color)] focus:ring-1 focus:ring-[var(--point-color)] transition-all shadow-sm"
+                            class="password-field-input w-full bg-[var(--surface-input)] border border-[var(--point-color)]/30 rounded-2xl premium-field px-5 py-4 text-[var(--text-main)] placeholder-[var(--text-sub)]/50 font-medium text-[15px] focus:outline-none focus:border-[var(--point-color)] focus:ring-1 focus:ring-[var(--point-color)] transition-all shadow-sm"
                             autocomplete="new-password">
                         <span id="signup-pw-status-msg" class="password-field-msg text-[13px] font-bold ml-1 hidden"></span>
                     </div>
@@ -425,7 +488,7 @@
                         <label class="password-field-label text-[var(--text-sub)] text-[13px] font-bold tracking-widest ml-1">비밀번호 확인</label>
                         <input id="signup-pw-confirm" type="password" placeholder="비밀번호(8자리이상 영문/숫자/특수문자 조합)"
                             oninput="checkSignupValidity()"
-                            class="password-field-input w-full bg-[var(--surface-input)] border border-[var(--point-color)]/30 rounded-2xl px-5 py-4 text-[var(--text-main)] placeholder-[var(--text-sub)]/50 font-medium text-[15px] focus:outline-none focus:border-[var(--point-color)] focus:ring-1 focus:ring-[var(--point-color)] transition-all shadow-sm">
+                            class="password-field-input w-full bg-[var(--surface-input)] border border-[var(--point-color)]/30 rounded-2xl premium-field px-5 py-4 text-[var(--text-main)] placeholder-[var(--text-sub)]/50 font-medium text-[15px] focus:outline-none focus:border-[var(--point-color)] focus:ring-1 focus:ring-[var(--point-color)] transition-all shadow-sm">
                         <span id="signup-pw-confirm-status-msg" class="password-field-msg text-[13px] font-bold ml-1 hidden"></span>
                     </div>
 
@@ -459,7 +522,7 @@
                                 </svg>
                             </div>
                             <span
-                                class="signup-tos-agree-line text-[var(--text-main)] text-[14.5px] font-medium group-hover:text-white transition-colors">위
+                                class="signup-tos-agree-line text-[var(--text-main)] text-[14.5px] font-medium group-hover:text-[var(--point-deep)] transition-colors">위
                                 내용을 확인하였으며 이에 동의합니다.</span>
                         </label>
                     </div>
@@ -496,7 +559,7 @@
                                 </svg>
                             </div>
                             <span
-                                class="text-[var(--text-main)] text-[14.5px] font-medium group-hover:text-white transition-colors">위
+                                class="text-[var(--text-main)] text-[14.5px] font-medium group-hover:text-[var(--point-deep)] transition-colors">위
                                 내용을 확인하였으며 이에 동의합니다.</span>
                         </label>
                     </div>
@@ -518,7 +581,7 @@
             <div
                 class="px-5 py-4 flex items-center justify-between border-b border-[var(--border-color)] bg-[var(--surface-panel)]/95 backdrop-blur-md">
                 <button
-                    class="w-10 h-10 flex items-center justify-center text-[var(--point-color)] hover:text-white transition-colors"
+                    class="w-10 h-10 flex items-center justify-center text-[var(--point-color)] hover:text-[var(--point-deep)] transition-colors"
                     onclick="closeLoginFormModal()">
                     <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7">
@@ -550,7 +613,7 @@
                     <div class="flex flex-col gap-2.5">
                         <label class="text-[var(--text-sub)] text-[13px] font-bold tracking-widest ml-1">이메일</label>
                         <input id="login-id-input" type="text" placeholder="이메일 주소를 입력해주세요"
-                            class="w-full bg-[var(--surface-input)] border border-[var(--point-color)]/30 rounded-2xl px-5 py-[18px] text-[var(--text-main)] placeholder-[var(--text-sub)]/50 font-medium text-[16px] focus:outline-none focus:border-[var(--point-color)] focus:ring-1 focus:ring-[var(--point-color)] transition-all shadow-sm"
+                            class="w-full bg-[var(--surface-input)] border border-[var(--point-color)]/30 rounded-2xl premium-field px-5 py-[18px] text-[var(--text-main)] placeholder-[var(--text-sub)]/50 font-medium text-[16px] focus:outline-none focus:border-[var(--point-color)] focus:ring-1 focus:ring-[var(--point-color)] transition-all shadow-sm"
                             oninput="document.getElementById('login-id-error').classList.add('hidden'); document.getElementById('login-mismatch-error').classList.add('hidden'); this.classList.remove('!border-[#ef4444]');">
                         <p id="login-id-error"
                             class="hidden text-[#ef4444] text-[13.5px] font-bold tracking-wide ml-2 mt-[-2px]">이메일을
@@ -561,7 +624,7 @@
                     <div class="flex flex-col gap-2.5 mt-1">
                         <label class="text-[var(--text-sub)] text-[13px] font-bold tracking-widest ml-1">비밀번호</label>
                         <input id="login-password-input" type="password" placeholder="비밀번호를 입력해주세요"
-                            class="w-full bg-[var(--surface-input)] border border-[var(--point-color)]/30 rounded-2xl px-5 py-[18px] text-[var(--text-main)] placeholder-[var(--text-sub)]/50 font-medium text-[16px] focus:outline-none focus:border-[var(--point-color)] focus:ring-1 focus:ring-[var(--point-color)] transition-all shadow-sm"
+                            class="w-full bg-[var(--surface-input)] border border-[var(--point-color)]/30 rounded-2xl premium-field px-5 py-[18px] text-[var(--text-main)] placeholder-[var(--text-sub)]/50 font-medium text-[16px] focus:outline-none focus:border-[var(--point-color)] focus:ring-1 focus:ring-[var(--point-color)] transition-all shadow-sm"
                             oninput="document.getElementById('login-password-error').classList.add('hidden'); document.getElementById('login-mismatch-error').classList.add('hidden'); this.classList.remove('!border-[#ef4444]');">
                         <p id="login-password-error"
                             class="hidden text-[#ef4444] text-[13.5px] font-bold tracking-wide ml-2 mt-[-2px]">비밀번호를
@@ -628,7 +691,7 @@
             <div
                 class="px-5 py-4 flex items-center justify-between border-b border-[var(--border-color)] bg-[var(--surface-panel)]/95 backdrop-blur-md">
                 <button
-                    class="w-10 h-10 flex items-center justify-center text-[var(--point-color)] hover:text-white transition-colors"
+                    class="w-10 h-10 flex items-center justify-center text-[var(--point-color)] hover:text-[var(--point-deep)] transition-colors"
                     onclick="closePartnerLoginScreen()">
                     <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7">
@@ -653,7 +716,7 @@
                     <div class="flex flex-col gap-2.5">
                         <label class="text-[var(--text-sub)] text-[13px] font-bold tracking-widest ml-1">파트너 이메일</label>
                         <input id="partner-login-id-input" type="text" placeholder="이메일 주소를 입력해주세요"
-                            class="w-full bg-[var(--surface-input)] border border-[var(--point-color)]/30 rounded-2xl px-5 py-[18px] text-[var(--text-main)] placeholder-[var(--text-sub)]/50 font-medium text-[16px] focus:outline-none focus:border-[var(--point-color)] focus:ring-1 focus:ring-[var(--point-color)] transition-all shadow-sm"
+                            class="w-full bg-[var(--surface-input)] border border-[var(--point-color)]/30 rounded-2xl premium-field px-5 py-[18px] text-[var(--text-main)] placeholder-[var(--text-sub)]/50 font-medium text-[16px] focus:outline-none focus:border-[var(--point-color)] focus:ring-1 focus:ring-[var(--point-color)] transition-all shadow-sm"
                             oninput="document.getElementById('partner-login-id-error').classList.add('hidden'); document.getElementById('partner-login-mismatch-error').classList.add('hidden'); this.classList.remove('!border-[#ef4444]');">
                         <p id="partner-login-id-error"
                             class="hidden text-[#ef4444] text-[13.5px] font-bold tracking-wide ml-2 mt-[-2px]">이메일을
@@ -664,7 +727,7 @@
                     <div class="flex flex-col gap-2.5 mt-1">
                         <label class="text-[var(--text-sub)] text-[13px] font-bold tracking-widest ml-1">비밀번호</label>
                         <input id="partner-login-password-input" type="password" placeholder="비밀번호를 입력해주세요"
-                            class="w-full bg-[var(--surface-input)] border border-[var(--point-color)]/30 rounded-2xl px-5 py-[18px] text-[var(--text-main)] placeholder-[var(--text-sub)]/50 font-medium text-[16px] focus:outline-none focus:border-[var(--point-color)] focus:ring-1 focus:ring-[var(--point-color)] transition-all shadow-sm"
+                            class="w-full bg-[var(--surface-input)] border border-[var(--point-color)]/30 rounded-2xl premium-field px-5 py-[18px] text-[var(--text-main)] placeholder-[var(--text-sub)]/50 font-medium text-[16px] focus:outline-none focus:border-[var(--point-color)] focus:ring-1 focus:ring-[var(--point-color)] transition-all shadow-sm"
                             oninput="document.getElementById('partner-login-password-error').classList.add('hidden'); document.getElementById('partner-login-mismatch-error').classList.add('hidden'); this.classList.remove('!border-[#ef4444]');">
                         <p id="partner-login-password-error"
                             class="hidden text-[#ef4444] text-[13.5px] font-bold tracking-wide ml-2 mt-[-2px]">비밀번호를
@@ -768,7 +831,7 @@
             <div
                 class="px-5 py-4 flex items-center justify-between border-b border-[var(--border-color)] bg-[var(--surface-panel)]/95 backdrop-blur-md">
                 <button
-                    class="w-10 h-10 flex items-center justify-center text-[var(--point-color)] hover:text-white transition-colors"
+                    class="w-10 h-10 flex items-center justify-center text-[var(--point-color)] hover:text-[var(--point-deep)] transition-colors"
                     onclick="closePartnerRecoveryModal()">
                     <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7">
@@ -794,12 +857,12 @@
                         <div class="flex flex-col gap-2">
                             <label class="text-[var(--text-sub)] text-[13px] font-bold tracking-widest ml-1">업체명</label>
                             <input id="partner-find-id-company" type="text" placeholder="등록된 업체명을 입력해주세요"
-                                class="w-full bg-[var(--surface-input)] border border-[var(--point-color)]/30 rounded-2xl px-5 py-4 text-[var(--text-main)] placeholder-[var(--text-sub)]/50 font-medium text-[15px] focus:outline-none focus:border-[var(--point-color)] focus:ring-1 focus:ring-[var(--point-color)] transition-all shadow-sm">
+                                class="w-full bg-[var(--surface-input)] border border-[var(--point-color)]/30 rounded-2xl premium-field px-5 py-4 text-[var(--text-main)] placeholder-[var(--text-sub)]/50 font-medium text-[15px] focus:outline-none focus:border-[var(--point-color)] focus:ring-1 focus:ring-[var(--point-color)] transition-all shadow-sm">
                         </div>
                         <div class="flex flex-col gap-2">
                             <label class="text-[var(--text-sub)] text-[13px] font-bold tracking-widest ml-1">휴대폰 번호</label>
                             <input id="partner-find-id-phone" type="tel" placeholder="010으로 시작하는 11자리"
-                                class="w-full bg-[var(--surface-input)] border border-[var(--point-color)]/30 rounded-2xl px-5 py-4 text-[var(--text-main)] placeholder-[var(--text-sub)]/50 font-medium text-[15px] focus:outline-none focus:border-[var(--point-color)] focus:ring-1 focus:ring-[var(--point-color)] transition-all shadow-sm">
+                                class="w-full bg-[var(--surface-input)] border border-[var(--point-color)]/30 rounded-2xl premium-field px-5 py-4 text-[var(--text-main)] placeholder-[var(--text-sub)]/50 font-medium text-[15px] focus:outline-none focus:border-[var(--point-color)] focus:ring-1 focus:ring-[var(--point-color)] transition-all shadow-sm">
                         </div>
                         <button
                             class="w-full py-[16px] mt-2 rounded-2xl bg-gradient-to-r from-[var(--point-color)] to-[#B59530] text-[var(--text-on-point)] font-bold text-[16px] tracking-[0.08em] shadow-[0_8px_20px_rgba(212,175,55,0.25)] hover:brightness-110 transition-all duration-300 active:scale-[0.98]"
@@ -810,12 +873,12 @@
                         <div class="flex flex-col gap-2">
                             <label class="text-[var(--text-sub)] text-[13px] font-bold tracking-widest ml-1">파트너 이메일</label>
                             <input id="partner-find-pw-id" type="text" placeholder="이메일 주소를 입력해주세요"
-                                class="w-full bg-[var(--surface-input)] border border-[var(--point-color)]/30 rounded-2xl px-5 py-4 text-[var(--text-main)] placeholder-[var(--text-sub)]/50 font-medium text-[15px] focus:outline-none focus:border-[var(--point-color)] focus:ring-1 focus:ring-[var(--point-color)] transition-all shadow-sm">
+                                class="w-full bg-[var(--surface-input)] border border-[var(--point-color)]/30 rounded-2xl premium-field px-5 py-4 text-[var(--text-main)] placeholder-[var(--text-sub)]/50 font-medium text-[15px] focus:outline-none focus:border-[var(--point-color)] focus:ring-1 focus:ring-[var(--point-color)] transition-all shadow-sm">
                         </div>
                         <div class="flex flex-col gap-2">
                             <label class="text-[var(--text-sub)] text-[13px] font-bold tracking-widest ml-1">업체명</label>
                             <input id="partner-find-pw-company" type="text" placeholder="등록된 업체명을 입력해주세요"
-                                class="w-full bg-[var(--surface-input)] border border-[var(--point-color)]/30 rounded-2xl px-5 py-4 text-[var(--text-main)] placeholder-[var(--text-sub)]/50 font-medium text-[15px] focus:outline-none focus:border-[var(--point-color)] focus:ring-1 focus:ring-[var(--point-color)] transition-all shadow-sm">
+                                class="w-full bg-[var(--surface-input)] border border-[var(--point-color)]/30 rounded-2xl premium-field px-5 py-4 text-[var(--text-main)] placeholder-[var(--text-sub)]/50 font-medium text-[15px] focus:outline-none focus:border-[var(--point-color)] focus:ring-1 focus:ring-[var(--point-color)] transition-all shadow-sm">
                         </div>
                         <button
                             class="w-full py-[16px] mt-2 rounded-2xl bg-gradient-to-r from-[var(--point-color)] to-[#B59530] text-[var(--text-on-point)] font-bold text-[16px] tracking-[0.08em] shadow-[0_8px_20px_rgba(212,175,55,0.25)] hover:brightness-110 transition-all duration-300 active:scale-[0.98]"
@@ -827,14 +890,14 @@
                                 <label class="text-[var(--text-sub)] text-[12px] font-bold tracking-widest ml-1">새 비밀번호</label>
                                 <input id="partner-recovery-new-pw" type="password" placeholder="8자리이상 영문/숫자/특수문자 조합"
                                     oninput="validatePartnerRecoveryPasswordForm()"
-                                    class="w-full bg-[var(--surface-panel)] border border-[var(--border-subtle)] rounded-xl px-4 py-3 text-[var(--text-main)] placeholder-[var(--text-sub)]/50 font-medium text-[14px] focus:outline-none focus:border-[var(--point-color)] transition-all">
+                                    class="w-full bg-[var(--surface-panel)] border border-[var(--border-subtle)] rounded-xl premium-field px-4 py-3 text-[var(--text-main)] placeholder-[var(--text-sub)]/50 font-medium text-[14px] focus:outline-none focus:border-[var(--point-color)] transition-all">
                                 <span id="partner-recovery-new-pw-msg" class="text-[12px] font-bold ml-1 hidden"></span>
                             </div>
                             <div class="flex flex-col gap-2">
                                 <label class="text-[var(--text-sub)] text-[12px] font-bold tracking-widest ml-1">새 비밀번호 확인</label>
                                 <input id="partner-recovery-new-pw-confirm" type="password" placeholder="비밀번호를 다시 입력해주세요"
                                     oninput="validatePartnerRecoveryPasswordForm()"
-                                    class="w-full bg-[var(--surface-panel)] border border-[var(--border-subtle)] rounded-xl px-4 py-3 text-[var(--text-main)] placeholder-[var(--text-sub)]/50 font-medium text-[14px] focus:outline-none focus:border-[var(--point-color)] transition-all">
+                                    class="w-full bg-[var(--surface-panel)] border border-[var(--border-subtle)] rounded-xl premium-field px-4 py-3 text-[var(--text-main)] placeholder-[var(--text-sub)]/50 font-medium text-[14px] focus:outline-none focus:border-[var(--point-color)] transition-all">
                                 <span id="partner-recovery-new-pw-confirm-msg" class="text-[12px] font-bold ml-1 hidden"></span>
                             </div>
                             <button id="partner-recovery-reset-submit-btn"
@@ -855,7 +918,7 @@
             <div
                 class="px-5 py-4 flex items-center justify-between border-b border-[var(--border-color)] bg-[var(--surface-panel)]/95 backdrop-blur-md">
                 <button
-                    class="w-10 h-10 flex items-center justify-center text-[var(--point-color)] hover:text-white transition-colors"
+                    class="w-10 h-10 flex items-center justify-center text-[var(--point-color)] hover:text-[var(--point-deep)] transition-colors"
                     onclick="closePartnerSignupModal()">
                     <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7">
@@ -877,7 +940,7 @@
 
                     <!-- 1. 계정 정보 (기본) -->
                     <div class="flex flex-col gap-5 mt-2">
-                        <h3 class="text-[16px] font-bold text-white tracking-widest flex items-center gap-2">
+                        <h3 class="text-[16px] font-bold text-[var(--text-main)] tracking-widest flex items-center gap-2">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                     d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
@@ -887,7 +950,7 @@
                         <div class="flex flex-col gap-2">
                             <label class="text-[var(--text-sub)] text-[14px] font-bold tracking-widest ml-1">이메일</label>
                             <input id="partner-signup-id" type="text" placeholder="사용하실 이메일 주소를 입력해주세요" oninput="checkPartnerSignupForm(); schedulePartnerSignupIdValidation();"
-                                class="w-full bg-[var(--surface-input)] border border-[var(--border-subtle)] rounded-xl px-4 py-4 text-[var(--text-main)] placeholder-[var(--text-sub)]/50 font-medium text-[16px] focus:outline-none focus:border-[var(--point-color)] transition-all">
+                                class="w-full bg-[var(--surface-input)] border border-[var(--border-subtle)] rounded-xl premium-field px-4 py-4 text-[var(--text-main)] placeholder-[var(--text-sub)]/50 font-medium text-[16px] focus:outline-none focus:border-[var(--point-color)] transition-all">
                             <span id="partner-signup-id-status-msg" class="text-[13px] font-bold ml-1 hidden"></span>
                         </div>
 
@@ -896,7 +959,7 @@
                                 class="password-field-label text-[var(--text-sub)] text-[14px] font-bold tracking-widest ml-1">비밀번호</label>
                             <input id="partner-signup-pw" oninput="checkPartnerSignupForm()" type="password"
                                 placeholder="비밀번호(8자리이상 영문/숫자/특수문자 조합)"
-                                class="password-field-input w-full bg-[var(--surface-input)] border border-[var(--border-subtle)] rounded-xl px-4 py-4 text-[var(--text-main)] placeholder-[var(--text-sub)]/50 font-medium text-[16px] focus:outline-none focus:border-[var(--point-color)] transition-all">
+                                class="password-field-input w-full bg-[var(--surface-input)] border border-[var(--border-subtle)] rounded-xl premium-field px-4 py-4 text-[var(--text-main)] placeholder-[var(--text-sub)]/50 font-medium text-[16px] focus:outline-none focus:border-[var(--point-color)] transition-all">
                             <span id="partner-signup-pw-status-msg" class="password-field-msg text-[13px] font-bold ml-1 hidden"></span>
                         </div>
 
@@ -905,7 +968,7 @@
                                 확인</label>
                             <input id="partner-signup-pw-confirm" oninput="checkPartnerSignupForm()" type="password"
                                 placeholder="비밀번호(8자리이상 영문/숫자/특수문자 조합)"
-                                class="password-field-input w-full bg-[var(--surface-input)] border border-[var(--border-subtle)] rounded-xl px-4 py-4 text-[var(--text-main)] placeholder-[var(--text-sub)]/50 font-medium text-[16px] focus:outline-none focus:border-[var(--point-color)] transition-all">
+                                class="password-field-input w-full bg-[var(--surface-input)] border border-[var(--border-subtle)] rounded-xl premium-field px-4 py-4 text-[var(--text-main)] placeholder-[var(--text-sub)]/50 font-medium text-[16px] focus:outline-none focus:border-[var(--point-color)] transition-all">
                             <span id="partner-signup-pw-confirm-status-msg" class="password-field-msg text-[13px] font-bold ml-1 hidden"></span>
                         </div>
 
@@ -913,13 +976,13 @@
                             <label class="text-[var(--text-sub)] text-[14px] font-bold tracking-widest ml-1">업체명
                                 (상호)</label>
                             <input id="partner-signup-company" type="text" placeholder="어플에 노출될 가게 이름을 입력해주세요"
-                                class="w-full bg-[var(--surface-input)] border border-[var(--border-subtle)] rounded-xl px-4 py-4 text-[var(--text-main)] placeholder-[var(--text-sub)]/50 font-medium text-[16px] focus:outline-none focus:border-[var(--point-color)] transition-all">
+                                class="w-full bg-[var(--surface-input)] border border-[var(--border-subtle)] rounded-xl premium-field px-4 py-4 text-[var(--text-main)] placeholder-[var(--text-sub)]/50 font-medium text-[16px] focus:outline-none focus:border-[var(--point-color)] transition-all">
                         </div>
                     </div>
 
                     <!-- 2. 신원 확인 및 법적 증빙 -->
                     <div class="flex flex-col gap-5 mt-4">
-                        <h3 class="text-[16px] font-bold text-white tracking-widest flex items-center gap-2">
+                        <h3 class="text-[16px] font-bold text-[var(--text-main)] tracking-widest flex items-center gap-2">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                     d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z">
@@ -931,14 +994,14 @@
                             <label class="text-[var(--text-sub)] text-[14px] font-bold tracking-widest ml-1">대표자
                                 실명</label>
                             <input id="partner-signup-name" type="text" placeholder="본인인증 일치를 위해 실명을 입력해주세요"
-                                class="w-full bg-[var(--surface-input)] border border-[var(--border-subtle)] rounded-xl px-4 py-4 text-[var(--text-main)] placeholder-[var(--text-sub)]/50 font-medium text-[16px] focus:outline-none focus:border-[var(--point-color)] transition-all">
+                                class="w-full bg-[var(--surface-input)] border border-[var(--border-subtle)] rounded-xl premium-field px-4 py-4 text-[var(--text-main)] placeholder-[var(--text-sub)]/50 font-medium text-[16px] focus:outline-none focus:border-[var(--point-color)] transition-all">
                         </div>
 
                         <div class="flex flex-col gap-2">
                             <label class="text-[var(--text-sub)] text-[14px] font-bold tracking-widest ml-1">업체
                                 문의전화</label>
                             <input id="partner-signup-phone" oninput="checkPartnerSignupForm()" type="tel" placeholder="고객이 문의/예약 시 연락할 번호입니다."
-                                class="w-full bg-[var(--surface-input)] border border-[var(--border-subtle)] rounded-xl px-4 py-4 text-[var(--text-main)] placeholder-[var(--text-sub)]/50 font-medium text-[16px] focus:outline-none focus:border-[var(--point-color)] transition-all">
+                                class="w-full bg-[var(--surface-input)] border border-[var(--border-subtle)] rounded-xl premium-field px-4 py-4 text-[var(--text-main)] placeholder-[var(--text-sub)]/50 font-medium text-[16px] focus:outline-none focus:border-[var(--point-color)] transition-all">
                             <span id="partner-signup-phone-status-msg" class="text-[13px] font-bold ml-1 hidden"></span>
                         </div>
 
@@ -976,7 +1039,7 @@
                             <label
                                 class="text-[var(--text-sub)] text-[14px] font-bold tracking-widest ml-1">사업자등록번호</label>
                             <input id="partner-signup-biz-no" type="text" placeholder="숫자만 입력해 주세요"
-                                class="w-full bg-[var(--surface-input)] border border-[var(--border-subtle)] rounded-xl px-4 py-4 text-[var(--text-main)] placeholder-[var(--text-sub)]/50 font-medium text-[16px] focus:outline-none focus:border-[var(--point-color)] transition-all">
+                                class="w-full bg-[var(--surface-input)] border border-[var(--border-subtle)] rounded-xl premium-field px-4 py-4 text-[var(--text-main)] placeholder-[var(--text-sub)]/50 font-medium text-[16px] focus:outline-none focus:border-[var(--point-color)] transition-all">
                         </div>
 
                         <div class="flex flex-col gap-2 mt-2">
@@ -1007,7 +1070,7 @@
                             </div>
                             <label class="flex items-start gap-3 mt-2 cursor-pointer group">
                                 <input id="partner-signup-id-mask-confirm" type="checkbox" onchange="checkPartnerSignupForm()"
-                                    class="mt-1 w-4.5 h-4.5 text-[var(--point-color)] bg-[var(--surface-input)] border-[var(--border-subtle)] rounded focus:ring-[var(--point-color)]">
+                                    class="mt-1 w-4 h-4 text-[var(--point-color)] bg-[var(--surface-input)] border-[var(--border-subtle)] rounded focus:ring-[var(--point-color)]">
                                 <span class="text-[13px] text-[var(--text-sub)] leading-relaxed">
                                     신분증 업로드 시 주민등록번호 뒷자리를 <span class="text-[var(--point-color)] font-bold">가림 처리(마스킹)</span> 했음을 확인합니다.
                                 </span>
@@ -1151,7 +1214,7 @@
             <div
                 class="px-5 py-4 flex items-center justify-between border-b border-[var(--border-color)] bg-[var(--surface-panel)]/95 backdrop-blur-md">
                 <button
-                    class="w-10 h-10 flex items-center justify-center text-[var(--point-color)] hover:text-white transition-colors"
+                    class="w-10 h-10 flex items-center justify-center text-[var(--point-color)] hover:text-[var(--point-deep)] transition-colors"
                     onclick="closeLegalModal()">
                     <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7">
@@ -1182,7 +1245,7 @@
                     </svg>
                 </div>
 
-                <h2 class="text-2xl font-bold text-white mb-4 tracking-widest text-center">가입을 축하드립니다!</h2>
+                <h2 class="text-2xl font-bold text-[var(--text-main)] mb-4 tracking-widest text-center">가입을 축하드립니다!</h2>
 
                 <p class="text-[var(--text-main)] text-center text-[16px] leading-relaxed mb-2 font-medium">
                     다독 파트너스 합류를<br>진심으로 환영합니다.
@@ -1223,7 +1286,7 @@
                 <div id="partner-approval-gate" class="hidden mb-8">
                     <div class="bg-[var(--surface-input)] border border-[var(--border-subtle)] rounded-2xl p-5 shadow-sm">
                         <div class="flex items-center justify-between gap-3 mb-4">
-                            <h3 class="text-[16px] font-bold text-white tracking-wide">파트너 승인 상태</h3>
+                            <h3 class="text-[16px] font-bold text-[var(--text-main)] tracking-wide">파트너 승인 상태</h3>
                             <span id="partner-approval-status-badge"
                                 class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-[#3A2810] text-[#FACC15]">승인 대기</span>
                         </div>
@@ -1235,7 +1298,7 @@
 
                         <div class="mt-4 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-panel)] px-4 py-3">
                             <p class="text-[11px] text-[#7F8E88] mb-1">관리자 안내메시지</p>
-                            <p id="partner-approval-admin-message" class="text-[13px] text-white leading-relaxed">
+                            <p id="partner-approval-admin-message" class="text-[13px] text-[var(--text-sub)] leading-relaxed">
                                 아직 전달된 안내메시지가 없습니다.
                             </p>
                         </div>
@@ -1247,15 +1310,15 @@
                                 입점권 재신청/안내 보기
                             </button>
                             <button type="button" onclick="openNoticePage('partner')"
-                                class="w-full py-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-panel)] text-white font-bold text-[14px] tracking-wide hover:border-[var(--point-color)] transition-all">
+                                class="w-full py-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-panel)] text-[var(--text-main)] font-bold text-[14px] tracking-wide hover:border-[var(--point-color)] transition-all">
                                 공지/안내함 확인
                             </button>
                             <button type="button" onclick="openNotificationSettingsModal('partner')"
-                                class="w-full py-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-panel)] text-white font-bold text-[14px] tracking-wide hover:border-[var(--point-color)] transition-all">
+                                class="w-full py-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-panel)] text-[var(--text-main)] font-bold text-[14px] tracking-wide hover:border-[var(--point-color)] transition-all">
                                 알림 설정
                             </button>
                             <button type="button" onclick="openSupportFromPartnerDashboard()"
-                                class="w-full py-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-panel)] text-white font-bold text-[14px] tracking-wide hover:border-[var(--point-color)] transition-all">
+                                class="w-full py-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-panel)] text-[var(--text-main)] font-bold text-[14px] tracking-wide hover:border-[var(--point-color)] transition-all">
                                 관리자 문의하기
                             </button>
                         </div>
@@ -1474,11 +1537,11 @@
                             </path>
                         </svg> 업체 사진 등록
                     </h3>
-                    <div class="bg-[var(--surface-input)] border border-[var(--border-subtle)] rounded-xl p-4 mb-4">
+                    <div class="bg-[var(--surface-input)] border border-[var(--border-subtle)] rounded-xl premium-field p-4 mb-4">
                         <p class="text-[12px] text-[var(--point-color)] font-bold mb-1">업체 이미지 등록 안내 (필수 확인)</p>
                         <p class="text-[11px] text-[var(--text-muted)] leading-relaxed">
-                            썸네일 이미지: <span class="text-white">JPG/PNG/GIF 허용 (GIF는 최대 5MB), 정사각형(1:1), 권장 1080x1080 / 최소 600x600</span><br>
-                            상세 배너 이미지: <span class="text-white">JPG/PNG만 허용 (정지 이미지 전용), 가로형(16:9), 권장 1440x810 / 최소 1280x720</span><br>
+                            썸네일 이미지: <span class="text-[var(--text-main)]">JPG/PNG/GIF 허용 (GIF는 최대 5MB), 정사각형(1:1), 권장 1080x1080 / 최소 600x600</span><br>
+                            상세 배너 이미지: <span class="text-[var(--text-main)]">JPG/PNG만 허용 (정지 이미지 전용), 가로형(16:9), 권장 1440x810 / 최소 1280x720</span><br>
                             텍스트/로고는 이미지 가장자리 10% 안쪽에 배치해 주세요. (잘림 방지)
                         </p>
                     </div>
@@ -1547,7 +1610,7 @@
                             </svg> 메뉴 및 코스 수정
                         </h3>
                         <button
-                            class="text-[12px] text-white  font-bold px-3 py-1 bg-[var(--point-color)]/10 border border-[var(--point-color)]/30 rounded-full hover:bg-[var(--point-color)]/20 transition-colors"
+                            class="text-[12px] text-[var(--point-deep)] font-bold px-3 py-1 bg-[var(--point-color)]/10 border border-[var(--point-color)]/30 rounded-full hover:bg-[var(--point-color)]/20 transition-colors"
                             onclick="addMenuItem()">+ 메뉴 추가</button>
                     </div>
 
@@ -1566,7 +1629,7 @@
                     </h3>
                     <div class="flex flex-col gap-4">
                         <!-- 지역 선택 (다중) -->
-                        <div class="bg-[var(--surface-input)] border border-[var(--border-subtle)] rounded-xl p-4">
+                        <div class="bg-[var(--surface-input)] border border-[var(--border-subtle)] rounded-xl premium-field p-4">
                             <div class="flex justify-between items-center mb-3">
                                 <label class="text-[var(--text-sub)] text-[12px] font-bold tracking-widest block">활동 지역
                                     선택 (선택된 지역만 노출)</label>
@@ -1607,7 +1670,7 @@
                         
 
                         <!-- 마사지 종류 (다중) -->
-                        <div class="bg-[var(--surface-input)] border border-[var(--border-subtle)] rounded-xl p-4">
+                        <div class="bg-[var(--surface-input)] border border-[var(--border-subtle)] rounded-xl premium-field p-4">
                             <div class="flex justify-between items-center mb-3">
                                 <label class="text-[var(--text-sub)] text-[12px] font-bold tracking-widest block">마사지 종류
                                     (복수 선택 가능)</label>
@@ -1634,7 +1697,7 @@
                         </div>
 
                         <!-- 공간 형태 (단일/다중) -->
-                        <div class="bg-[var(--surface-input)] border border-[var(--border-subtle)] rounded-xl p-4">
+                        <div class="bg-[var(--surface-input)] border border-[var(--border-subtle)] rounded-xl premium-field p-4">
                             <div class="flex justify-between items-center mb-3">
                                 <label class="text-[var(--text-sub)] text-[12px] font-bold tracking-widest block">휴식 공간
                                     형태 (복수 선택 가능)</label>
@@ -1661,7 +1724,7 @@
                         </div>
 
                         <!-- 관리사 연령 -->
-                        <div class="bg-[var(--surface-input)] border border-[var(--border-subtle)] rounded-xl p-4">
+                        <div class="bg-[var(--surface-input)] border border-[var(--border-subtle)] rounded-xl premium-field p-4">
                             <div class="flex justify-between items-center mb-3">
                                 <label class="text-[var(--text-sub)] text-[12px] font-bold tracking-widest block">관리사
                                     연령대 (복수 선택 가능)</label>
@@ -1705,7 +1768,7 @@
                             <label class="text-[var(--text-sub)] text-[12px] font-bold tracking-widest ml-1">상호명
                                 (업체명)</label>
                             <input type="text" id="partner-input-name"
-                                class="w-full bg-[var(--surface-input)] border border-[var(--border-subtle)] rounded-xl px-4 py-3.5 text-[var(--text-main)] font-medium text-[15px] focus:outline-none focus:border-[var(--point-color)] transition-all">
+                                class="w-full bg-[var(--surface-input)] border border-[var(--border-subtle)] rounded-xl premium-field px-4 py-3.5 text-[var(--text-main)] font-medium text-[15px] focus:outline-none focus:border-[var(--point-color)] transition-all">
                         </div>
 
                         <div class="flex flex-col gap-1.5">
@@ -1713,10 +1776,10 @@
                             <p class="text-[11px] text-[var(--text-sub)] ml-1">매장 운영 시간입니다. 방문자 프로필의 영업 안내에 표시됩니다.</p>
                             <div class="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
                                 <input type="time" id="partner-input-hours-start"
-                                    class="schedule-white-icon w-full bg-[var(--surface-input)] border border-[var(--border-subtle)] rounded-xl px-3 py-3.5 text-[var(--text-main)] font-medium text-[15px] focus:outline-none focus:border-[var(--point-color)] transition-all">
+                                    class="schedule-white-icon w-full bg-[var(--surface-input)] border border-[var(--border-subtle)] rounded-xl premium-field px-3 py-3.5 text-[var(--text-main)] font-medium text-[15px] focus:outline-none focus:border-[var(--point-color)] transition-all">
                                 <span class="text-[var(--text-sub)] text-[12px] font-bold">~</span>
                                 <input type="time" id="partner-input-hours-end"
-                                    class="schedule-white-icon w-full bg-[var(--surface-input)] border border-[var(--border-subtle)] rounded-xl px-3 py-3.5 text-[var(--text-main)] font-medium text-[15px] focus:outline-none focus:border-[var(--point-color)] transition-all">
+                                    class="schedule-white-icon w-full bg-[var(--surface-input)] border border-[var(--border-subtle)] rounded-xl premium-field px-3 py-3.5 text-[var(--text-main)] font-medium text-[15px] focus:outline-none focus:border-[var(--point-color)] transition-all">
                             </div>
                             <div class="flex flex-wrap gap-2 mt-1">
                                 <button type="button" onclick="setPartnerBusinessHoursPreset('day')"
@@ -1728,7 +1791,7 @@
                             </div>
                         </div>
 
-                        <div class="bg-[var(--surface-input)] border border-[var(--border-subtle)] rounded-xl p-4">
+                        <div class="bg-[var(--surface-input)] border border-[var(--border-subtle)] rounded-xl premium-field p-4">
                             <div class="flex items-center justify-between mb-3">
                                 <div>
                                     <label class="text-[var(--text-sub)] text-[12px] font-bold tracking-widest block">전화 연결 허용</label>
@@ -1744,10 +1807,10 @@
                                 <label class="text-[var(--text-sub)] text-[12px] font-bold tracking-widest ml-1">통화 가능 시간</label>
                                 <div class="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
                                     <input type="time" id="partner-input-call-start"
-                                        class="w-full bg-[var(--surface-panel)] border border-[var(--border-subtle)] rounded-xl px-3 py-3 text-[var(--text-main)] font-medium text-[14px] focus:outline-none focus:border-[var(--point-color)] transition-all">
+                                        class="w-full bg-[var(--surface-panel)] border border-[var(--border-subtle)] rounded-xl premium-field px-3 py-3 text-[var(--text-main)] font-medium text-[14px] focus:outline-none focus:border-[var(--point-color)] transition-all">
                                     <span class="text-[var(--text-sub)] text-[12px] font-bold">~</span>
                                     <input type="time" id="partner-input-call-end"
-                                        class="w-full bg-[var(--surface-panel)] border border-[var(--border-subtle)] rounded-xl px-3 py-3 text-[var(--text-main)] font-medium text-[14px] focus:outline-none focus:border-[var(--point-color)] transition-all">
+                                        class="w-full bg-[var(--surface-panel)] border border-[var(--border-subtle)] rounded-xl premium-field px-3 py-3 text-[var(--text-main)] font-medium text-[14px] focus:outline-none focus:border-[var(--point-color)] transition-all">
                                 </div>
                                 <div class="flex flex-wrap gap-2 mt-2">
                                     <button type="button" onclick="setPartnerCallTimePreset('day')"
@@ -1765,13 +1828,13 @@
                             <label class="text-[var(--text-sub)] text-[12px] font-bold tracking-widest ml-1">상세 주소
                                 (위치)</label>
                             <input type="text" id="partner-input-address"
-                                class="w-full bg-[var(--surface-input)] border border-[var(--border-subtle)] rounded-xl px-4 py-3.5 text-[var(--text-main)] font-medium text-[15px] focus:outline-none focus:border-[var(--point-color)] transition-all">
+                                class="w-full bg-[var(--surface-input)] border border-[var(--border-subtle)] rounded-xl premium-field px-4 py-3.5 text-[var(--text-main)] font-medium text-[15px] focus:outline-none focus:border-[var(--point-color)] transition-all">
                         </div>
 
                         <div class="flex flex-col gap-1.5">
                             <label class="text-[var(--text-sub)] text-[12px] font-bold tracking-widest ml-1">주차안내</label>
                             <textarea id="partner-input-parking" rows="2" placeholder="예: 건물 지하 주차장 2시간 무료"
-                                class="w-full bg-[var(--surface-input)] border border-[var(--border-subtle)] rounded-xl px-4 py-3 text-[var(--text-main)] font-medium text-[15px] leading-snug focus:outline-none focus:border-[var(--point-color)] transition-all min-h-[2.75rem] max-h-24 resize-y"></textarea>
+                                class="w-full bg-[var(--surface-input)] border border-[var(--border-subtle)] rounded-xl premium-field px-4 py-3 text-[var(--text-main)] font-medium text-[15px] leading-snug focus:outline-none focus:border-[var(--point-color)] transition-all min-h-[2.75rem] max-h-24 resize-y"></textarea>
                         </div>
 
                         <div class="flex flex-col gap-1.5">
@@ -1779,7 +1842,7 @@
                                 문구</label>
                             <textarea id="partner-input-desc" rows="5"
                                 placeholder="온전한 쉼을 청하는 분들께 최고의 시간을 선물합니다. 아르테미스는 100% 철저한 예약제로 운영되며, 매 관리 후 완벽한 소독 및 일회용 어메니티 사용을 원칙으로 합니다."
-                                class="w-full bg-[var(--surface-input)] border border-[var(--border-subtle)] rounded-xl px-4 py-3.5 text-[var(--text-main)] font-medium text-[15px] leading-relaxed focus:outline-none focus:border-[var(--point-color)] transition-all min-h-[7rem] resize-y placeholder:text-[var(--text-sub)] placeholder:opacity-80"></textarea>
+                                class="w-full bg-[var(--surface-input)] border border-[var(--border-subtle)] rounded-xl premium-field px-4 py-3.5 text-[var(--text-main)] font-medium text-[15px] leading-relaxed focus:outline-none focus:border-[var(--point-color)] transition-all min-h-[7rem] resize-y placeholder:text-[var(--text-sub)] placeholder:opacity-80"></textarea>
                         </div>
                     </div>
                 </div>
@@ -1997,7 +2060,7 @@
             <div
                 class="px-5 py-4 flex items-center justify-between border-b border-[var(--border-color)] bg-[var(--surface-panel)]/95 backdrop-blur-md">
                 <button
-                    class="w-10 h-10 flex items-center justify-center text-[var(--point-color)] hover:text-white transition-colors"
+                    class="w-10 h-10 flex items-center justify-center text-[var(--point-color)] hover:text-[var(--point-deep)] transition-colors"
                     onclick="closePartnerApplication()">
                     <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7">
@@ -2010,14 +2073,14 @@
 
             <div class="flex-1 overflow-y-auto px-6 py-8">
                 <div class="mb-8 text-center mt-2">
-                    <h2 class="text-[22px] font-bold text-white mb-2 tracking-tight">다독 파트너스 입점 신청서</h2>
+                    <h2 class="text-[22px] font-bold text-[var(--text-main)] mb-2 tracking-tight">다독 파트너스 입점 신청서</h2>
                     <p class="text-[var(--text-sub)] text-[14px]">아래 양식을 작성하고 입금해주시면<br>확인 후 즉시 승인 및 배너 노출이 시작됩니다.</p>
                 </div>
 
                 <div class="bg-[var(--surface-input)] border border-[var(--border-subtle)] p-5 rounded-2xl mb-8">
                     <div class="flex justify-between items-center mb-3">
                         <span class="text-[var(--text-sub)] text-[13px] font-bold tracking-widest">선택한 상품</span>
-                        <span id="app-package-title" class="text-white font-bold text-[15px]">상품명</span>
+                        <span id="app-package-title" class="text-[var(--text-main)] font-bold text-[15px]">상품명</span>
                     </div>
                     <div class="flex justify-between items-center border-t border-[var(--border-subtle)] pt-3">
                         <span class="text-[var(--text-sub)] text-[13px] font-bold tracking-widest">입금하실 금액</span>
@@ -2074,7 +2137,7 @@
             <div
                 class="px-5 py-4 flex items-center justify-between border-b border-[var(--border-color)] bg-[var(--surface-panel)]/95 backdrop-blur-md">
                 <button
-                    class="w-10 h-10 flex items-center justify-center text-[var(--point-color)] hover:text-white transition-colors"
+                    class="w-10 h-10 flex items-center justify-center text-[var(--point-color)] hover:text-[var(--point-deep)] transition-colors"
                     onclick="closeSuccessAndReturnToEntry()">
                     <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7">
@@ -2123,7 +2186,7 @@
             <div
                 class="px-5 py-4 flex items-center justify-between border-b border-[var(--border-color)] bg-[var(--surface-panel)]/95 backdrop-blur-md">
                 <button
-                    class="w-10 h-10 flex items-center justify-center text-[var(--point-color)] hover:text-white transition-colors"
+                    class="w-10 h-10 flex items-center justify-center text-[var(--point-color)] hover:text-[var(--point-deep)] transition-colors"
                     onclick="closeFindIdPwScreen()">
                     <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7">
@@ -2158,14 +2221,14 @@
                                 <label
                                     class="text-[var(--text-sub)] text-[13px] font-bold tracking-widest ml-1">이름</label>
                                 <input id="find-id-name" type="text" placeholder="이름을 입력해주세요"
-                                    class="w-full bg-[var(--surface-input)] border border-[var(--point-color)]/30 rounded-2xl px-5 py-[18px] text-[var(--text-main)] placeholder-[var(--text-sub)]/50 font-medium text-[16px] focus:outline-none focus:border-[var(--point-color)] focus:ring-1 focus:ring-[var(--point-color)] transition-all shadow-sm">
+                                    class="w-full bg-[var(--surface-input)] border border-[var(--point-color)]/30 rounded-2xl premium-field px-5 py-[18px] text-[var(--text-main)] placeholder-[var(--text-sub)]/50 font-medium text-[16px] focus:outline-none focus:border-[var(--point-color)] focus:ring-1 focus:ring-[var(--point-color)] transition-all shadow-sm">
                             </div>
                             <!-- 전화번호 입력 -->
                             <div class="flex flex-col gap-2.5">
                                 <label
                                     class="text-[var(--text-sub)] text-[13px] font-bold tracking-widest ml-1">전화번호</label>
                                 <input id="find-id-phone" type="tel" placeholder="번호만 입력해주세요 (- 제외)"
-                                    class="w-full bg-[var(--surface-input)] border border-[var(--point-color)]/30 rounded-2xl px-5 py-[18px] text-[var(--text-main)] placeholder-[var(--text-sub)]/50 font-medium text-[16px] focus:outline-none focus:border-[var(--point-color)] focus:ring-1 focus:ring-[var(--point-color)] transition-all shadow-sm">
+                                    class="w-full bg-[var(--surface-input)] border border-[var(--point-color)]/30 rounded-2xl premium-field px-5 py-[18px] text-[var(--text-main)] placeholder-[var(--text-sub)]/50 font-medium text-[16px] focus:outline-none focus:border-[var(--point-color)] focus:ring-1 focus:ring-[var(--point-color)] transition-all shadow-sm">
                             </div>
                             <button
                                 class="group relative w-full py-[18px] mt-6 rounded-2xl bg-gradient-to-r from-[var(--point-color)] to-[#B59530] text-[var(--text-on-point)] font-bold text-[18px] tracking-[0.1em] shadow-[0_8px_20px_rgba(212,175,55,0.25)] hover:brightness-110 active:scale-[0.98] transition-all overflow-hidden border border-[#D4AF37]"
@@ -2188,14 +2251,14 @@
                                 <label
                                     class="text-[var(--text-sub)] text-[13px] font-bold tracking-widest ml-1">아이디</label>
                                 <input id="find-pw-id" type="text" placeholder="아이디를 입력해주세요"
-                                    class="w-full bg-[var(--surface-input)] border border-[var(--point-color)]/30 rounded-2xl px-5 py-[18px] text-[var(--text-main)] placeholder-[var(--text-sub)]/50 font-medium text-[16px] focus:outline-none focus:border-[var(--point-color)] focus:ring-1 focus:ring-[var(--point-color)] transition-all shadow-sm">
+                                    class="w-full bg-[var(--surface-input)] border border-[var(--point-color)]/30 rounded-2xl premium-field px-5 py-[18px] text-[var(--text-main)] placeholder-[var(--text-sub)]/50 font-medium text-[16px] focus:outline-none focus:border-[var(--point-color)] focus:ring-1 focus:ring-[var(--point-color)] transition-all shadow-sm">
                             </div>
                             <!-- 이름 입력 -->
                             <div class="flex flex-col gap-2.5">
                                 <label
                                     class="text-[var(--text-sub)] text-[13px] font-bold tracking-widest ml-1">이름</label>
                                 <input id="find-pw-name" type="text" placeholder="이름을 입력해주세요"
-                                    class="w-full bg-[var(--surface-input)] border border-[var(--point-color)]/30 rounded-2xl px-5 py-[18px] text-[var(--text-main)] placeholder-[var(--text-sub)]/50 font-medium text-[16px] focus:outline-none focus:border-[var(--point-color)] focus:ring-1 focus:ring-[var(--point-color)] transition-all shadow-sm">
+                                    class="w-full bg-[var(--surface-input)] border border-[var(--point-color)]/30 rounded-2xl premium-field px-5 py-[18px] text-[var(--text-main)] placeholder-[var(--text-sub)]/50 font-medium text-[16px] focus:outline-none focus:border-[var(--point-color)] focus:ring-1 focus:ring-[var(--point-color)] transition-all shadow-sm">
                             </div>
                             <button
                                 class="group relative w-full py-[18px] mt-6 rounded-2xl bg-gradient-to-r from-[var(--point-color)] to-[#B59530] text-[var(--text-on-point)] font-bold text-[18px] tracking-[0.1em] shadow-[0_8px_20px_rgba(212,175,55,0.25)] hover:brightness-110 active:scale-[0.98] transition-all overflow-hidden border border-[#D4AF37]"
@@ -2225,7 +2288,7 @@
                             </div>
 
                             <div
-                                class="bg-[var(--surface-input)] border border-[var(--point-color)]/30 rounded-2xl p-6 text-center shadow-sm">
+                                class="bg-[var(--surface-input)] border border-[var(--point-color)]/30 rounded-2xl premium-field p-6 text-center shadow-sm">
                                 <div class="text-[var(--text-sub)] text-[13px] font-medium tracking-widest mb-1">아이디
                                 </div>
                                 <div class="text-[20px] font-bold text-[var(--point-color)] tracking-wide">
@@ -2267,7 +2330,7 @@
                             </div>
 
                             <div
-                                class="bg-[var(--surface-input)] border border-[var(--point-color)]/30 rounded-2xl p-6 text-center shadow-sm">
+                                class="bg-[var(--surface-input)] border border-[var(--point-color)]/30 rounded-2xl premium-field p-6 text-center shadow-sm">
                                 <div class="text-[var(--text-sub)] text-[13px] font-medium tracking-widest mb-1">임시 비밀번호
                                 </div>
                                 <div class="text-[22px] font-bold text-[var(--point-color)] tracking-wide">temp1234!
@@ -2303,7 +2366,7 @@
             <div
                 class="px-5 py-4 flex items-center justify-between border-b border-[var(--border-color)] bg-[var(--surface-panel)]/95 backdrop-blur-md">
                 <button
-                    class="w-10 h-10 flex items-center justify-center text-[var(--point-color)] hover:text-white transition-colors"
+                    class="w-10 h-10 flex items-center justify-center text-[var(--point-color)] hover:text-[var(--point-deep)] transition-colors"
                     onclick="closeMyPageModal()">
                     <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7">
@@ -2472,7 +2535,7 @@
             class="absolute inset-x-0 inset-y-0 z-[250] bg-[var(--bg-color)] flex-col transition-transform duration-300 translate-x-full overflow-hidden h-full">
             <div
                 class="px-5 py-4 flex items-center justify-between border-b border-[var(--border-color)] bg-[var(--surface-panel)]/95 backdrop-blur-md">
-                <button class="w-10 h-10 flex items-center justify-center text-[var(--point-color)] hover:text-white transition-colors"
+                <button class="w-10 h-10 flex items-center justify-center text-[var(--point-color)] hover:text-[var(--point-deep)] transition-colors"
                     onclick="closeNotificationSettingsModal()">
                     <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7">
@@ -2495,30 +2558,30 @@
                         <input id="notif-chat-enabled" type="checkbox" class="w-5 h-5 accent-[var(--point-color)]"
                             onchange="updateNotificationSettingsFormState()">
                     </div>
-                    <label class="flex items-center justify-between py-2 text-[18px] text-white">
+                    <label class="flex items-center justify-between py-2 text-[18px] text-[var(--text-main)]">
                         <span>알림 방식</span>
                         <div class="relative">
                             <input id="notif-chat-alert-mode" type="hidden" value="sound_vibrate">
                             <button id="notif-chat-alert-trigger" type="button"
                                 onclick="toggleChatAlertModeMenu()"
-                                class="min-w-[165px] bg-[var(--surface-panel)] border border-[var(--border-subtle)] rounded-lg px-3 py-1.5 text-[16px] text-white focus:outline-none focus:border-[var(--point-color)] inline-flex items-center justify-between gap-2">
+                                class="min-w-[165px] bg-[var(--surface-panel)] border border-[var(--border-subtle)] rounded-lg px-3 py-1.5 text-[16px] text-[var(--text-main)] focus:outline-none focus:border-[var(--point-color)] inline-flex items-center justify-between gap-2">
                                 <span id="notif-chat-alert-trigger-text">소리</span>
                                 <svg class="w-3.5 h-3.5 text-[var(--text-sub)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
                                 </svg>
                             </button>
                             <div id="notif-chat-alert-menu"
-                                class="hidden absolute right-0 mt-2 w-[190px] bg-[var(--surface-input)] border border-[var(--border-subtle)] rounded-xl shadow-xl overflow-hidden z-10">
+                                class="hidden absolute right-0 mt-2 w-[190px] bg-[var(--surface-input)] border border-[var(--border-subtle)] rounded-xl premium-field shadow-xl overflow-hidden z-10">
                                 <button type="button" onclick="selectChatAlertMode('sound_vibrate')"
-                                    class="w-full text-left px-3 py-2 text-[16px] text-white hover:bg-[var(--point-color)]/10 transition-colors">소리</button>
+                                    class="w-full text-left px-3 py-2 text-[16px] text-[var(--text-main)] hover:bg-[var(--point-color)]/10 transition-colors">소리</button>
                                 <button type="button" onclick="selectChatAlertMode('vibrate_only')"
-                                    class="w-full text-left px-3 py-2 text-[16px] text-white hover:bg-[var(--point-color)]/10 transition-colors border-t border-[var(--border-subtle)]">진동만</button>
+                                    class="w-full text-left px-3 py-2 text-[16px] text-[var(--text-main)] hover:bg-[var(--point-color)]/10 transition-colors border-t border-[var(--border-subtle)]">진동만</button>
                                 <button type="button" onclick="selectChatAlertMode('silent')"
-                                    class="w-full text-left px-3 py-2 text-[16px] text-white hover:bg-[var(--point-color)]/10 transition-colors border-t border-[var(--border-subtle)]">무음</button>
+                                    class="w-full text-left px-3 py-2 text-[16px] text-[var(--text-main)] hover:bg-[var(--point-color)]/10 transition-colors border-t border-[var(--border-subtle)]">무음</button>
                             </div>
                         </div>
                     </label>
-                    <label class="flex items-center justify-between py-2 text-[18px] text-white">
+                    <label class="flex items-center justify-between py-2 text-[18px] text-[var(--text-main)]">
                         <span>메시지 미리보기 표시</span>
                         <input id="notif-preview-enabled" type="checkbox" class="w-5 h-5 accent-[var(--point-color)]">
                     </label>
@@ -2529,7 +2592,7 @@
                         <input id="notif-notice-enabled" type="checkbox" class="w-5 h-5 accent-[var(--point-color)]"
                             onchange="updateNotificationSettingsFormState()">
                     </div>
-                    <label class="flex items-center justify-between py-2 text-[18px] text-white">
+                    <label class="flex items-center justify-between py-2 text-[18px] text-[var(--text-main)]">
                         <span>공지 내용 미리보기 표시</span>
                         <input id="notif-notice-preview" type="checkbox" class="w-5 h-5 accent-[var(--point-color)]">
                     </label>
@@ -2546,7 +2609,7 @@
             <div
                 class="px-5 py-4 flex items-center justify-between border-b border-[var(--border-color)] bg-[var(--surface-panel)]/95 backdrop-blur-md">
                 <button
-                    class="w-10 h-10 flex items-center justify-center text-[var(--point-color)] hover:text-white transition-colors"
+                    class="w-10 h-10 flex items-center justify-center text-[var(--point-color)] hover:text-[var(--point-deep)] transition-colors"
                     onclick="closeChatListModal()">
                     <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7">
@@ -2567,7 +2630,7 @@
             <div
                 class="px-5 py-4 flex items-center justify-between border-b border-[var(--border-color)] bg-[var(--surface-panel)]/95 backdrop-blur-md">
                 <button
-                    class="w-10 h-10 flex items-center justify-center text-[var(--point-color)] hover:text-white transition-colors"
+                    class="w-10 h-10 flex items-center justify-center text-[var(--point-color)] hover:text-[var(--point-deep)] transition-colors"
                     onclick="closeFavoritesModal()">
                     <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7">
@@ -2588,7 +2651,7 @@
             <div
                 class="px-5 py-4 flex items-center justify-between border-b border-[var(--border-color)] bg-[var(--surface-panel)]/95 backdrop-blur-md">
                 <button
-                    class="w-10 h-10 flex items-center justify-center text-[var(--point-color)] hover:text-white transition-colors"
+                    class="w-10 h-10 flex items-center justify-center text-[var(--point-color)] hover:text-[var(--point-deep)] transition-colors"
                     onclick="closeNoticePage()">
                     <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7">
@@ -2597,7 +2660,7 @@
                 </button>
                 <span id="notice-modal-title" class="text-lg font-bold text-[var(--text-main)] tracking-widest">공지/안내함</span>
                 <button
-                    class="px-3 py-1.5 text-[11px] font-bold border border-[var(--border-subtle)] rounded-lg text-[var(--text-sub)] hover:text-white hover:border-[var(--point-color)] transition-colors"
+                    class="px-3 py-1.5 text-[11px] font-bold border border-[var(--border-subtle)] rounded-lg text-[var(--text-sub)] hover:text-[var(--point-deep)] hover:border-[var(--point-color)] transition-colors"
                     onclick="markAllNoticesAsRead()">전체 읽음</button>
             </div>
             <div id="notice-list-container" class="flex-1 overflow-y-auto w-full mx-auto pb-10 p-5">
@@ -2611,7 +2674,7 @@
             <div
                 class="px-5 py-4 flex items-center justify-between border-b border-[var(--border-color)] bg-[var(--surface-panel)]/95 backdrop-blur-md">
                 <button
-                    class="w-10 h-10 flex items-center justify-center text-[var(--point-color)] hover:text-white transition-colors"
+                    class="w-10 h-10 flex items-center justify-center text-[var(--point-color)] hover:text-[var(--point-deep)] transition-colors"
                     onclick="closeSecurityModal()">
                     <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7">
@@ -2669,7 +2732,7 @@
                 style="border-color: var(--border-color);">
                 <h3 id="filter-title" class="text-xl font-bold">필터</h3>
                 <button
-                    class="text-base font-bold bg-transparent border border-[var(--point-color)] text-white  px-5 py-2 rounded-full transition-colors hover:bg-[var(--point-color)] hover:text-[var(--bg-color)]"
+                    class="text-base font-bold bg-transparent border border-[var(--point-color)] text-[var(--point-deep)]  px-5 py-2 rounded-full transition-colors hover:bg-[var(--point-color)] hover:text-[var(--bg-color)]"
                     onclick="closeAllModals()">닫기</button>
             </div>
 
@@ -2692,18 +2755,19 @@
             </div>
 
             <!-- Header Image -->
-            <div class="relative w-full h-[280px] shrink-0 bg-cover bg-center" id="profile-img"
+            <div class="relative w-full h-[280px] shrink-0 bg-cover bg-center overflow-hidden" id="profile-img"
                 style="background-image: url('https://images.unsplash.com/photo-1544435253-f0ead49638fa?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80');">
-                <!-- 더 어두운 그라데이션으로 흰 글씨 돋보이게 조정 -->
                 <div
-                    class="absolute inset-0 bg-gradient-to-t from-[var(--surface-color)] via-[var(--surface-color)]/50 to-transparent">
+                    class="absolute inset-0 bg-gradient-to-t from-[rgba(20,16,12,0.82)] via-[rgba(20,16,12,0.46)] to-[rgba(20,16,12,0.06)]">
                 </div>
+                <div class="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(255,255,255,0.08),transparent_55%)]"></div>
             </div>
 
             <!-- Content -->
             <div class="px-6 relative -top-8 pb-32">
-                <h2 class="text-3xl font-bold mb-8 text-white drop-shadow-md" id="profile-name"
-                    style="text-shadow: 0px 2px 4px rgba(0,0,0,0.6);">아르테미스 라운지</h2>
+                <h2 class="inline-flex items-center px-5 py-2.5 rounded-2xl border border-[var(--point-bright)]/75 bg-[linear-gradient(130deg,rgba(18,14,10,0.76)_0%,rgba(47,34,16,0.62)_48%,rgba(18,14,10,0.48)_100%)] backdrop-blur-md text-3xl font-bold mb-8 text-[#FFF8EC] shadow-[0_14px_34px_rgba(0,0,0,0.34),0_0_0_1px_rgba(201,167,76,0.2),inset_0_1px_0_rgba(255,255,255,0.26)]"
+                    id="profile-name"
+                    style="text-shadow: 0 2px 12px rgba(0,0,0,0.55), 0 0 22px rgba(201,167,76,0.5), 0 0 36px rgba(201,167,76,0.28); letter-spacing: 0.012em;">아르테미스 라운지</h2>
 
                 <!-- 리뷰 확인 항목 추가 -->
                 <div class="flex justify-between items-center bg-[var(--surface-color)] border border-[var(--point-color)] rounded-2xl p-4 mb-8 shadow-md cursor-pointer hover:bg-[var(--point-color)]/10 transition-colors"
@@ -2717,8 +2781,8 @@
                             </svg>
                             <span id="profile-rating-display">0.0</span>
                         </div>
-                        <div class="h-4 w-px bg-white/50 shrink-0" aria-hidden="true"></div>
-                        <span id="profile-review-display" class="text-[17.5px] font-medium text-white">방문자 찐리뷰 0개 확인하기</span>
+                        <div class="h-4 w-px bg-[var(--text-sub)]/40 shrink-0" aria-hidden="true"></div>
+                        <span id="profile-review-display" class="text-[17.5px] font-medium text-[var(--text-main)]">방문자 찐리뷰 0개 확인하기</span>
                     </div>
                     <svg class="w-5 h-5 text-[var(--point-color)]" fill="none" stroke="currentColor"
                         viewBox="0 0 24 24">
@@ -2869,7 +2933,7 @@
                 style="border-color: var(--border-color);">
                 <h3 id="filter-title" class="text-xl font-bold" style="color: var(--text-main);">조건 검색</h3>
                 <button
-                    class="text-sm font-bold px-4 py-2 rounded-full bg-transparent border border-[var(--point-color)] text-white  shadow-sm hover:bg-[var(--point-color)] hover:text-[var(--text-on-point)] transition-colors"
+                    class="text-sm font-bold px-4 py-2 rounded-full bg-transparent border border-[var(--point-color)] text-[var(--point-deep)]  shadow-sm hover:bg-[var(--point-color)] hover:text-[var(--text-on-point)] transition-colors"
                     onclick="closeFilterSheet()">닫기</button>
             </div>
             <div class="px-5 py-6 overflow-y-auto scroll-active bg-[var(--bg-color)]" style="flex: 1;">
@@ -2885,7 +2949,7 @@
                 style="border-color: var(--border-color);">
                 <h3 id="list-title" class="text-2xl font-bold" style="color: var(--text-main);">전체보기</h3>
                 <button
-                    class="text-base font-bold px-5 py-2.5 rounded-full bg-transparent border border-[var(--point-color)] text-white  shadow-sm hover:bg-[var(--point-color)] hover:text-[var(--text-on-point)] transition-colors"
+                    class="text-base font-bold px-5 py-2.5 rounded-full bg-transparent border border-[var(--point-color)] text-[var(--point-deep)]  shadow-sm hover:bg-[var(--point-color)] hover:text-[var(--text-on-point)] transition-colors"
                     onclick="closeAllModals()">닫기</button>
             </div>
             <div id="list-content" class="px-5 py-6 overflow-y-auto scroll-active"
@@ -2900,7 +2964,7 @@
                 style="border-color: var(--border-color);">
                 <h3 class="text-2xl font-bold" style="color: var(--text-main);">찐리뷰 확인하기</h3>
                 <button
-                    class="text-base font-bold px-5 py-2.5 rounded-full bg-transparent border border-[var(--point-color)] text-white  shadow-sm hover:bg-[var(--point-color)] hover:text-[var(--text-on-point)] transition-colors"
+                    class="text-base font-bold px-5 py-2.5 rounded-full bg-transparent border border-[var(--point-color)] text-[var(--point-deep)]  shadow-sm hover:bg-[var(--point-color)] hover:text-[var(--text-on-point)] transition-colors"
                     onclick="typeof closeReviewSheet === 'function' ? closeReviewSheet() : document.getElementById('review-sheet').classList.remove('open')">닫기</button>
             </div>
             <div id="review-content" class="px-5 py-6 overflow-y-auto scroll-active"
@@ -2925,7 +2989,7 @@
                     </div>
                 </div>
                 <button
-                    class="text-base font-bold px-4 py-2 rounded-full bg-transparent border border-[var(--point-color)] text-white  shadow-sm hover:bg-[var(--point-color)] hover:text-[var(--text-on-point)] transition-colors"
+                    class="text-base font-bold px-4 py-2 rounded-full bg-transparent border border-[var(--point-color)] text-[var(--point-deep)]  shadow-sm hover:bg-[var(--point-color)] hover:text-[var(--text-on-point)] transition-colors"
                     onclick="closeChatSheet()">닫기</button>
             </div>
 
@@ -2948,13 +3012,13 @@
                 <!-- 버튼 형태의 빠른 메시지 제안 -->
                 <div id="chat-quick-template-box" class="flex flex-col gap-2 pl-11 mt-2">
                     <button
-                        class="text-left w-fit bg-transparent text-white  border border-[var(--point-color)] px-4 py-2.5 rounded-full text-sm font-medium hover:bg-[var(--point-color)] hover:text-[var(--text-on-point)] transition-colors"
+                        class="text-left w-fit bg-transparent text-[var(--point-deep)] border border-[var(--point-color)] px-4 py-2.5 rounded-full text-sm font-medium hover:bg-[var(--point-color)] hover:text-[var(--text-on-point)] transition-colors"
                         onclick="sendMockChatMessage('오늘 저녁 8시 예약 가능한가요?')">오늘 저녁 8시 예약 가능한가요?</button>
                     <button
-                        class="text-left w-fit bg-transparent text-white  border border-[var(--point-color)] px-4 py-2.5 rounded-full text-sm font-medium hover:bg-[var(--point-color)] hover:text-[var(--text-on-point)] transition-colors"
+                        class="text-left w-fit bg-transparent text-[var(--point-deep)] border border-[var(--point-color)] px-4 py-2.5 rounded-full text-sm font-medium hover:bg-[var(--point-color)] hover:text-[var(--text-on-point)] transition-colors"
                         onclick="sendMockChatMessage('코스와 가격 안내 부탁드립니다.')">코스와 가격 안내 부탁드립니다.</button>
                     <button
-                        class="text-left w-fit bg-transparent text-white  border border-[var(--point-color)] px-4 py-2.5 rounded-full text-sm font-medium hover:bg-[var(--point-color)] hover:text-[var(--text-on-point)] transition-colors"
+                        class="text-left w-fit bg-transparent text-[var(--point-deep)] border border-[var(--point-color)] px-4 py-2.5 rounded-full text-sm font-medium hover:bg-[var(--point-color)] hover:text-[var(--text-on-point)] transition-colors"
                         onclick="sendMockChatMessage('주차 가능한가요?')">주차 가능한가요?</button>
                 </div>
 
@@ -2996,7 +3060,7 @@
                         </svg>
                     </button>
                     <button id="chat-attach-btn" onclick="triggerChatAttachmentPicker()"
-                        class="shrink-0 w-12 h-12 flex items-center justify-center rounded-full bg-[var(--surface-color)] border border-[var(--point-color)] text-white hover:bg-[var(--point-color)] hover:text-[var(--text-on-point)] transition-colors"
+                        class="shrink-0 w-12 h-12 flex items-center justify-center rounded-full bg-[var(--surface-color)] border border-[var(--point-color)] text-[var(--point-deep)] hover:bg-[var(--point-color)] hover:text-[var(--text-on-point)] transition-colors"
                         title="파일 첨부">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -3013,7 +3077,7 @@
                             class="w-full bg-transparent outline-none text-[var(--text-main)] text-[15px]">
                     </div>
                     <button id="chat-send-btn" onclick="sendUserMessage()"
-                        class="shrink-0 w-12 h-12 flex items-center justify-center rounded-full bg-[var(--surface-color)] border border-[var(--point-color)] text-white  hover:bg-[var(--point-color)] hover:text-[var(--text-on-point)] transition-colors">
+                        class="shrink-0 w-12 h-12 flex items-center justify-center rounded-full bg-[var(--surface-color)] border border-[var(--point-color)] text-[var(--point-deep)]  hover:bg-[var(--point-color)] hover:text-[var(--text-on-point)] transition-colors">
                         <svg class="w-5 h-5 ml-1" fill="currentColor" viewBox="0 0 20 20">
                             <path
                                 d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z">
@@ -3027,7 +3091,7 @@
             </div>
         </div>
 
-        <script src="assets/js/script.js?v=20260429_premium_light"></script>
+        <script src="assets/js/script.js?v=20260430_recent_reset_prune"></script>
     </div>
 
     <!-- Global Custom Toast -->

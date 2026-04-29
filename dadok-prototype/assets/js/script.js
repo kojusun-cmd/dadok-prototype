@@ -30,7 +30,7 @@
                                         const isActive = province === currentActiveTab;
                                         btn.className = isActive
                                             ? 'flex-shrink-0 px-4 py-2 rounded-full bg-[#D4AF37] text-[var(--text-on-point)] text-[12px] font-bold transition-all'
-                                            : 'flex-shrink-0 px-4 py-2 rounded-full border border-[var(--border-subtle)] text-white  text-[12px] hover:border-[var(--point-color)] transition-all';
+                                            : 'flex-shrink-0 px-4 py-2 rounded-full border border-[var(--border-subtle)] text-[var(--text-main)]  text-[12px] hover:border-[var(--point-color)] transition-all';
                                         btn.innerText = province;
                                         btn.onclick = () => {
                                             currentActiveTab = province;
@@ -52,7 +52,7 @@
                                         const btn = document.createElement('button');
                                         btn.className = isSelected
                                             ? 'py-2.5 text-[13px] text-center rounded-lg border border-[var(--point-color)] bg-[#D4AF37]/10 text-[var(--point-color)] font-medium transition-all'
-                                            : 'py-2.5 text-[13px] text-center rounded-lg border border-[var(--border-subtle)] text-[var(--text-sub)] hover:border-[var(--point-color)] hover:text-white transition-all';
+                                            : 'py-2.5 text-[13px] text-center rounded-lg border border-[var(--border-subtle)] text-[var(--text-sub)] hover:border-[var(--point-color)] hover:text-[var(--point-deep)] transition-all';
                                         btn.innerText = district;
 
                                         btn.onclick = () => {
@@ -75,7 +75,7 @@
 
                                     partnerDashboardRegionSet.forEach(region => {
                                         const btn = document.createElement('button');
-                                        btn.className = 'px-4 py-2 rounded-full border border-[var(--point-color)] bg-[#D4AF37]/10 text-white  text-[13px] font-medium transition-all flex items-center gap-1';
+                                        btn.className = 'px-4 py-2 rounded-full border border-[var(--point-color)] bg-[#D4AF37]/10 text-[var(--point-deep)]  text-[13px] font-medium transition-all flex items-center gap-1';
 
                                         const parts = region.split(' ');
                                         const dist = parts.slice(1).join(' ');
@@ -186,7 +186,7 @@
                                             const btn = document.createElement('button');
                                             btn.className = isSelected
                                                 ? 'py-2.5 text-[13px] text-center rounded-lg border border-[var(--point-color)] bg-[#D4AF37]/10 text-[var(--point-color)] font-medium transition-all'
-                                                : 'py-2.5 text-[13px] text-center rounded-lg border border-[var(--border-subtle)] text-[var(--text-sub)] hover:border-[var(--point-color)] hover:text-white transition-all';
+                                                : 'py-2.5 text-[13px] text-center rounded-lg border border-[var(--border-subtle)] text-[var(--text-sub)] hover:border-[var(--point-color)] hover:text-[var(--point-deep)] transition-all';
                                             btn.innerText = item;
                                             btn.onclick = () => {
                                                 selected.has(item) ? selected.delete(item) : selected.add(item);
@@ -202,7 +202,7 @@
                                         countEl.innerText = `${selected.size}개 선택됨`;
                                         selected.forEach((item) => {
                                             const btn = document.createElement('button');
-                                            btn.className = 'px-4 py-2 rounded-full border border-[var(--point-color)] bg-[#D4AF37]/10 text-white  text-[13px] font-medium transition-all flex items-center gap-1 mb-2';
+                                            btn.className = 'px-4 py-2 rounded-full border border-[var(--point-color)] bg-[#D4AF37]/10 text-[var(--point-deep)]  text-[13px] font-medium transition-all flex items-center gap-1 mb-2';
                                             btn.innerHTML = `${item} <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>`;
                                             btn.onclick = () => {
                                                 selected.delete(item);
@@ -364,6 +364,460 @@ const filterSheet = document.getElementById('filter-sheet');
             let filteredChoiceDB = [];
             let filteredRecDB = [];
 
+            /** 오늘의 무드 ↔ 상세검색 4축 프리셋 (무드 버튼 클릭 시 적용) */
+            let currentTodayMoodKey = 'deep_rest';
+            const moodFilterPresets = {
+                deep_rest: {
+                    region: [],
+                    massage: ['타이 마사지', '스웨디시'],
+                    place: ['1인샵 (매장 방문)', '방문 (홈케어/출장)', '상관없음(전체)'],
+                    age: ['연령 무관 (전체)'],
+                },
+                light_reset: {
+                    region: [],
+                    massage: ['스포츠 마사지'],
+                    place: ['다인샵 (일반 매장)', '방문 (홈케어/출장)', '상관없음(전체)'],
+                    age: ['20대 초반', '20대 중후반', '30대 초반', '연령 무관 (전체)'],
+                },
+                premium_care: {
+                    region: [],
+                    massage: ['스웨디시', '커플마사지'],
+                    place: ['1인샵 (매장 방문)', '방문 (홈케어/출장)'],
+                    age: [
+                        '20대 초반',
+                        '20대 중후반',
+                        '30대 초반',
+                        '30대 중후반',
+                        '40대 초반',
+                        '연령 무관 (전체)',
+                    ],
+                },
+            };
+
+            const RECENT_VIEWED_KEY = 'dadok_recent_viewed_partners';
+            let quickSortMode = 'distance'; // distance | rating | reviews | new
+            let openNowOnly = false;
+
+            function pruneRecentViewedPartners(rows = []) {
+                const src = Array.isArray(rows) ? rows : [];
+                if (!src.length) return [];
+                const activeIds = new Set(
+                    [...DB_CHOICE, ...DB_RECOMMEND]
+                        .map((p) => String(p?.id || '').trim())
+                        .filter(Boolean),
+                );
+                return src.filter((row) => activeIds.has(String(row?.id || '').trim()));
+            }
+
+            function getRecentViewedPartners() {
+                try {
+                    const raw = localStorage.getItem(RECENT_VIEWED_KEY);
+                    const arr = raw ? JSON.parse(raw) : [];
+                    const rows = Array.isArray(arr) ? arr : [];
+                    const pruned = pruneRecentViewedPartners(rows);
+                    if (pruned.length !== rows.length) {
+                        setRecentViewedPartners(pruned);
+                    }
+                    return pruned;
+                } catch (e) {
+                    return [];
+                }
+            }
+
+            function setRecentViewedPartners(rows = []) {
+                try {
+                    localStorage.setItem(RECENT_VIEWED_KEY, JSON.stringify(rows.slice(0, 12)));
+                } catch (e) {}
+            }
+
+            function saveRecentViewedPartner(partner = {}) {
+                const id = String(partner.id || '').trim();
+                if (!id) return;
+                const row = {
+                    id,
+                    name: String(partner.name || '').trim(),
+                    image: String(partner.image || '').trim(),
+                    region: String(partner.region || '').trim(),
+                    massage: String(partner.massage || '').trim(),
+                    place: String(partner.place || '').trim(),
+                    age: String(partner.age || '').trim(),
+                    ticketType: String(partner.ticketType || '').trim(),
+                    ticketExpiry: String(partner.ticketExpiry || '').trim(),
+                    viewedAt: Date.now(),
+                };
+                const cur = getRecentViewedPartners().filter((x) => String(x.id) !== id);
+                cur.unshift(row);
+                setRecentViewedPartners(cur);
+                renderRecentViewedPartners();
+            }
+
+            function clearRecentViewedPartners(silent = false) {
+                setRecentViewedPartners([]);
+                if (!silent) renderRecentViewedPartners();
+            }
+            window.clearRecentViewedPartners = clearRecentViewedPartners;
+
+            function renderRecentViewedPartners() {
+                const wrap = document.getElementById('recent-viewed-list');
+                if (!wrap) return;
+                const rows = getRecentViewedPartners().slice(0, 3);
+                if (!rows.length) {
+                    wrap.innerHTML = `<span class="col-span-2 text-[10px] text-[var(--text-sub)]">아직 최근 본 업체가 없어요.</span>`;
+                    return;
+                }
+                wrap.innerHTML = rows
+                    .map((r) => {
+                        const name = escapeChatHtml(r.name || '업체');
+                        const bg = r.image
+                            ? `background-image:url('${r.image}');`
+                            : 'background:linear-gradient(135deg,var(--surface-panel),var(--surface-input));';
+                        const region = escapeChatHtml((r.region || '').trim());
+                        return `<button type="button" class="w-full flex items-center gap-2.5 rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-panel)] px-2.5 py-2 text-[var(--text-main)] hover:border-[var(--point-color)]/40 text-left shadow-sm"
+                            onclick="openRecentViewedPartner('${escapeChatHtml(r.id)}')">
+                            <span class="w-10 h-10 rounded-xl bg-cover bg-center border border-[var(--border-subtle)] shrink-0" style="${bg}"></span>
+                            <span class="min-w-0 flex-1">
+                                <span class="block text-[11.5px] font-bold truncate">${name}</span>
+                                <span class="block text-[10px] text-[var(--text-sub)] truncate">${region || '지역 정보 없음'}</span>
+                            </span>
+                        </button>`;
+                    })
+                    .join('');
+            }
+
+            function openRecentViewedPartner(partnerId) {
+                const p = [...DB_CHOICE, ...DB_RECOMMEND].find((x) => String(x.id) === String(partnerId));
+                if (!p) {
+                    showCustomToast('해당 업체 정보를 찾지 못했습니다.');
+                    return;
+                }
+                const rb = getPartnerProfileReviewBaselines(p);
+                const rndRegion = pickBannerRegion(p);
+                const rndMassage = pickBannerMassage(p);
+                const rndPlace = pickBannerPlace(p);
+                const rndAge = pickBannerAge(p);
+                openProfile(
+                    p.name,
+                    `${rndRegion} · ${rndPlace}`,
+                    p.id,
+                    rb.reviews,
+                    rb.rating,
+                    rndMassage,
+                    rndPlace,
+                    rndAge,
+                    p.image,
+                    p.ticketType || '일반 입점',
+                    p.ticketExpiry || '',
+                );
+            }
+            window.openRecentViewedPartner = openRecentViewedPartner;
+
+            function setQuickSortMode(mode = 'mood') {
+                const allowed = ['distance', 'rating', 'reviews', 'new'];
+                quickSortMode = allowed.includes(mode) ? mode : 'distance';
+                document.querySelectorAll('#quick-sort-row .quick-sort-btn').forEach((btn) => {
+                    const active = btn.getAttribute('data-sort') === quickSortMode;
+                    btn.classList.toggle('border-[var(--point-color)]', active);
+                    btn.classList.toggle('bg-[var(--point-light)]', active);
+                    btn.classList.toggle('text-[var(--point-deep)]', active);
+                    btn.classList.toggle('font-bold', active);
+                    btn.classList.toggle('border-[var(--border-subtle)]', !active);
+                    btn.classList.toggle('bg-[var(--surface-panel)]', !active);
+                    btn.classList.toggle('text-[var(--text-sub)]', !active);
+                });
+                applyFiltersToData();
+            }
+            window.setQuickSortMode = setQuickSortMode;
+
+            function parsePartnerCreatedAtMs(partner = {}) {
+                const c = partner?.createdAt;
+                if (c && typeof c.toDate === 'function') return c.toDate().getTime();
+                if (typeof c === 'number' && Number.isFinite(c)) return c;
+                const s = Date.parse(String(c || partner?.ticketCreatedAt || partner?.ticketExpiry || ''));
+                return Number.isFinite(s) ? s : 0;
+            }
+
+            function inferRegionByCoords(lat, lon) {
+                if (lat >= 37.37 && lat <= 37.72 && lon >= 126.76 && lon <= 127.18) return '서울 강남/서초';
+                if (lat >= 37.2 && lat <= 37.85 && lon >= 126.7 && lon <= 127.9) return '경기 수원';
+                if (lat >= 37.3 && lat <= 37.7 && lon >= 126.45 && lon <= 126.9) return '인천 부평/계양';
+                if (lat >= 35.0 && lat <= 35.35 && lon >= 128.75 && lon <= 129.35) return '부산 해운대/수영';
+                if (lat >= 35.7 && lat <= 36.0 && lon >= 128.45 && lon <= 128.75) return '경상 구미';
+                if (lat >= 33.2 && lat <= 33.6 && lon >= 126.2 && lon <= 126.9) return '제주 제주시';
+                return '서울 강남/서초';
+            }
+
+            function openBrowserLocationSettingsPage() {
+                const ua = String(navigator.userAgent || '').toLowerCase();
+                let url = '';
+                if (ua.includes('edg/')) url = 'edge://settings/content/location';
+                else if (ua.includes('chrome/')) url = 'chrome://settings/content/location';
+                else if (ua.includes('firefox/')) url = 'about:preferences#privacy';
+                if (!url) return false;
+                try {
+                    window.open(url, '_blank', 'noopener');
+                    return true;
+                } catch (e) {
+                    return false;
+                }
+            }
+
+            function guideLocationPermissionEnable() {
+                const opened = openBrowserLocationSettingsPage();
+                if (opened) {
+                    showCustomToast('브라우저 위치 권한 설정 화면을 열었습니다. 다독 사이트를 허용으로 바꿔주세요.');
+                } else {
+                    showCustomToast('브라우저 설정 > 개인정보/권한 > 위치에서 이 사이트를 허용으로 변경해주세요.');
+                }
+            }
+
+            function setRegionFromCurrentLocation() {
+                if (!navigator.geolocation) {
+                    showCustomToast('현재 브라우저에서 위치 기능을 지원하지 않습니다.');
+                    return;
+                }
+                const requestLocation = () => {
+                    navigator.geolocation.getCurrentPosition(
+                        (pos) => {
+                            const region = inferRegionByCoords(
+                                Number(pos.coords.latitude),
+                                Number(pos.coords.longitude),
+                            );
+                            activeFilters.region = [region];
+                            updateChipText('region');
+                            applyFiltersToData();
+                            showCustomToast(`현재 위치 기준으로 ${region} 지역을 적용했어요.`);
+                        },
+                        (err) => {
+                            const code = Number(err?.code || 0);
+                            if (code === 1) {
+                                guideLocationPermissionEnable();
+                                return;
+                            }
+                            showCustomToast('위치 정보를 가져오지 못했습니다. 잠시 후 다시 시도해주세요.');
+                        },
+                        { enableHighAccuracy: false, timeout: 7000, maximumAge: 60000 },
+                    );
+                };
+
+                if (navigator.permissions && typeof navigator.permissions.query === 'function') {
+                    navigator.permissions
+                        .query({ name: 'geolocation' })
+                        .then((status) => {
+                            if (status.state === 'denied') {
+                                guideLocationPermissionEnable();
+                                return;
+                            }
+                            requestLocation();
+                        })
+                        .catch(() => requestLocation());
+                    return;
+                }
+                requestLocation();
+            }
+            window.setRegionFromCurrentLocation = setRegionFromCurrentLocation;
+
+            function parseOpenRangeFromText(text = '') {
+                const s = String(text || '').trim();
+                if (!s) return null;
+                if (s.includes('24시간')) return { start: 0, end: 24 * 60 };
+                const m = s.match(/(\d{1,2})[:시]\s?(\d{0,2})?\s*[~-]\s*(\d{1,2})[:시]\s?(\d{0,2})?/);
+                if (!m) return null;
+                const sh = Number(m[1]);
+                const sm = Number(m[2] || 0);
+                const eh = Number(m[3]);
+                const em = Number(m[4] || 0);
+                if (![sh, sm, eh, em].every((n) => Number.isFinite(n))) return null;
+                return { start: sh * 60 + sm, end: eh * 60 + em };
+            }
+
+            function isPartnerOpenNow(partner = {}) {
+                const txt =
+                    String(partner.hours || partner.businessHours || partner.operatingHours || '').trim() ||
+                    String(partner.callAvailableHours || '').trim();
+                const range = parseOpenRangeFromText(txt);
+                if (!range) return true; // 정보가 없으면 제외하지 않음
+                const now = new Date();
+                const minute = now.getHours() * 60 + now.getMinutes();
+                if (range.end >= range.start) return minute >= range.start && minute <= range.end;
+                return minute >= range.start || minute <= range.end; // 자정 넘김
+            }
+
+            function toggleOpenNowOnly(checked) {
+                openNowOnly = !!checked;
+                applyFiltersToData();
+            }
+            window.toggleOpenNowOnly = toggleOpenNowOnly;
+
+            function getPartnerMassageListForMatch(partner) {
+                const p = partner || {};
+                let pList = [];
+                if (Array.isArray(p.massageList) && p.massageList.length) pList = p.massageList;
+                else if (typeof p.massageList === 'string' && p.massageList.trim()) {
+                    pList = p.massageList.split(',').map((s) => s.trim()).filter(Boolean);
+                } else if (typeof p.massage === 'string' && p.massage.trim()) {
+                    pList = p.massage.split(',').map((s) => s.trim()).filter(Boolean);
+                } else if (p.massageList != null) pList = [p.massageList];
+                return pList.map((v) => String(v || '').trim()).filter(Boolean);
+            }
+
+            function getPartnerPlaceListForMatch(partner) {
+                const p = partner || {};
+                let pList = [];
+                if (Array.isArray(p.placeList) && p.placeList.length) pList = p.placeList;
+                else if (typeof p.placeList === 'string' && p.placeList.trim()) {
+                    pList = p.placeList.split(',').map((s) => s.trim()).filter(Boolean);
+                } else if (typeof p.place === 'string' && p.place.trim()) {
+                    pList = p.place.split(',').map((s) => s.trim()).filter(Boolean);
+                } else if (p.placeList != null) pList = [p.placeList];
+                return pList.map((v) => String(v || '').trim()).filter(Boolean);
+            }
+
+            function getPartnerAgeListForMatch(partner) {
+                const p = partner || {};
+                let pList = [];
+                if (Array.isArray(p.ageList) && p.ageList.length) pList = p.ageList;
+                else if (typeof p.ageList === 'string' && p.ageList.trim()) {
+                    pList = p.ageList.split(',').map((s) => s.trim()).filter(Boolean);
+                } else if (typeof p.age === 'string' && p.age.trim()) {
+                    pList = p.age.split(',').map((s) => s.trim()).filter(Boolean);
+                } else if (p.ageList != null) pList = [p.ageList];
+                return pList.map((v) => String(v || '').trim()).filter(Boolean);
+            }
+
+            function getPartnerMoodScore(partner, moodKey) {
+                const mk = moodFilterPresets[moodKey] ? moodKey : 'deep_rest';
+                const massages = getPartnerMassageListForMatch(partner);
+                const places = getPartnerPlaceListForMatch(partner);
+                const ages = getPartnerAgeListForMatch(partner);
+                const placeBlob = places.join(' ');
+                const ageBlob = ages.join(' ');
+                const rb = getPartnerProfileReviewBaselines(partner);
+                const rating = Number.isFinite(rb.rating) ? rb.rating : 0;
+                const rev = Number.isFinite(rb.reviews) ? rb.reviews : 0;
+                const tier = String(partner?.tier || '').trim();
+
+                let massagePick = 0;
+                const bumpMassage = (label, w) => {
+                    if (massages.some((m) => m === label)) massagePick = Math.max(massagePick, w);
+                };
+                bumpMassage('타이 마사지', 5);
+                bumpMassage('스웨디시', 4);
+                bumpMassage('스포츠 마사지', 4);
+                bumpMassage('커플마사지', 3);
+
+                let placePts = 0;
+                if (placeBlob.includes('1인샵')) placePts += 4;
+                if (placeBlob.includes('다인샵')) placePts += 4;
+                if (placeBlob.includes('홈케어') || placeBlob.includes('방문')) placePts += 2;
+
+                let agePts = 0;
+                const ageMatches = (substr) => ageBlob.includes(substr);
+                if (mk === 'deep_rest') {
+                    agePts += ageMatches('30대') ? 2 : 0;
+                    agePts += ageMatches('40대') ? 2 : 0;
+                    if (ageMatches('연령 무관') || ages.length === 0) agePts += 1;
+                } else if (mk === 'light_reset') {
+                    agePts += ageMatches('20대') ? 4 : 0;
+                    agePts += ageMatches('30대 초반') ? 2 : 0;
+                    if (ageMatches('연령 무관') || ages.length === 0) agePts += 1;
+                } else if (mk === 'premium_care') {
+                    agePts += ageMatches('30대') ? 3 : 0;
+                    agePts += ageMatches('40대') ? 3 : 0;
+                    if (ageMatches('연령 무관') || ages.length === 0) agePts += 0.5;
+                }
+
+                let tierPts = 0;
+                if (tier.toUpperCase() === 'VIP') tierPts = 10;
+                else if (tier.toLowerCase() === 'premium') tierPts = 5;
+
+                let moodAlign = 0;
+                if (mk === 'deep_rest') {
+                    moodAlign += massagePick >= 4 ? 3 : 0;
+                    moodAlign += placeBlob.includes('1인샵') ? 2 : 0;
+                } else if (mk === 'light_reset') {
+                    moodAlign += massages.some((m) => m === '스포츠 마사지') ? 4 : 0;
+                    moodAlign += placeBlob.includes('다인샵') ? 3 : 0;
+                } else if (mk === 'premium_care') {
+                    moodAlign +=
+                        massages.some((m) => m === '스웨디시' || m === '커플마사지') ? 4 : 0;
+                    moodAlign += placeBlob.includes('1인샵') ? 2 : 0;
+                    moodAlign += tierPts >= 5 ? 2 : 0;
+                }
+
+                return (
+                    massagePick * 3 +
+                    placePts +
+                    agePts +
+                    tierPts +
+                    moodAlign +
+                    rating * 4 +
+                    Math.log10(rev + 1) * 2
+                );
+            }
+
+            function sortPartnersByCurrentMood(partners) {
+                const arr = Array.isArray(partners) ? [...partners] : [];
+                const mood =
+                    currentTodayMoodKey && moodFilterPresets[currentTodayMoodKey]
+                        ? currentTodayMoodKey
+                        : 'deep_rest';
+                const scoreByMood = (p) => getPartnerMoodScore(p, mood);
+                if (quickSortMode === 'rating') {
+                    arr.sort((a, b) => {
+                        const ra = getPartnerProfileReviewBaselines(a).rating;
+                        const rb = getPartnerProfileReviewBaselines(b).rating;
+                        if (rb !== ra) return rb - ra;
+                        return scoreByMood(b) - scoreByMood(a);
+                    });
+                    return arr;
+                }
+                if (quickSortMode === 'reviews') {
+                    arr.sort((a, b) => {
+                        const ra = getPartnerProfileReviewBaselines(a).reviews;
+                        const rb = getPartnerProfileReviewBaselines(b).reviews;
+                        if (rb !== ra) return rb - ra;
+                        return scoreByMood(b) - scoreByMood(a);
+                    });
+                    return arr;
+                }
+                if (quickSortMode === 'new') {
+                    arr.sort((a, b) => {
+                        const ta = parsePartnerCreatedAtMs(a);
+                        const tb = parsePartnerCreatedAtMs(b);
+                        if (tb !== ta) return tb - ta;
+                        return scoreByMood(b) - scoreByMood(a);
+                    });
+                    return arr;
+                }
+                if (quickSortMode === 'distance') {
+                    const prefRegion = activeFilters.region[0] || '';
+                    arr.sort((a, b) => {
+                        const ar = pickBannerRegion(a);
+                        const br = pickBannerRegion(b);
+                        const as = prefRegion && ar.includes(prefRegion.split(' ')[0]) ? 1 : 0;
+                        const bs = prefRegion && br.includes(prefRegion.split(' ')[0]) ? 1 : 0;
+                        if (bs !== as) return bs - as;
+                        return scoreByMood(b) - scoreByMood(a);
+                    });
+                    return arr;
+                }
+                arr.sort((a, b) => scoreByMood(b) - scoreByMood(a));
+                return arr;
+            }
+
+            function applyMoodPresetToFilters(moodKey) {
+                const mk = moodFilterPresets[moodKey] ? moodKey : 'deep_rest';
+                const preset = moodFilterPresets[mk];
+                activeFilters = {
+                    region: [...(preset.region || [])],
+                    massage: [...(preset.massage || [])],
+                    place: [...(preset.place || [])],
+                    age: [...(preset.age || [])],
+                };
+                ['region', 'massage', 'place', 'age'].forEach((k) => updateChipText(k));
+                applyFiltersToData();
+            }
+
             function toggleFilterContainer(e) {
                 if (e) e.preventDefault();
                 const container = document.getElementById('filter-options-container');
@@ -372,13 +826,21 @@ const filterSheet = document.getElementById('filter-sheet');
                 
                 const isHidden = container.classList.contains('hidden');
                 
-                const filterIconSvg = `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"></path></svg>`;
+                const filterIconSvg = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path><circle cx="9" cy="6" r="1.8" fill="currentColor" stroke="none"></circle><circle cx="15" cy="12" r="1.8" fill="currentColor" stroke="none"></circle><circle cx="11" cy="18" r="1.8" fill="currentColor" stroke="none"></circle></svg>`;
                 const closeIconSvg = `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"></path></svg>`;
 
                 if (isHidden) {
                     container.classList.remove('hidden');
+                    container.style.display = 'grid';
                     btn.style.opacity = '0.9';
                     btn.innerHTML = `${closeIconSvg} 상세검색 접기`;
+                    requestAnimationFrame(() => {
+                        try {
+                            container.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                        } catch (err) {
+                            container.scrollIntoView();
+                        }
+                    });
                     
                     // 배경(외부) 클릭 시 닫기
                     setTimeout(() => {
@@ -386,12 +848,32 @@ const filterSheet = document.getElementById('filter-sheet');
                     }, 0);
                 } else {
                     container.classList.add('hidden');
+                    container.style.display = '';
                     btn.style.opacity = '1';
                     btn.innerHTML = `${filterIconSvg} 조건 상세 검색`;
                     
                     document.removeEventListener('click', closeFilterContainerOutside);
                 }
             }
+
+            /** 로고·무드 사이 ‘상세검색’ — 칩 영역이 접혀 있으면 펼침 */
+            function openMainDetailedSearchPanel(e) {
+                if (e && typeof e.preventDefault === 'function') e.preventDefault();
+                const container = document.getElementById('filter-options-container');
+                const btn = document.getElementById('filter-toggle-btn');
+                if (!container || !btn) return;
+                if (container.classList.contains('hidden')) {
+                    toggleFilterContainer({ preventDefault: () => {} });
+                }
+                requestAnimationFrame(() => {
+                    try {
+                        container.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    } catch (err) {
+                        container.scrollIntoView();
+                    }
+                });
+            }
+            window.openMainDetailedSearchPanel = openMainDetailedSearchPanel;
 
             function closeFilterContainerOutside(e) {
                 const container = document.getElementById('filter-options-container');
@@ -406,8 +888,9 @@ const filterSheet = document.getElementById('filter-sheet');
                         }
 
                         container.classList.add('hidden');
+                        container.style.display = '';
                         btn.style.opacity = '1';
-                        const filterIconSvg = `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"></path></svg>`;
+                        const filterIconSvg = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path><circle cx="9" cy="6" r="1.8" fill="currentColor" stroke="none"></circle><circle cx="15" cy="12" r="1.8" fill="currentColor" stroke="none"></circle><circle cx="11" cy="18" r="1.8" fill="currentColor" stroke="none"></circle></svg>`;
                         btn.innerHTML = `${filterIconSvg} 조건 상세 검색`;
                         document.removeEventListener('click', closeFilterContainerOutside);
                     }
@@ -968,12 +1451,12 @@ const filterSheet = document.getElementById('filter-sheet');
             }
 
             function maybeShowIncomingNoticeToast(rows = [], audience = 'user') {
-                const unread = rows.filter((row) => !row.isRead).length;
+                const unread = rows.filter((row) => !isNoticeRead(row)).length;
                 const prev = unreadSnapshotTracker.notice[audience];
                 unreadSnapshotTracker.notice[audience] = unread;
                 if (prev == null || unread <= prev) return;
                 if (!isInAppNoticeEnabled(audience)) return;
-                const newest = rows.find((row) => !row.isRead);
+                const newest = rows.find((row) => !isNoticeRead(row));
                 if (!newest) return;
                 const settings = getNotificationSettings(audience);
                 const showPreview = settings.noticePreview !== false;
@@ -1228,7 +1711,7 @@ const filterSheet = document.getElementById('filter-sheet');
                         }
                         return `
                             <div class="rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-panel)] px-3 py-3">
-                                <div class="text-[12px] text-white truncate">${name}</div>
+                                <div class="text-[12px] text-[var(--text-main)] truncate">${name}</div>
                                 <div class="text-[11px] text-[var(--text-sub)] mt-1">${typeText} · ${sizeText}</div>
                             </div>
                         `;
@@ -2893,6 +3376,7 @@ const filterSheet = document.getElementById('filter-sheet');
                 const rbProfile = getPartnerProfileReviewBaselines(currentPartner);
                 currentPartner.reviews = rbProfile.reviews;
                 currentPartner.rating = rbProfile.rating;
+                saveRecentViewedPartner(currentPartner);
                 const reviewBaseline = rbProfile.reviews;
                 const ratingBaseline = rbProfile.rating;
 
@@ -3678,6 +4162,7 @@ const filterSheet = document.getElementById('filter-sheet');
             // 동일 대카테고리(지역·마사지·공간·연령) 안: 고객이 고른 소카테고리 중 하나라도 업체 값과 맞으면 그 축 통과(OR).
             // 고객이 여러 대카테고리에 조건을 둔 경우: 각 축을 모두 통과한 업체만 노출(대카테고리 간 AND).
             function matchFilter(partner) {
+                if (openNowOnly && !isPartnerOpenNow(partner)) return false;
                 if (activeFilters.region.length > 0) {
                     let passed = false;
                     let pList = normalizePartnerRegionListForBanner(partner);
@@ -3765,7 +4250,7 @@ const filterSheet = document.getElementById('filter-sheet');
                             let disp = val;
                             if (disp === '상관없음(전체)') disp = '상관없음';
                             else if (disp === '연령 무관 (전체)') disp = '연령 무관';
-                            pillsHtml += `<span class="px-3 py-1.5 text-[13px] bg-transparent border border-[var(--point-color)] text-white  font-medium rounded-full cursor-pointer flex items-center gap-1 hover:bg-[var(--point-color)] hover:text-[var(--text-on-point)] transition-colors" onclick="removeFilterItem('${key}', '${val}')">${disp} <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></span>`;
+                            pillsHtml += `<span class="px-3 py-1.5 text-[13px] bg-transparent border border-[var(--point-color)] text-[var(--point-deep)]  font-medium rounded-full cursor-pointer flex items-center gap-1 hover:bg-[var(--point-color)] hover:text-[var(--text-on-point)] transition-colors" onclick="removeFilterItem('${key}', '${val}')">${disp} <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></span>`;
                         });
                     });
                     summaryDiv.innerHTML = pillsHtml;
@@ -3820,8 +4305,7 @@ const filterSheet = document.getElementById('filter-sheet');
                 if (db.length === 0) {
                     listContent.innerHTML = `<div class="p-5 text-sm text-center w-full" style="color:var(--text-sub);">조건에 맞는 업체가 없습니다.</div>`;
                 } else {
-                    // 매번 리스트뷰 열 때마다 랜덤 섞기
-                    db.sort(() => Math.random() - 0.5);
+                    db = sortPartnersByCurrentMood(db);
                     const thumbSizeClass = 'w-[128px] h-[128px]';
 
                     let html = '';
@@ -3847,10 +4331,10 @@ const filterSheet = document.getElementById('filter-sheet');
                         <h3 class="font-bold text-[16px] mb-0.5 tracking-tight" style="color: var(--text-main);">${partner.name}</h3>
                         <p class="text-[13px] mt-0.5" style="color: var(--text-sub);">${rndRegion ?? ''}</p>
                         <div class="grid grid-cols-2 gap-1.5 mt-2.5">
-                            <span class="text-[11px] px-2 py-1 border border-[var(--point-color)] bg-[var(--point-color)]/10 rounded-full font-medium text-white  flex items-center justify-center truncate tracking-tight shadow-sm">${formatBannerRegionChipLabel(rndRegion)}</span>
-                            <span class="text-[11px] px-2 py-1 border border-[var(--point-color)] bg-transparent rounded-full font-medium text-white  flex items-center justify-center truncate tracking-tight shadow-sm">${rndMassage}</span>
-                            <span class="text-[11px] px-2 py-1 border border-[var(--point-color)] bg-transparent rounded-full font-medium text-white  flex items-center justify-center truncate tracking-tight shadow-sm">${rndPlace}</span>
-                            <span class="text-[11px] px-2 py-1 border border-[var(--point-color)] bg-transparent rounded-full font-medium text-white  flex items-center justify-center truncate tracking-tight shadow-sm">${rndAge}</span>
+                            <span class="text-[11px] px-2 py-1 border border-[var(--point-color)] bg-[var(--point-color)]/10 rounded-full font-medium text-[var(--point-deep)]  flex items-center justify-center truncate tracking-tight shadow-sm">${formatBannerRegionChipLabel(rndRegion)}</span>
+                            <span class="text-[11px] px-2 py-1 border border-[var(--point-color)] bg-transparent rounded-full font-medium text-[var(--point-deep)]  flex items-center justify-center truncate tracking-tight shadow-sm">${rndMassage}</span>
+                            <span class="text-[11px] px-2 py-1 border border-[var(--point-color)] bg-transparent rounded-full font-medium text-[var(--point-deep)]  flex items-center justify-center truncate tracking-tight shadow-sm">${rndPlace}</span>
+                            <span class="text-[11px] px-2 py-1 border border-[var(--point-color)] bg-transparent rounded-full font-medium text-[var(--point-deep)]  flex items-center justify-center truncate tracking-tight shadow-sm">${rndAge}</span>
                         </div>
 
                     </div>
@@ -4429,6 +4913,15 @@ const filterSheet = document.getElementById('filter-sheet');
                 applyFiltersToData();
             }
 
+            function relaxFiltersForResults(type = 'age') {
+                if (type === 'age') activeFilters.age = ['연령 무관 (전체)'];
+                else if (type === 'place') activeFilters.place = ['상관없음(전체)'];
+                else if (type === 'region') activeFilters.region = [];
+                ['region', 'massage', 'place', 'age'].forEach((k) => updateChipText(k));
+                applyFiltersToData();
+            }
+            window.relaxFiltersForResults = relaxFiltersForResults;
+
             function executeMainSearch() {
                 // 메인 화면에서 4개 카테고리 메뉴 닫기 처리
                 const container = document.getElementById('filter-options-container');
@@ -4475,11 +4968,19 @@ const filterSheet = document.getElementById('filter-sheet');
                     let combined = [...filteredChoiceDB, ...filteredRecDB];
                     // 중복제거 (동일 id)
                     combined = combined.filter((partner, index, self) => index === self.findIndex((t) => t.id === partner.id));
+                    combined = sortPartnersByCurrentMood(combined);
 
                     document.getElementById('filtered-count').innerText = `총 ${combined.length}곳`;
 
                     if (combined.length === 0) {
-                        document.getElementById('filtered-results-list').innerHTML = `<div class="p-5 text-sm w-full flex items-center justify-center h-[200px]" style="color:var(--text-sub);">조건에 맞는 파트너가 없습니다.</div>`;
+                        document.getElementById('filtered-results-list').innerHTML = `<div class="p-5 w-full">
+                            <div class="text-sm text-center h-[80px] flex items-center justify-center" style="color:var(--text-sub);">조건에 맞는 파트너가 없습니다.</div>
+                            <div class="flex flex-wrap justify-center gap-2 mt-2">
+                                <button type="button" onclick="relaxFiltersForResults('age')" class="px-3 py-1.5 rounded-full border border-[var(--point-color)]/40 bg-[var(--point-light)] text-[11px] font-bold text-[var(--point-deep)]">연령 무관으로 완화</button>
+                                <button type="button" onclick="relaxFiltersForResults('place')" class="px-3 py-1.5 rounded-full border border-[var(--point-color)]/40 bg-[var(--point-light)] text-[11px] font-bold text-[var(--point-deep)]">공간 상관없음</button>
+                                <button type="button" onclick="relaxFiltersForResults('region')" class="px-3 py-1.5 rounded-full border border-[var(--point-color)]/40 bg-[var(--point-light)] text-[11px] font-bold text-[var(--point-deep)]">지역 조건 해제</button>
+                            </div>
+                        </div>`;
                     } else {
                         let html = '';
                         for (let partner of combined) {
@@ -4495,10 +4996,10 @@ const filterSheet = document.getElementById('filter-sheet');
                             <h3 class="font-bold text-[16px] mb-0.5 tracking-tight" style="color: var(--text-main);">${partner.name}</h3>
                             <p class="text-[13px] mt-0.5" style="color: var(--text-sub);">${rndRegion ?? ''}</p>
                             <div class="grid grid-cols-2 gap-1.5 mt-2.5">
-                                <span class="text-[11px] px-2 py-1 border border-[var(--point-color)] bg-[var(--point-color)]/10 rounded-full font-medium text-white  flex items-center justify-center truncate tracking-tight shadow-sm">${formatBannerRegionChipLabel(rndRegion)}</span>
-                                <span class="text-[11px] px-2 py-1 border border-[var(--point-color)] bg-transparent rounded-full font-medium text-white  flex items-center justify-center truncate tracking-tight shadow-sm">${rndMassage}</span>
-                                <span class="text-[11px] px-2 py-1 border border-[var(--point-color)] bg-transparent rounded-full font-medium text-white  flex items-center justify-center truncate tracking-tight shadow-sm">${rndPlace}</span>
-                                <span class="text-[11px] px-2 py-1 border border-[var(--point-color)] bg-transparent rounded-full font-medium text-white  flex items-center justify-center truncate tracking-tight shadow-sm">${rndAge}</span>
+                                <span class="text-[11px] px-2 py-1 border border-[var(--point-color)] bg-[var(--point-color)]/10 rounded-full font-medium text-[var(--point-deep)]  flex items-center justify-center truncate tracking-tight shadow-sm">${formatBannerRegionChipLabel(rndRegion)}</span>
+                                <span class="text-[11px] px-2 py-1 border border-[var(--point-color)] bg-transparent rounded-full font-medium text-[var(--point-deep)]  flex items-center justify-center truncate tracking-tight shadow-sm">${rndMassage}</span>
+                                <span class="text-[11px] px-2 py-1 border border-[var(--point-color)] bg-transparent rounded-full font-medium text-[var(--point-deep)]  flex items-center justify-center truncate tracking-tight shadow-sm">${rndPlace}</span>
+                                <span class="text-[11px] px-2 py-1 border border-[var(--point-color)] bg-transparent rounded-full font-medium text-[var(--point-deep)]  flex items-center justify-center truncate tracking-tight shadow-sm">${rndAge}</span>
                             </div>
 
                         </div>
@@ -4515,10 +5016,10 @@ const filterSheet = document.getElementById('filter-sheet');
                 document.getElementById('app-container').classList.remove('scroll-active');
 
 
-                // 다독 초이스 노출 시 매번 랜덤 섞기
+                // 다독 초이스: 오늘의 무드 기준 추천순(동점 시 기존 순서 유지)
                 const generateChoiceItems = () => {
                     let chunk = '';
-                    let mixedChoice = [...filteredChoiceDB].sort(() => Math.random() - 0.5);
+                    let mixedChoice = sortPartnersByCurrentMood([...filteredChoiceDB]);
                     for (let partner of mixedChoice) {
                         let badgeHtml = '';
                         if (partner.tier === 'VIP') {
@@ -4541,10 +5042,10 @@ const filterSheet = document.getElementById('filter-sheet');
                         <h3 class="font-bold text-lg">${partner.name}</h3>
                         <p class="text-sm mt-1.5" style="color: var(--text-sub);">${rndRegion ?? ''}</p>
                         <div class="grid grid-cols-2 gap-2 mt-4 text-xs">
-                            <span class="border border-[var(--point-color)] bg-[var(--point-color)]/10 px-8 py-1.5 rounded-full font-bold text-white flex items-center justify-center truncate tracking-tight shadow-sm">${formatBannerRegionChipLabel(rndRegion)}</span>
-                            <span class="border border-[var(--point-color)] bg-transparent px-8 py-1.5 rounded-full font-medium text-white flex items-center justify-center truncate tracking-tight shadow-sm">${rndMassage}</span>
-                            <span class="border border-[var(--point-color)] bg-transparent px-8 py-1.5 rounded-full font-medium text-white flex items-center justify-center truncate tracking-tight shadow-sm">${rndPlace}</span>
-                            <span class="border border-[var(--point-color)] bg-transparent px-8 py-1.5 rounded-full font-medium text-white flex items-center justify-center truncate tracking-tight shadow-sm">${rndAge}</span>
+                            <span class="border border-[var(--point-color)] bg-[var(--point-color)]/10 px-8 py-1.5 rounded-full font-bold text-[var(--point-deep)] flex items-center justify-center truncate tracking-tight shadow-sm">${formatBannerRegionChipLabel(rndRegion)}</span>
+                            <span class="border border-[var(--point-color)] bg-transparent px-8 py-1.5 rounded-full font-medium text-[var(--point-deep)] flex items-center justify-center truncate tracking-tight shadow-sm">${rndMassage}</span>
+                            <span class="border border-[var(--point-color)] bg-transparent px-8 py-1.5 rounded-full font-medium text-[var(--point-deep)] flex items-center justify-center truncate tracking-tight shadow-sm">${rndPlace}</span>
+                            <span class="border border-[var(--point-color)] bg-transparent px-8 py-1.5 rounded-full font-medium text-[var(--point-deep)] flex items-center justify-center truncate tracking-tight shadow-sm">${rndAge}</span>
                         </div>
 
                     </div>
@@ -4571,7 +5072,7 @@ const filterSheet = document.getElementById('filter-sheet');
                     return;
                 }
 
-                let mixedRec = [...filteredRecDB].sort(() => Math.random() - 0.5);
+                let mixedRec = sortPartnersByCurrentMood([...filteredRecDB]);
                 let currentPartnerIndex = 0;
 
                 function renderRecommendedPartners() {
@@ -4602,10 +5103,10 @@ const filterSheet = document.getElementById('filter-sheet');
                         </div>
                         <p class="text-[13px] mt-0.5" style="color: var(--text-sub);">${rndRegion ?? ''}</p>
                         <div class="grid grid-cols-2 gap-1.5 mt-2.5">
-                            <span class="text-[11px] px-2 py-1 border border-[var(--point-color)] bg-[var(--point-color)]/10 rounded-full font-medium text-white  flex items-center justify-center truncate tracking-tight shadow-sm">${formatBannerRegionChipLabel(rndRegion)}</span>
-                            <span class="text-[11px] px-2 py-1 border border-[var(--point-color)] bg-transparent rounded-full font-medium text-white  flex items-center justify-center truncate tracking-tight shadow-sm">${rndMassage}</span>
-                            <span class="text-[11px] px-2 py-1 border border-[var(--point-color)] bg-transparent rounded-full font-medium text-white  flex items-center justify-center truncate tracking-tight shadow-sm">${rndPlace}</span>
-                            <span class="text-[11px] px-2 py-1 border border-[var(--point-color)] bg-transparent rounded-full font-medium text-white  flex items-center justify-center truncate tracking-tight shadow-sm">${rndAge}</span>
+                            <span class="text-[11px] px-2 py-1 border border-[var(--point-color)] bg-[var(--point-color)]/10 rounded-full font-medium text-[var(--point-deep)]  flex items-center justify-center truncate tracking-tight shadow-sm">${formatBannerRegionChipLabel(rndRegion)}</span>
+                            <span class="text-[11px] px-2 py-1 border border-[var(--point-color)] bg-transparent rounded-full font-medium text-[var(--point-deep)]  flex items-center justify-center truncate tracking-tight shadow-sm">${rndMassage}</span>
+                            <span class="text-[11px] px-2 py-1 border border-[var(--point-color)] bg-transparent rounded-full font-medium text-[var(--point-deep)]  flex items-center justify-center truncate tracking-tight shadow-sm">${rndPlace}</span>
+                            <span class="text-[11px] px-2 py-1 border border-[var(--point-color)] bg-transparent rounded-full font-medium text-[var(--point-deep)]  flex items-center justify-center truncate tracking-tight shadow-sm">${rndAge}</span>
                         </div>
 
                     </div>
@@ -4621,9 +5122,8 @@ const filterSheet = document.getElementById('filter-sheet');
                     recommendInterval = setInterval(() => {
                         currentPartnerIndex = (currentPartnerIndex + 5) % totalPartners;
 
-                        // 모든 파트너를 한 바퀴 다 돌면 다시 새로운 랜덤 순서로 셔플
-                        if (currentPartnerIndex < 5) { // 5씩 증가하므로 5 미만이 될 수 있음
-                            mixedRec.sort(() => Math.random() - 0.5);
+                        if (currentPartnerIndex < 5) {
+                            mixedRec = sortPartnersByCurrentMood([...filteredRecDB]);
                         }
 
                         renderRecommendedPartners();
@@ -5861,7 +6361,7 @@ const filterSheet = document.getElementById('filter-sheet');
                     container.innerHTML = `
                 <div class="bg-gradient-to-br from-[#0A1B13] to-[#040C08] border border-[var(--point-color)]/30 border-dashed rounded-2xl p-6 text-center flex flex-col items-center justify-center min-h-[140px]">
                     <svg class="w-10 h-10 text-[var(--point-color)]/50 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
-                    <p class="text-[var(--text-sub)] text-[14.5px] font-medium leading-relaxed">구매한 입점권 확인이 불가능하거나 승인대기중입니다.<br><span class="text-white/60">상품 구매 후 관리자 승인을 기달려주세요.</span></p>
+                    <p class="text-[var(--text-sub)] text-[14.5px] font-medium leading-relaxed">구매한 입점권 확인이 불가능하거나 승인대기중입니다.<br><span class="text-[var(--text-sub)]/80">상품 구매 후 관리자 승인을 기달려주세요.</span></p>
                 </div>
             `;
                 };
@@ -5922,7 +6422,7 @@ const filterSheet = document.getElementById('filter-sheet');
                 <div class="bg-gradient-to-br from-[#0A1B13] to-[#040C08] border border-[#D4AF37]/30 rounded-2xl p-5 relative overflow-hidden shadow-[0_5px_15px_rgba(212,175,55,0.05)] mb-3">
                     <div class="absolute top-0 right-0 p-3 opacity-10 pointer-events-none"><svg class="w-20 h-20 text-[var(--point-color)]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"></path></svg></div>
                     <div class="flex flex-col relative z-10">
-                        <span class="text-[17px] text-white font-bold tracking-wide mb-1 flex items-center">${combinedName}${badgeHtml}</span>
+                        <span class="text-[17px] text-[var(--text-main)] font-bold tracking-wide mb-1 flex items-center">${combinedName}${badgeHtml}</span>
                         <div class="flex items-end gap-2 mt-2">
                             <span class="text-[34px] font-extrabold text-[var(--point-color)] leading-none text-transparent bg-clip-text bg-gradient-to-r from-[#F3E5AB] to-[#D4AF37]" id="pass-days-combined">-일</span>
                             <span class="text-[22px] font-bold text-[var(--point-color)] leading-none mb-[2px]" id="pass-time-combined">--:--:--</span>
@@ -6622,33 +7122,32 @@ const filterSheet = document.getElementById('filter-sheet');
                 }
 
                 const now = firebase.firestore.FieldValue.serverTimestamp();
-                setPartnerSignupSubmitButtonLabel('서류 업로드 중...');
-
-                let bizDocUrl = '';
-                const fileInput = document.getElementById('partner-signup-file');
-                if (fileInput && fileInput.files && fileInput.files[0]) {
-                    const file = fileInput.files[0];
-                    try {
-                        const storageRef = firebase.storage().ref();
-                        const fileRef = storageRef.child('partners_biz/' + Date.now() + '_' + file.name);
-                        const snapshot = await fileRef.put(file);
-                        bizDocUrl = await snapshot.ref.getDownloadURL();
-                    } catch (uploadObjError) {
-                        console.error('이미지 업로드 중 실패:', uploadObjError);
-                        alert(`증빙 서류 업로드에 실패했습니다.\n${formatFirebaseError(uploadObjError)}`);
-                        setPartnerSignupSubmitButtonLabel('가입하기');
-                        return;
-                    }
-                }
-
-                setPartnerSignupSubmitButtonLabel('데이터 저장 중...');
                 let createdAuthUser = null;
+                let bizDocUrl = '';
+                let bizDocStoragePath = '';
                 try {
+                    setPartnerSignupSubmitButtonLabel('계정 생성 중...');
                     const normalizedEmail = normalizeAuthEmail(id);
                     const authEmail = buildAuthEmailByRole(normalizedEmail, 'partner');
                     await applyAuthPersistenceByKeepLogin(false);
                     const cred = await auth.createUserWithEmailAndPassword(authEmail, pw);
                     createdAuthUser = cred?.user || null;
+
+                    setPartnerSignupSubmitButtonLabel('서류 업로드 중...');
+                    const fileInput = document.getElementById('partner-signup-file');
+                    if (fileInput && fileInput.files && fileInput.files[0]) {
+                        const file = fileInput.files[0];
+                        const safeName = String(file?.name || 'biz_doc')
+                            .replace(/[^\w.\-]+/g, '_')
+                            .slice(-120);
+                        bizDocStoragePath = `partners_biz/${Date.now()}_${safeName}`;
+                        const storageRef = firebase.storage().ref();
+                        const fileRef = storageRef.child(bizDocStoragePath);
+                        const snapshot = await fileRef.put(file);
+                        bizDocUrl = await snapshot.ref.getDownloadURL();
+                    }
+
+                    setPartnerSignupSubmitButtonLabel('데이터 저장 중...');
 
                     // 파트너 컬렉션에 새 문서 저장
                     await firestoreDb.collection('partners').add({
@@ -6675,6 +7174,13 @@ const filterSheet = document.getElementById('filter-sheet');
                     }
                 } catch (error) {
                     console.error('파트너 문서 저장 실패:', error);
+                    if (bizDocStoragePath) {
+                        try {
+                            await firebase.storage().ref().child(bizDocStoragePath).delete();
+                        } catch (cleanupErr) {
+                            console.warn('업로드 파일 롤백 실패:', cleanupErr);
+                        }
+                    }
                     if (createdAuthUser) {
                         try {
                             await createdAuthUser.delete();
@@ -6922,7 +7428,7 @@ const filterSheet = document.getElementById('filter-sheet');
                     <span class="text-[var(--point-color)] text-[12px] font-bold tracking-widest">입점 신청 접수 완료</span>
                 </div>
                 <div class="leading-relaxed text-center">
-                    <span class="text-[#F6DC7A] font-extrabold text-[18px] tracking-wide">[${title}]</span><span class="text-white font-semibold text-[18px]"> 접수 완료</span>
+                    <span class="text-[#F6DC7A] font-extrabold text-[18px] tracking-wide">[${title}]</span><span class="text-[var(--text-main)] font-semibold text-[18px]"> 접수 완료</span>
                 </div>
             </div>
 
@@ -7661,7 +8167,7 @@ const filterSheet = document.getElementById('filter-sheet');
                     <div class="w-12 h-12 rounded-full bg-cover bg-center shrink-0 border border-[var(--point-color)]/50" style="background-image: url('${displayImage}')"></div>
                     <div class="flex-1 overflow-hidden">
                         <div class="flex justify-between items-center mb-1">
-                            <h4 class="text-white font-bold text-[15px]">${displayName}</h4>
+                            <h4 class="text-[var(--text-main)] font-bold text-[15px]">${displayName}</h4>
                             <span class="text-[11px] text-[var(--text-sub)]">${timeText}</span>
                         </div>
                         <div class="flex items-center justify-between gap-2">
@@ -7730,7 +8236,7 @@ const filterSheet = document.getElementById('filter-sheet');
                     <div class="w-[120px] h-[120px] rounded-lg bg-cover bg-center shrink-0 shadow-sm" style="background-image: url('${partner.image}')"></div>
                     <div class="flex-1 flex flex-col justify-center overflow-hidden">
                         <div class="flex justify-between items-start mb-1.5">
-                            <h4 class="text-white font-bold text-lg leading-tight truncate mr-2">${partner.name}</h4>
+                            <h4 class="text-[var(--text-main)] font-bold text-lg leading-tight truncate mr-2">${partner.name}</h4>
                             <svg class="w-5 h-5 text-[var(--point-color)] shrink-0 drop-shadow-[0_0_8px_rgba(212,175,55,0.6)]" fill="currentColor" viewBox="0 0 24 24" onclick="event.stopPropagation(); removeFavorite('${partner.id}')"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path></svg>
                         </div>
                         <p class="text-[13px] text-[var(--point-color)] font-medium mb-1 truncate">${partner.age}</p>
@@ -7812,6 +8318,18 @@ const filterSheet = document.getElementById('filter-sheet');
                 return [...rows].sort((a, b) => getTs(b) - getTs(a));
             }
 
+            function isNoticeRead(row = {}) {
+                const value = row?.isRead;
+                if (value === true || value === false) return value;
+                if (typeof value === 'string') {
+                    const normalized = value.trim().toLowerCase();
+                    if (['true', '1', 'yes', 'y'].includes(normalized)) return true;
+                    if (['false', '0', 'no', 'n', ''].includes(normalized)) return false;
+                }
+                if (typeof value === 'number') return value === 1;
+                return false;
+            }
+
             function renderNoticeRowsToContainer(rows = []) {
                 const container = document.getElementById('notice-list-container');
                 if (!container) return;
@@ -7822,35 +8340,46 @@ const filterSheet = document.getElementById('filter-sheet');
                 }
                 let html = '<div class="space-y-3">';
                 rows.forEach((row) => {
+                    const categoryRaw = String(row.category || 'notice').trim();
+                    const categoryLabel = categoryRaw === 'approval_done' ? '' : escapeNoticeText(categoryRaw);
+                    const actionChipClass =
+                        'inline-flex items-center justify-center min-h-[32px] px-3 py-1.5 text-[12px] font-bold rounded-xl border transition-colors';
                     const priorityBadge =
                         row.priority === 'important'
-                            ? '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-500/20 text-red-300 border border-red-500/30">중요</span>'
-                            : '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#11291D] text-[var(--point-color)] border border-[var(--border-subtle)]">일반</span>';
-                    const unreadDot = row.isRead
+                            ? `<span class="${actionChipClass} bg-red-500/20 text-red-300 border-red-500/30">중요</span>`
+                            : `<span class="${actionChipClass} bg-[#11291D] text-[var(--point-color)] border-[var(--border-subtle)]">일반</span>`;
+                    const isRead = isNoticeRead(row);
+                    const unreadDot = isRead
                         ? ''
                         : '<span class="inline-flex w-2.5 h-2.5 rounded-full bg-red-400"></span>';
                     const linkBtn =
                         row.linkType && row.linkType !== 'none'
-                            ? `<button onclick="openNoticeLinkedScreen('${row.id}', '${row.linkType}')" class="px-2 py-1 text-[10px] font-bold rounded-lg border border-[var(--border-subtle)] text-white hover:border-[var(--point-color)] hover:text-[var(--point-color)] transition-colors">관련 화면 이동</button>`
+                            ? `<button onclick="openNoticeLinkedScreen('${row.id}', '${row.linkType}')" class="${actionChipClass} border-[var(--border-subtle)] bg-[var(--surface-panel)] text-[var(--text-main)] hover:border-[var(--point-color)] hover:text-[var(--point-color)]">관련 화면 이동</button>`
                             : '';
-                    const readBtn = row.isRead
-                        ? '<span class="text-[10px] text-[#6C7A74]">읽음</span>'
-                        : `<button onclick="markNoticeAsRead('${row.id}')" class="px-2 py-1 text-[10px] font-bold rounded-lg border border-[var(--point-color)]/40 text-[var(--point-color)] hover:bg-[var(--point-color)]/15 transition-colors">읽음 처리</button>`;
+                    const readBtn = isRead
+                        ? `<button onclick="markNoticeAsUnread('${row.id}')" class="${actionChipClass} border-[var(--border-subtle)] bg-[var(--surface-panel)] text-[#6C7A74] hover:text-[var(--text-main)]">읽음 완료</button>`
+                        : `<button onclick="markNoticeAsRead('${row.id}')" class="${actionChipClass} border-[var(--point-color)]/40 bg-[var(--point-light)] text-[var(--point-deep)] hover:bg-[var(--point-color)]/15">읽음 처리</button>`;
                     const attachments = Array.isArray(row.attachments) ? row.attachments : [];
                     const attachmentsHtml = attachments.length
                         ? `<div class="mt-2">${attachments
                               .map((att, idx) => renderNoticeAttachmentInline(att, idx))
                               .join('')}</div>`
                         : '';
+                    const metaParts = [];
+                    if (categoryLabel) metaParts.push(categoryLabel);
+                    metaParts.push(formatNoticeDate(row.createdAt));
+                    metaParts.push(escapeNoticeText(row.linkLabel || '이동 없음'));
                     html += `
-                        <div class="bg-[var(--surface-input)] border ${row.isRead ? 'border-[var(--border-subtle)]' : 'border-[var(--point-color)]/35'} rounded-2xl p-4">
-                            <div class="flex items-start justify-between gap-2 mb-2">
-                                <div class="flex items-center gap-2 text-white font-bold text-[15px]">${unreadDot}${escapeNoticeText(row.title || '(제목 없음)')}</div>
-                                <div class="flex items-center gap-2">${priorityBadge}${readBtn}${linkBtn}</div>
+                        <div class="bg-[var(--surface-input)] border ${isRead ? 'border-[var(--border-subtle)]' : 'border-[var(--point-color)]/35'} rounded-2xl p-4">
+                            <div class="flex items-start gap-2 mb-2">
+                                <div class="flex items-center gap-2 text-[var(--text-main)] font-bold text-[15px]">${unreadDot}${escapeNoticeText(row.title || '(제목 없음)')}</div>
                             </div>
-                            <div class="text-[11px] text-[var(--text-sub)] mb-2">${escapeNoticeText(row.category || 'notice')} · ${formatNoticeDate(row.createdAt)} · ${escapeNoticeText(row.linkLabel || '이동 없음')}</div>
-                            <p class="text-[13px] text-white/85 leading-relaxed whitespace-pre-wrap">${escapeNoticeText(row.body || '')}</p>
+                            <div class="text-[11px] text-[var(--text-sub)] mb-2">${metaParts.join(' · ')}</div>
+                            <p class="text-[13px] text-[var(--text-sub)] leading-relaxed whitespace-pre-wrap">${escapeNoticeText(row.body || '')}</p>
                             ${attachmentsHtml}
+                            <div class="mt-3 pt-2 border-t border-[var(--border-subtle)]/70">
+                                <div class="flex flex-nowrap items-center gap-3 whitespace-nowrap">${priorityBadge}${readBtn}${linkBtn}</div>
+                            </div>
                         </div>
                     `;
                 });
@@ -7992,7 +8521,7 @@ const filterSheet = document.getElementById('filter-sheet');
                 };
 
                 if (currentNoticeRows.length > 0 && currentNoticeAudience) {
-                    const unread = currentNoticeRows.filter((r) => !r.isRead).length;
+                    const unread = currentNoticeRows.filter((r) => !isNoticeRead(r)).length;
                     const targetBadge = currentNoticeAudience === 'partner' ? partnerBadge : userBadge;
                     setNoticeBadge(targetBadge, unread);
                 }
@@ -8002,13 +8531,13 @@ const filterSheet = document.getElementById('filter-sheet');
                 if (hasUserRealtime) {
                     setNoticeBadge(
                         userBadge,
-                        (noticeRealtimeRows.user || []).filter((r) => !r.isRead).length,
+                        (noticeRealtimeRows.user || []).filter((r) => !isNoticeRead(r)).length,
                     );
                 }
                 if (hasPartnerRealtime) {
                     setNoticeBadge(
                         partnerBadge,
-                        (noticeRealtimeRows.partner || []).filter((r) => !r.isRead).length,
+                        (noticeRealtimeRows.partner || []).filter((r) => !isNoticeRead(r)).length,
                     );
                 }
 
@@ -8026,13 +8555,13 @@ const filterSheet = document.getElementById('filter-sheet');
                             .get();
                         let unread = 0;
                         snap.forEach((doc) => {
-                            if (!doc.data()?.isRead) unread++;
+                            if (!isNoticeRead(doc.data() || {})) unread++;
                         });
                         return unread;
                     };
                     const [userUnread, partnerUnread] = await Promise.all([
-                        hasUserRealtime ? Promise.resolve((noticeRealtimeRows.user || []).filter((r) => !r.isRead).length) : loadUnread(userTarget),
-                        hasPartnerRealtime ? Promise.resolve((noticeRealtimeRows.partner || []).filter((r) => !r.isRead).length) : loadUnread(partnerTarget)
+                        hasUserRealtime ? Promise.resolve((noticeRealtimeRows.user || []).filter((r) => !isNoticeRead(r)).length) : loadUnread(userTarget),
+                        hasPartnerRealtime ? Promise.resolve((noticeRealtimeRows.partner || []).filter((r) => !isNoticeRead(r)).length) : loadUnread(partnerTarget)
                     ]);
                     if (!hasUserRealtime) setNoticeBadge(userBadge, userUnread);
                     if (!hasPartnerRealtime) setNoticeBadge(partnerBadge, partnerUnread);
@@ -8051,6 +8580,19 @@ const filterSheet = document.getElementById('filter-sheet');
                     await renderNoticeList(currentNoticeAudience);
                 } catch (e) {
                     console.error('읽음 처리 실패:', e);
+                }
+            }
+
+            async function markNoticeAsUnread(notificationId) {
+                if (!notificationId || typeof firebase === 'undefined') return;
+                try {
+                    await firebase.firestore().collection('user_notifications').doc(notificationId).update({
+                        isRead: false,
+                        readAt: null
+                    });
+                    await renderNoticeList(currentNoticeAudience);
+                } catch (e) {
+                    console.error('읽음 해제 실패:', e);
                 }
             }
 
@@ -8420,6 +8962,450 @@ const filterSheet = document.getElementById('filter-sheet');
                 }, 10);
             }
 
+            const DADOK_DAILY_CARE_TIPS = [
+                '숨을 깊게 들이마시며, 잠깐만 어깨 힘을 내려놓아 보세요.',
+                '따뜻한 물 한 잔은 몸의 순환과 마음의 속도를 함께 가볍게 해 줘요.',
+                '목 뒤가 뻐근하면 턱을 살짝 당기고, 스마트폰은 잠시 내려놓아도 괜찮아요.',
+                '손목과 발목을 천천히 돌려 주면 하루의 피로가 덜 쌓여요.',
+                '눈이 피로할 땐 멀리 초점을 바꿔 보거나, 눈을 감고 10초만 쉬어 보세요.',
+                '오늘은 스트레칭보다 “충분히 앉아 있기”만으로도 회복이 될 수 있어요.',
+                '가벼운 산책은 생각을 비우고 몸을 깨우는 가장 단순한 방법이에요.',
+                '잠들기 한 시간 전에는 밝은 빛을 줄이면 숙면에 도움이 돼요.',
+                '샤워 후엔 보습으로 피부 장벽을 살짝 닫아 주면 산뜻함이 오래가요.',
+                '스트레스가 올라올 땐 “지금 당장 결정하지 않아도 된다”고 한 번 말해 주세요.',
+                '배가 고프면 집중이 흐트러져요. 가볍게라도 규칙적으로 챙겨 드세요.',
+                '창문을 잠깐 열어 환기하면 공간과 기분이 함께 정리돼요.',
+                '누워서 발을 벽에 기대면 하체 순환이 편해져요.',
+                '오늘 잘한 일을 한 가지만 떠올리고 잠들 준비를 해 보세요.',
+                '컨디션이 불안할수록 예약은 여유 있게, 이동 시간도 넉넉히 잡아 주세요.',
+                '다음 호흡을 의식하는 순간, 이미 쉼은 시작된 거예요.',
+            ];
+
+            function refreshDailyCareTip() {
+                const el = document.getElementById('dadok-daily-tip-text');
+                if (!el) return;
+                const now = new Date();
+                const seed = now.getFullYear() * 10000 + (now.getMonth() + 1) * 100 + now.getDate();
+                const ix = seed % DADOK_DAILY_CARE_TIPS.length;
+                el.textContent = DADOK_DAILY_CARE_TIPS[ix];
+            }
+            window.refreshDailyCareTip = refreshDailyCareTip;
+
+            /** 메인 간판 슬라이드 — image URL 또는 gradient만 사용 (Firestore 연동 시 동일 스키마 권장) */
+            const DADOK_BILLBOARD_DEFAULT_GRAD =
+                'linear-gradient(125deg, #2e2823 0%, #453a32 42%, #7d6438 100%)';
+            const DADOK_BILLBOARD_DEFAULT_INTERVAL_MS = 7200;
+            let dadokMainBillboardPreloaded = new Set();
+
+            async function preloadBillboardImages(slides = []) {
+                const urls = slides
+                    .map((s) => String(s?.image || '').trim())
+                    .filter(Boolean)
+                    .filter((u) => !dadokMainBillboardPreloaded.has(u));
+                if (!urls.length) return;
+                await Promise.allSettled(
+                    urls.map(
+                        (url) =>
+                            new Promise((resolve) => {
+                                const im = new Image();
+                                im.onload = () => {
+                                    dadokMainBillboardPreloaded.add(url);
+                                    resolve(true);
+                                };
+                                im.onerror = () => resolve(false);
+                                im.src = url;
+                            }),
+                    ),
+                );
+            }
+
+            const DADOK_MAIN_BILLBOARD_SLIDES = [
+                {
+                    category: '브랜드',
+                    image: 'assets/images/dadok_user_female_character.png',
+                    gradient:
+                        'linear-gradient(118deg, #2a2420 0%, #3d342c 50%, #6b5344 100%)',
+                    caption: '여성을 위한 프라이빗 라운지. 오늘은 어떤 휴식이 필요하세요?',
+                    alt: '다독 브랜드 일러스트',
+                },
+                {
+                    category: '검색 안내',
+                    image: '',
+                    gradient:
+                        'linear-gradient(118deg, #1c1916 0%, #3a322b 38%, #9a7b3e 72%, #c9a74c 100%)',
+                    caption: '지역·스타일·무드까지. 조건 상세 검색으로 맞는 곳을 찾아보세요.',
+                    alt: '',
+                },
+                {
+                    category: '운영 안내',
+                    image: '',
+                    gradient:
+                        'linear-gradient(132deg, #e8e2da 0%, #d4c4b0 35%, #8b7355 88%)',
+                    caption: '제휴 업체는 심사 후 공개됩니다. 안심하고 둘러보세요.',
+                    alt: '',
+                },
+                {
+                    category: '추천',
+                    image: '',
+                    gradient:
+                        'linear-gradient(115deg, #252220 0%, #4a3f38 55%, #6b8f7a 100%)',
+                    caption: '오늘의 무드에 맞춰 추천 순서가 달라집니다.',
+                    alt: '',
+                },
+            ];
+
+            async function bootMainBillboardCarousel() {
+                let slides = DADOK_MAIN_BILLBOARD_SLIDES;
+                dadokMainBillboardIntervalMs = DADOK_BILLBOARD_DEFAULT_INTERVAL_MS;
+                try {
+                    if (
+                        typeof firebase !== 'undefined' &&
+                        firebase.apps &&
+                        firebase.apps.length &&
+                        firebase.firestore
+                    ) {
+                        const snap = await firebase.firestore().collection('app_main_billboard').get();
+                        const slotMap = new Map();
+                        snap.forEach((doc) => {
+                            const d = doc.data() || {};
+                            if (d.isConfig === true || doc.id === '__config') {
+                                const sec = Number(d.slideIntervalSec);
+                                if (Number.isFinite(sec) && sec >= 2 && sec <= 20) {
+                                    dadokMainBillboardIntervalMs = Math.round(sec * 1000);
+                                }
+                                return;
+                            }
+                            const order = Number.isFinite(Number(d.sortOrder)) ? Number(d.sortOrder) : 0;
+                            if (order < 0 || order > 3) return;
+                            if (d.enabled === false) return;
+                            slotMap.set(order, {
+                                categoryLabel: String(d.categoryLabel || '').trim(),
+                                bottomTitle: String(d.bottomTitle || '').trim(),
+                                imageUrl: String(d.imageUrl || '').trim(),
+                                gradientFallback: String(d.gradientFallback || '').trim(),
+                            });
+                        });
+                        const mapped = [0, 1, 2, 3].map((order) => {
+                            const base = DADOK_MAIN_BILLBOARD_SLIDES[order] || {};
+                            const r = slotMap.get(order) || {};
+                            return {
+                                category: r.categoryLabel || base.category || `배너 ${order + 1}`,
+                                image: r.imageUrl || base.image || '',
+                                gradient:
+                                    r.gradientFallback ||
+                                    base.gradient ||
+                                    DADOK_BILLBOARD_DEFAULT_GRAD,
+                                caption:
+                                    r.bottomTitle ||
+                                    base.caption ||
+                                    `배너 ${order + 1} 제목`,
+                                alt: r.categoryLabel || base.category || `메인 배너 ${order + 1}`,
+                            };
+                        });
+                        if (mapped.length) slides = mapped;
+                    }
+                } catch (e) {
+                    console.warn('메인 배너 Firestore 로드 실패:', e);
+                }
+                await preloadBillboardImages(slides);
+                initDadokMainBillboard(slides);
+            }
+
+            let dadokMainBillboardIndex = 0;
+            let dadokMainBillboardTimer = null;
+            let dadokMainBillboardPauseDepth = 0;
+            let dadokMainBillboardIntervalMs = DADOK_BILLBOARD_DEFAULT_INTERVAL_MS;
+            let unsubscribeMainBillboardLive = null;
+
+            function initDadokMainBillboard(slidesParam) {
+                const root = document.getElementById('dadok-main-billboard');
+                const cap = document.getElementById('dadok-billboard-caption');
+                const eyebrow = document.getElementById('dadok-billboard-eyebrow');
+                const grad = document.getElementById('dadok-billboard-gradient');
+                const img = document.getElementById('dadok-billboard-img');
+                const dotsEl = document.getElementById('dadok-billboard-dots');
+                const touch = document.getElementById('dadok-billboard-touch');
+                if (!root || !cap || !grad || !img || !dotsEl || !touch) return;
+                const slides =
+                    Array.isArray(slidesParam) && slidesParam.length
+                        ? slidesParam
+                        : DADOK_MAIN_BILLBOARD_SLIDES;
+                if (!slides.length) return;
+
+                const clearTimer = () => {
+                    if (dadokMainBillboardTimer) {
+                        clearInterval(dadokMainBillboardTimer);
+                        dadokMainBillboardTimer = null;
+                    }
+                };
+
+                const startTimer = () => {
+                    clearTimer();
+                    if (dadokMainBillboardPauseDepth > 0) return;
+                    dadokMainBillboardTimer = setInterval(() => {
+                        dadokMainBillboardIndex = (dadokMainBillboardIndex + 1) % slides.length;
+                        showSlideAnimated();
+                    }, dadokMainBillboardIntervalMs);
+                };
+
+                const syncDots = () => {
+                    const btns = dotsEl.querySelectorAll('.dadok-main-billboard__dot');
+                    btns.forEach((btn, i) => {
+                        if (i === dadokMainBillboardIndex) btn.setAttribute('aria-current', 'true');
+                        else btn.removeAttribute('aria-current');
+                    });
+                };
+
+                const applySlideVisual = () => {
+                    const slide = slides[dadokMainBillboardIndex];
+                    const bg = slide.gradient || DADOK_BILLBOARD_DEFAULT_GRAD;
+                    grad.style.background = bg;
+
+                    if (eyebrow) {
+                        eyebrow.textContent = slide.category || 'Da:dok Lounge';
+                    }
+
+                    const url = slide.image && String(slide.image).trim();
+                    img.onload = null;
+                    img.onerror = null;
+
+                    if (url) {
+                        img.onerror = () => {
+                            img.classList.remove('is-visible');
+                            grad.classList.remove('is-covered');
+                        };
+                        img.onload = () => {
+                            img.classList.add('is-visible');
+                            grad.classList.add('is-covered');
+                        };
+                        img.alt = slide.alt || slide.category || '';
+                        img.src = url;
+                        if (img.complete && img.naturalWidth > 0) {
+                            img.classList.add('is-visible');
+                            grad.classList.add('is-covered');
+                        }
+                    } else {
+                        img.removeAttribute('src');
+                        img.removeAttribute('alt');
+                        img.classList.remove('is-visible');
+                        grad.classList.remove('is-covered');
+                    }
+                    cap.textContent = (slide.caption && String(slide.caption).trim()) || '\u00a0';
+                };
+
+                const showInstant = () => {
+                    applySlideVisual();
+                    syncDots();
+                };
+
+                const showSlideAnimated = () => {
+                    cap.classList.add('opacity-0');
+                    if (eyebrow) eyebrow.classList.add('opacity-0');
+                    setTimeout(() => {
+                        applySlideVisual();
+                        syncDots();
+                        cap.classList.remove('opacity-0');
+                        if (eyebrow) eyebrow.classList.remove('opacity-0');
+                    }, 240);
+                };
+
+                dotsEl.innerHTML = '';
+                slides.forEach((_, i) => {
+                    const b = document.createElement('button');
+                    b.type = 'button';
+                    b.className = 'dadok-main-billboard__dot';
+                    b.setAttribute('aria-label', `메인 안내 ${i + 1}번째`);
+                    b.addEventListener('click', () => {
+                        if (i === dadokMainBillboardIndex) return;
+                        dadokMainBillboardIndex = i;
+                        showSlideAnimated();
+                        clearTimer();
+                        startTimer();
+                    });
+                    dotsEl.appendChild(b);
+                });
+
+                showInstant();
+
+                const goNext = () => {
+                    dadokMainBillboardIndex = (dadokMainBillboardIndex + 1) % slides.length;
+                    showSlideAnimated();
+                };
+                const goPrev = () => {
+                    dadokMainBillboardIndex =
+                        (dadokMainBillboardIndex - 1 + slides.length) % slides.length;
+                    showSlideAnimated();
+                };
+
+                // 재초기화 시 중복 이벤트 방지: 이전 핸들러 제거
+                if (touch.__dadokTouchStart) {
+                    touch.removeEventListener('touchstart', touch.__dadokTouchStart);
+                    touch.removeEventListener('touchmove', touch.__dadokTouchMove);
+                    touch.removeEventListener('touchend', touch.__dadokTouchEnd);
+                    touch.removeEventListener('touchcancel', touch.__dadokTouchCancel);
+                }
+                if (root.__dadokMouseEnter) {
+                    root.removeEventListener('mouseenter', root.__dadokMouseEnter);
+                    root.removeEventListener('mouseleave', root.__dadokMouseLeave);
+                }
+
+                let touchStartX = 0;
+                let touchStartY = 0;
+                let touchMoved = false;
+                let lockHorizontalSwipe = false;
+                let swipeLockUntilMs = 0;
+
+                const onTouchStart = (e) => {
+                    clearTimer(); // 손으로 넘기는 동안 자동 롤링 중지
+                    touchStartX = e.changedTouches[0].screenX;
+                    touchStartY = e.changedTouches[0].screenY;
+                    touchMoved = false;
+                    lockHorizontalSwipe = false;
+                };
+                const onTouchMove = (e) => {
+                    const t = e.changedTouches[0];
+                    const dx = t.screenX - touchStartX;
+                    const dy = t.screenY - touchStartY;
+                    if (!touchMoved) {
+                        touchMoved = true;
+                        lockHorizontalSwipe = Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 8;
+                    }
+                    if (lockHorizontalSwipe) {
+                        e.preventDefault();
+                    }
+                };
+                const onTouchEnd = (e) => {
+                    const nowMs = Date.now();
+                    if (nowMs < swipeLockUntilMs) return;
+                    const dx = e.changedTouches[0].screenX - touchStartX;
+                    if (!lockHorizontalSwipe || Math.abs(dx) < 36) return;
+                    swipeLockUntilMs = nowMs + 280; // 한 번 스와이프 후 짧은 중복 방지
+                    if (dx < 0) goNext();
+                    else goPrev();
+                    clearTimer();
+                    startTimer();
+                };
+                const onTouchCancel = () => {
+                    clearTimer();
+                    startTimer();
+                };
+
+                touch.__dadokTouchStart = onTouchStart;
+                touch.__dadokTouchMove = onTouchMove;
+                touch.__dadokTouchEnd = onTouchEnd;
+                touch.__dadokTouchCancel = onTouchCancel;
+
+                touch.addEventListener('touchstart', onTouchStart, { passive: true });
+                touch.addEventListener('touchmove', onTouchMove, { passive: false });
+                touch.addEventListener('touchend', onTouchEnd, { passive: true });
+                touch.addEventListener('touchcancel', onTouchCancel, { passive: true });
+
+                const onMouseEnter = () => {
+                    dadokMainBillboardPauseDepth += 1;
+                    clearTimer();
+                };
+                const onMouseLeave = () => {
+                    dadokMainBillboardPauseDepth = Math.max(0, dadokMainBillboardPauseDepth - 1);
+                    startTimer();
+                };
+                root.__dadokMouseEnter = onMouseEnter;
+                root.__dadokMouseLeave = onMouseLeave;
+                root.addEventListener('mouseenter', onMouseEnter);
+                root.addEventListener('mouseleave', onMouseLeave);
+
+                startTimer();
+            }
+
+            function bindMainBillboardLiveUpdates() {
+                if (
+                    typeof firebase === 'undefined' ||
+                    !firebase.apps ||
+                    !firebase.apps.length ||
+                    !firebase.firestore
+                ) {
+                    return;
+                }
+                if (typeof unsubscribeMainBillboardLive === 'function') {
+                    unsubscribeMainBillboardLive();
+                    unsubscribeMainBillboardLive = null;
+                }
+                unsubscribeMainBillboardLive = firebase
+                    .firestore()
+                    .collection('app_main_billboard')
+                    .onSnapshot(
+                        () => {
+                            bootMainBillboardCarousel();
+                        },
+                        (err) => {
+                            console.warn('메인 배너 실시간 리스너 오류:', err);
+                        },
+                    );
+            }
+            window.initDadokMainBillboard = initDadokMainBillboard;
+            window.bootMainBillboardCarousel = bootMainBillboardCarousel;
+
+            const todayMoodConfig = {
+                deep_rest: {
+                    message: '깊은 휴식에 맞춘 프리미엄 큐레이션',
+                    badge: '깊은 휴식',
+                    cardClass: 'bg-[linear-gradient(135deg,rgba(255,255,255,0.78),rgba(244,236,223,0.92))]'
+                },
+                light_reset: {
+                    message: '부담 없이 가볍게 회복하는 밸런스 케어',
+                    badge: '가벼운 회복',
+                    cardClass: 'bg-[linear-gradient(135deg,rgba(245,251,248,0.9),rgba(228,241,232,0.88))]'
+                },
+                premium_care: {
+                    message: '하이엔드 집중 관리를 위한 시그니처 코스',
+                    badge: '프리미엄 케어',
+                    cardClass: 'bg-[linear-gradient(135deg,rgba(255,249,236,0.92),rgba(243,223,178,0.78))]'
+                }
+            };
+
+            function setTodayMood(moodKey = 'deep_rest', applyMoodFilters = false) {
+                const resolvedKey = moodFilterPresets[moodKey] ? moodKey : 'deep_rest';
+                const cfg = todayMoodConfig[resolvedKey] || todayMoodConfig.deep_rest;
+                currentTodayMoodKey = resolvedKey;
+
+                const moodCard = document.getElementById('today-mood-card');
+                const moodMessage = document.getElementById('today-mood-message');
+                const moodBadge = document.getElementById('today-mood-badge');
+                const moodButtons = [
+                    { key: 'deep_rest', id: 'mood-deep-rest-btn' },
+                    { key: 'light_reset', id: 'mood-light-reset-btn' },
+                    { key: 'premium_care', id: 'mood-premium-care-btn' }
+                ];
+
+                if (moodCard) {
+                    moodCard.classList.remove(
+                        todayMoodConfig.deep_rest.cardClass,
+                        todayMoodConfig.light_reset.cardClass,
+                        todayMoodConfig.premium_care.cardClass
+                    );
+                    moodCard.classList.add(cfg.cardClass);
+                }
+                if (moodMessage) moodMessage.textContent = cfg.message;
+                if (moodBadge) moodBadge.textContent = cfg.badge;
+
+                moodButtons.forEach((btnInfo) => {
+                    const btn = document.getElementById(btnInfo.id);
+                    if (!btn) return;
+                    if (btnInfo.key === resolvedKey) {
+                        btn.classList.remove('border-[var(--border-subtle)]', 'bg-[var(--surface-raised)]', 'text-[var(--text-sub)]', 'font-medium');
+                        btn.classList.add('border-[var(--point-color)]/55', 'bg-[var(--point-color)]/15', 'text-[var(--point-deep)]', 'font-bold', 'shadow-sm');
+                    } else {
+                        btn.classList.remove('border-[var(--point-color)]/55', 'bg-[var(--point-color)]/15', 'text-[var(--point-deep)]', 'font-bold', 'shadow-sm');
+                        btn.classList.add('border-[var(--border-subtle)]', 'bg-[var(--surface-raised)]', 'text-[var(--text-sub)]', 'font-medium');
+                    }
+                });
+
+                if (applyMoodFilters) {
+                    applyMoodPresetToFilters(resolvedKey);
+                }
+            }
+
+            window.setTodayMood = setTodayMood;
+
             // 초기 실행
             document.addEventListener('DOMContentLoaded', () => {
                 window.partnerCustomReviews = {};
@@ -8433,6 +9419,18 @@ const filterSheet = document.getElementById('filter-sheet');
                     checkLoginState();
                 }
                 initSliderDrag();
+                setTodayMood('deep_rest', false);
+                refreshDailyCareTip();
+                clearRecentViewedPartners(true); // 새로고침/앱 재진입 시 초기화
+                renderRecentViewedPartners();
+                setQuickSortMode(quickSortMode);
+                bootMainBillboardCarousel();
+                bindMainBillboardLiveUpdates();
+            });
+
+            window.addEventListener('storage', (e) => {
+                if (e.key !== 'dadok_main_billboard_bump') return;
+                bootMainBillboardCarousel();
             });
 
             // 다독 초이스 무한 자동 스크롤 & 마우스 드래그 기능
@@ -9253,6 +10251,10 @@ const filterSheet = document.getElementById('filter-sheet');
             </div>`;
                         menuContainer.insertAdjacentHTML('beforeend', itemHtml);
                     });
+                    // 저장된 코스가 없으면 예시 입력폼 1개를 기본으로 표시
+                    if (menus.length === 0 && typeof addMenuItem === 'function') {
+                        addMenuItem();
+                    }
                 }
 
                 if (typeof window.applyPartnerDashboardCategoriesFromPartner === 'function') {

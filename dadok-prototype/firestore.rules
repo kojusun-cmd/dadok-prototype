@@ -117,6 +117,12 @@ service cloud.firestore {
       allow create, update, delete: if isSignedInAdmin();
     }
 
+    // 앱 메인 넓은 배너(간판): 소비자 앱은 읽기, 관리자만 편집
+    match /app_main_billboard/{docId} {
+      allow read: if true;
+      allow create, update, delete: if isSignedInAdmin();
+    }
+
     // 운영/관리자 영역은 관리자 계정만 접근
     match /admin_configs/{docId} {
       allow read, write: if isSignedInAdmin();

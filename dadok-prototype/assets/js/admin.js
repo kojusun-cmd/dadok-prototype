@@ -2388,6 +2388,7 @@ async function switchTab(tabId) {
         loadAdminChatConsole();
     }
     else if (tabId === 'cs') loadCSTickets();
+    else if (tabId === 'main-billboard') loadMainBillboardAdmin();
 
     if (Object.prototype.hasOwnProperty.call(SIDEBAR_BADGE_MAP, tabId)) {
         markSidebarCategoryAsSeen(tabId);
@@ -8684,3 +8685,337 @@ document.addEventListener('DOMContentLoaded', () => {
     initCSTicketsListener();
     filterCSTickets('customer_report');
 });
+
+// ─── 앱 메인 넓은 배너: Firestore `app_main_billboard` + Storage ───
+let mainBillboardAdminCache = [];
+const MAIN_BILLBOARD_SLOT_COUNT = 4;
+const MAIN_BILLBOARD_CONFIG_DOC_ID = '__config';
+const MAIN_BILLBOARD_DEFAULT_INTERVAL_SEC = 7.2;
+let mainBillboardIntervalSec = MAIN_BILLBOARD_DEFAULT_INTERVAL_SEC;
+
+function publishMainBillboardRefreshSignal() {
+    try {
+        localStorage.setItem('dadok_main_billboard_bump', String(Date.now()));
+    } catch (e) {
+        console.warn('메인 배너 갱신 신호 저장 실패:', e);
+    }
+}
+
+function normalizeMainBillboardAdminDoc(id, raw = {}) {
+    return {
+        id,
+        sortOrder: Number.isFinite(Number(raw.sortOrder)) ? Number(raw.sortOrder) : 0,
+        enabled: raw.enabled !== false,
+        categoryLabel: String(raw.categoryLabel || '').trim(),
+        bottomTitle: String(raw.bottomTitle || '').trim(),
+        imageUrl: String(raw.imageUrl || '').trim(),
+        imageStoragePath: String(raw.imageStoragePath || '').trim(),
+        gradientFallback: String(raw.gradientFallback || '').trim(),
+    };
+}
+
+function validateMainBillboardImageFile(file) {
+    if (!file) return { ok: false, message: '파일을 선택해주세요.' };
+    const t = String(file.type || '').toLowerCase();
+    if (!['image/jpeg', 'image/png', 'image/webp', 'image/gif'].includes(t)) {
+        return { ok: false, message: 'JPG, PNG, WebP, GIF 이미지만 업로드할 수 있습니다.' };
+    }
+    if (file.size > 6 * 1024 * 1024) {
+        return { ok: false, message: '파일 크기는 6MB 이하여야 합니다.' };
+    }
+    return { ok: true };
+}
+
+async function tryDeleteMainBillboardStoragePath(path) {
+    const p = String(path || '').trim();
+    if (!p || typeof firebase === 'undefined' || typeof firebase.storage !== 'function') return;
+    try {
+        await firebase.storage().ref(p).delete();
+    } catch (e) {
+        console.warn('Storage 삭제 스킵:', p, e);
+    }
+}
+
+async function fetchMainBillboardAdminRows() {
+    const snap = await db.collection('app_main_billboard').get();
+    const rows = [];
+    snap.forEach((doc) => {
+        const d = doc.data() || {};
+        if (d.isConfig === true || doc.id === MAIN_BILLBOARD_CONFIG_DOC_ID) return;
+        rows.push(normalizeMainBillboardAdminDoc(doc.id, d));
+    });
+    rows.sort((a, b) => a.sortOrder - b.sortOrder);
+    return rows;
+}
+
+async function loadMainBillboardConfig() {
+    const input = document.getElementById('mbb-speed-input');
+    try {
+        const doc = await db.collection('app_main_billboard').doc(MAIN_BILLBOARD_CONFIG_DOC_ID).get();
+        if (doc.exists) {
+            const d = doc.data() || {};
+            const sec = Number(d.slideIntervalSec);
+            if (Number.isFinite(sec) && sec >= 2 && sec <= 20) {
+                mainBillboardIntervalSec = sec;
+            }
+        }
+    } catch (e) {
+        console.warn('메인 배너 속도 설정 로드 실패:', e);
+    }
+    if (input) input.value = String(mainBillboardIntervalSec);
+}
+
+async function ensureMainBillboardSlots() {
+    const rows = await fetchMainBillboardAdminRows();
+    const existingOrders = new Set(rows.map((r) => r.sortOrder));
+    const needOrders = [];
+    for (let i = 0; i < MAIN_BILLBOARD_SLOT_COUNT; i += 1) {
+        if (!existingOrders.has(i)) needOrders.push(i);
+    }
+    for (const order of needOrders) {
+        await db.collection('app_main_billboard').add({
+            sortOrder: order,
+            enabled: true,
+            categoryLabel: '',
+            bottomTitle: '',
+            imageUrl: '',
+            imageStoragePath: '',
+            gradientFallback: '',
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        });
+    }
+    return await fetchMainBillboardAdminRows();
+}
+
+async function loadMainBillboardAdmin() {
+    const wrap = document.getElementById('main-billboard-list');
+    if (!wrap) return;
+    wrap.innerHTML =
+        '<div class="bg-[#0A1B13] border border-[#2A3731] rounded-2xl p-8 text-center text-[#A7B2AE]">불러오는 중…</div>';
+    try {
+        await loadMainBillboardConfig();
+        const rows = await ensureMainBillboardSlots();
+        mainBillboardAdminCache = rows
+            .filter((r) => r.sortOrder >= 0 && r.sortOrder < MAIN_BILLBOARD_SLOT_COUNT)
+            .sort((a, b) => a.sortOrder - b.sortOrder);
+        renderMainBillboardAdmin();
+    } catch (e) {
+        console.error(e);
+        wrap.innerHTML = `<div class="bg-red-900/30 border border-red-800 rounded-2xl p-6 text-red-200 text-sm">불러오기 실패: ${escapeHtml(
+            e.message || String(e),
+        )}</div>`;
+    }
+}
+
+function renderMainBillboardAdmin() {
+    const wrap = document.getElementById('main-billboard-list');
+    if (!wrap) return;
+    if (!mainBillboardAdminCache.length) {
+        wrap.innerHTML = `<div class="bg-[#0A1B13] border border-[#2A3731] rounded-2xl p-10 text-center text-[#A7B2AE]">
+            배너 슬롯을 불러오지 못했습니다. 새로고침 후 다시 시도해주세요.
+        </div>`;
+        return;
+    }
+    wrap.innerHTML = mainBillboardAdminCache
+        .map((row, idx) => {
+            const previewSrc = row.imageUrl ? escapeHtml(row.imageUrl) : '';
+            const cat = escapeHtml(row.categoryLabel);
+            const title = escapeHtml(row.bottomTitle);
+            const grad = escapeHtml(row.gradientFallback);
+            const prevHtml = previewSrc
+                ? `<img src="${previewSrc}" alt="" class="w-full h-full object-cover" loading="lazy" />`
+                : `<div class="w-full h-full flex items-center justify-center text-[10px] text-[#5c665e] px-1 text-center">이미지 없음<br />(그라데이션)</div>`;
+            return `
+        <div class="bg-[#0A1B13] border border-[#2A3731] rounded-2xl p-5 shadow-lg" data-mbb-doc="${escapeHtml(row.id)}">
+            <div class="flex flex-wrap items-center justify-between gap-3 mb-4 pb-3 border-b border-[#2A3731]">
+                <div class="flex flex-wrap items-center gap-2">
+                    <label class="flex items-center gap-2 text-sm text-[#A7B2AE] cursor-pointer">
+                        <input type="checkbox" class="mbb-enabled w-4 h-4 rounded border-[#2A3731] bg-[#06110D]" onchange="saveMainBillboardSlide('${escapeHtml(row.id)}', true)" ${
+                            row.enabled ? 'checked' : ''
+                        } />
+                        <span>노출</span>
+                    </label>
+                    <span class="text-xs text-[#5c665e] font-mono">배너 ${idx + 1} / ${MAIN_BILLBOARD_SLOT_COUNT} · sort ${row.sortOrder}</span>
+                </div>
+                <div class="text-xs text-[#8C9A95]">고정 슬롯</div>
+            </div>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-bold text-[#8C9A95] mb-1">배너 카테고리 (상단 라벨)</label>
+                    <input type="text" class="mbb-cat w-full bg-[#06110D] border border-[#2A3731] rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-[var(--point-color)]" placeholder="예: 브랜드, 이벤트, 안내" value="${cat}" onchange="saveMainBillboardSlide('${escapeHtml(row.id)}', true)" />
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-[#8C9A95] mb-1">하단 제목 (스크림 문구)</label>
+                    <textarea rows="2" class="mbb-title w-full bg-[#06110D] border border-[#2A3731] rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-[var(--point-color)] resize-none" placeholder="배너 하단에 크게 보여줄 한 줄" onchange="saveMainBillboardSlide('${escapeHtml(row.id)}', true)">${title}</textarea>
+                </div>
+            </div>
+            <div class="mt-4 grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
+                <div class="md:col-span-3">
+                    <label class="block text-xs font-bold text-[#8C9A95] mb-1">미리보기</label>
+                    <div class="aspect-[2.2/1] rounded-xl overflow-hidden bg-[#06110D] border border-[#2A3731] max-h-[120px]">${prevHtml}</div>
+                </div>
+                <div class="md:col-span-9 flex flex-col sm:flex-row gap-3 sm:items-end">
+                    <div class="flex-1">
+                        <label class="block text-xs font-bold text-[#8C9A95] mb-1">이미지 파일 (Storage 업로드)</label>
+                        <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" class="mbb-file w-full text-xs text-[#A7B2AE] file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-[#11291D] file:text-[var(--point-color)]" onchange="handleMainBillboardFileSelect('${escapeHtml(row.id)}', this)" />
+                    </div>
+                    <button type="button" onclick="saveMainBillboardSlide('${escapeHtml(row.id)}')" class="px-5 py-2.5 rounded-xl bg-[#11291D] border border-[var(--point-color)] text-[var(--point-color)] font-bold text-sm hover:bg-[#1A3A2A] shrink-0">필드 저장</button>
+                </div>
+            </div>
+            <div class="mt-3">
+                <label class="block text-xs font-bold text-[#8C9A95] mb-1">그라데이션 폴백 (CSS · 이미지 없거나 로드 실패 시)</label>
+                <input type="text" class="mbb-grad w-full bg-[#06110D] border border-[#2A3731] rounded-xl px-3 py-2 text-xs font-mono text-[#C8D1CD] focus:outline-none focus:border-[var(--point-color)]" placeholder="linear-gradient(...)" value="${grad}" onchange="saveMainBillboardSlide('${escapeHtml(row.id)}', true)" />
+            </div>
+        </div>`;
+        })
+        .join('');
+}
+
+async function addMainBillboardSlide() {
+    alert('메인 배너는 4개 고정 슬롯입니다. 기존 배너 1~4를 편집해서 사용해 주세요.');
+    return;
+}
+
+async function deleteMainBillboardSlide(docId) {
+    alert('메인 배너는 4개 고정 슬롯이라 삭제할 수 없습니다. 노출 해제를 사용해 주세요.');
+    return;
+}
+
+async function moveMainBillboardSlide(docId, dir) {
+    alert('메인 배너는 4개 고정 슬롯입니다. 순서는 배너 1~4로 고정됩니다.');
+    return;
+}
+
+async function addMainBillboardSlide__legacy() {
+    try {
+        const rows = await fetchMainBillboardAdminRows();
+        const maxOrder = rows.length ? Math.max(...rows.map((r) => r.sortOrder)) : -1;
+        await db.collection('app_main_billboard').add({
+            sortOrder: maxOrder + 1,
+            enabled: true,
+            categoryLabel: '',
+            bottomTitle: '',
+            imageUrl: '',
+            imageStoragePath: '',
+            gradientFallback: '',
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        });
+        await loadMainBillboardAdmin();
+        alert('슬라이드가 추가되었습니다. 카테고리·하단 제목·이미지를 입력한 뒤 저장해 주세요.');
+    } catch (e) {
+        console.error(e);
+        alert(`추가 실패: ${e.message || e}`);
+    }
+}
+
+function readMainBillboardForm(docId) {
+    const id = String(docId || '');
+    const card = document.querySelector('[data-mbb-doc="' + id.replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"]');
+    if (!card) return null;
+    return {
+        enabled: !!card.querySelector('.mbb-enabled')?.checked,
+        categoryLabel: card.querySelector('.mbb-cat')?.value?.trim() || '',
+        bottomTitle: card.querySelector('.mbb-title')?.value?.trim() || '',
+        gradientFallback: card.querySelector('.mbb-grad')?.value?.trim() || '',
+    };
+}
+
+async function saveMainBillboardSlide(docId, silent = false) {
+    const parsed = readMainBillboardForm(docId);
+    if (!parsed) return;
+    try {
+        await db
+            .collection('app_main_billboard')
+            .doc(docId)
+            .update({
+                enabled: parsed.enabled,
+                categoryLabel: parsed.categoryLabel,
+                bottomTitle: parsed.bottomTitle,
+                gradientFallback: parsed.gradientFallback,
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+            });
+        publishMainBillboardRefreshSignal();
+        if (!silent) alert('저장되었습니다.');
+        await loadMainBillboardAdmin();
+    } catch (e) {
+        console.error(e);
+        alert(`저장 실패: ${e.message || e}`);
+    }
+}
+
+window.handleMainBillboardFileSelect = async function (docId, inputEl) {
+    const file = inputEl?.files?.[0];
+    if (!inputEl) return;
+    inputEl.value = '';
+    const v = validateMainBillboardImageFile(file);
+    if (!v.ok) {
+        alert(v.message);
+        return;
+    }
+    if (typeof firebase === 'undefined' || typeof firebase.storage !== 'function') {
+        alert('Storage를 사용할 수 없습니다.');
+        return;
+    }
+    try {
+        const docRef = db.collection('app_main_billboard').doc(docId);
+        const prev = await docRef.get();
+        const oldPath = prev.exists ? String(prev.data()?.imageStoragePath || '').trim() : '';
+
+        const ext = (file.name && file.name.includes('.') ? file.name.split('.').pop() : 'jpg') || 'jpg';
+        const safeExt = String(ext).replace(/[^a-z0-9]/gi, '').slice(0, 8) || 'jpg';
+        const storagePath = `app_main_billboard/${docId}/${Date.now()}_banner.${safeExt}`;
+        const ref = firebase.storage().ref().child(storagePath);
+        await ref.put(file);
+        const url = await ref.getDownloadURL();
+        await docRef.update({
+            imageUrl: url,
+            imageStoragePath: storagePath,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        });
+        publishMainBillboardRefreshSignal();
+        if (oldPath && oldPath !== storagePath) await tryDeleteMainBillboardStoragePath(oldPath);
+        alert('이미지가 업로드되었습니다.');
+        await loadMainBillboardAdmin();
+    } catch (e) {
+        console.error(e);
+        alert(`업로드 실패: ${e.message || e}`);
+    }
+};
+
+window.addMainBillboardSlide = addMainBillboardSlide;
+window.saveMainBillboardSlide = saveMainBillboardSlide;
+window.deleteMainBillboardSlide = deleteMainBillboardSlide;
+window.moveMainBillboardSlide = moveMainBillboardSlide;
+window.loadMainBillboardAdmin = loadMainBillboardAdmin;
+
+async function saveMainBillboardSpeed() {
+    const input = document.getElementById('mbb-speed-input');
+    if (!input) return;
+    const sec = Number(input.value);
+    if (!Number.isFinite(sec) || sec < 2 || sec > 20) {
+        alert('전환 속도는 2~20초 사이 숫자로 입력해주세요.');
+        return;
+    }
+    const normalized = Math.round(sec * 10) / 10;
+    try {
+        await db
+            .collection('app_main_billboard')
+            .doc(MAIN_BILLBOARD_CONFIG_DOC_ID)
+            .set(
+                {
+                    isConfig: true,
+                    slideIntervalSec: normalized,
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                },
+                { merge: true },
+            );
+        publishMainBillboardRefreshSignal();
+        mainBillboardIntervalSec = normalized;
+        input.value = String(normalized);
+        alert(`메인 배너 전환 속도를 ${normalized}초로 저장했습니다.`);
+    } catch (e) {
+        console.error(e);
+        alert(`전환 속도 저장 실패: ${e.message || e}`);
+    }
+}
+window.saveMainBillboardSpeed = saveMainBillboardSpeed;
